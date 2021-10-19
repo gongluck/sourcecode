@@ -9,3 +9,11 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
+#files
+gcc-11.2.0.tar
+
+#dirs
+libstdc++-2.91
+gcc-4.9.2
+gcc-11.2.0
