@@ -18,7 +18,7 @@
 // This file WILL BE REMOVED in a future release.
 //
 // DO NOT USE THIS FILE unless you have an old container implementation
-// that requires an allocator with the HP-style interface.  
+// that requires an allocator with the HP-style interface.
 //
 // Standard-conforming allocators have a very different interface.  The
 // standard default allocator is declared in the header <memory>.
@@ -29,59 +29,73 @@
 #include "new.h"
 #include <stddef.h>
 #include <stdlib.h>
-#include <limits.h> 
-#include "iostream.h" 
+#include <limits.h>
+#include "iostream.h"
 #include "algobase.h"
 
-
+//包装::operator new
 template <class _Tp>
-inline _Tp* allocate(ptrdiff_t __size, _Tp*) {
+inline _Tp *allocate(ptrdiff_t __size, _Tp *)
+{
     set_new_handler(0);
-    _Tp* __tmp = (_Tp*)(::operator new((size_t)(__size * sizeof(_Tp))));
-    if (__tmp == 0) {
-	cerr << "out of memory" << endl; 
-	exit(1);
+    _Tp *__tmp = (_Tp *)(::operator new((size_t)(__size * sizeof(_Tp))));
+    if (__tmp == 0)
+    {
+        cerr << "out of memory" << endl;
+        exit(1);
     }
     return __tmp;
 }
 
-
+//包装::operator delete
 template <class _Tp>
-inline void deallocate(_Tp* __buffer) {
+inline void deallocate(_Tp *__buffer)
+{
     ::operator delete(__buffer);
 }
 
 template <class _Tp>
-class allocator {
+class allocator
+{
 public:
+    //下列类型定义可被萃取机使用
     typedef _Tp value_type;
-    typedef _Tp* pointer;
-    typedef const _Tp* const_pointer;
-    typedef _Tp& reference;
-    typedef const _Tp& const_reference;
+    typedef _Tp *pointer;
+    typedef const _Tp *const_pointer;
+    typedef _Tp &reference;
+    typedef const _Tp &const_reference;
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
-    pointer allocate(size_type __n) { 
-	return ::allocate((difference_type)__n, (pointer)0);
+
+    //内存分配函数
+    pointer allocate(size_type __n)
+    {
+        //分配n个_Tp的内存
+        return ::allocate((difference_type)__n, (pointer)0);
     }
+
+    //内存释放函数
     void deallocate(pointer __p) { ::deallocate(__p); }
+    
     pointer address(reference __x) { return (pointer)&__x; }
-    const_pointer const_address(const_reference __x) { 
-	return (const_pointer)&__x; 
+    const_pointer const_address(const_reference __x)
+    {
+        return (const_pointer)&__x;
     }
-    size_type init_page_size() { 
-	return max(size_type(1), size_type(4096/sizeof(_Tp))); 
+    size_type init_page_size()
+    {
+        return max(size_type(1), size_type(4096 / sizeof(_Tp)));
     }
-    size_type max_size() const { 
-	return max(size_type(1), size_type(UINT_MAX/sizeof(_Tp))); 
+    size_type max_size() const
+    {
+        return max(size_type(1), size_type(UINT_MAX / sizeof(_Tp)));
     }
 };
 
-class allocator<void> {
+class allocator<void>
+{
 public:
-    typedef void* pointer;
+    typedef void *pointer;
 };
-
-
 
 #endif /* _CPP_BACKWARD_DEFALLOC_H */
