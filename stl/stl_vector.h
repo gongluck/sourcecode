@@ -1,27 +1,3 @@
-// Vector implementation -*- C++ -*-
-
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
-//
-// This file is part of the GNU ISO C++ Library.  This library is free
-// software; you can redistribute it and/or modify it under the
-// terms of the GNU General Public License as published by the
-// Free Software Foundation; either version 3, or (at your option)
-// any later version.
-
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// Under Section 7 of GPL version 3, you are granted additional
-// permissions described in the GCC Runtime Library Exception, version
-// 3.1, as published by the Free Software Foundation.
-
-// You should have received a copy of the GNU General Public License and
-// a copy of the GCC Runtime Library Exception along with this program;
-// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
-// <http://www.gnu.org/licenses/>.
-
 /*
  *
  * Copyright (c) 1994
@@ -48,1518 +24,1022 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  */
 
-/** @file bits/stl_vector.h
- *  This is an internal header file, included by other library headers.
- *  Do not attempt to use it directly. @headername{vector}
+/* NOTE: This is an internal header file, included by other STL headers.
+ *   You should not attempt to use it directly.
  */
 
-#ifndef _STL_VECTOR_H
-#define _STL_VECTOR_H 1
+#ifndef __SGI_STL_INTERNAL_VECTOR_H
+#define __SGI_STL_INTERNAL_VECTOR_H
 
-#include <bits/stl_iterator_base_funcs.h>
-#include <bits/functexcept.h>
-#include <bits/concept_check.h>
-#if __cplusplus >= 201103L
-#include <initializer_list>
+#include <bits/exception_support.h>
+
+#include <bits/concept_checks.h>
+
+__STL_BEGIN_NAMESPACE
+
+#if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
+#pragma set woff 1174
+#pragma set woff 1375
 #endif
 
-namespace std _GLIBCXX_VISIBILITY(default)
+// The vector base class serves two purposes.  First, its constructor
+// and destructor allocate (but don't initialize) storage.  This makes
+// exception safety easier.  Second, the base class encapsulates all of
+// the differences between SGI-style allocators and standard-conforming
+// allocators.
+
+#ifdef __STL_USE_STD_ALLOCATORS
+
+// Base class for ordinary allocators.
+template <class _Tp, class _Allocator, bool _IsStatic>
+class _Vector_alloc_base
 {
-_GLIBCXX_BEGIN_NAMESPACE_CONTAINER
+public:
+      typedef typename _Alloc_traits<_Tp, _Allocator>::allocator_type
+          allocator_type;
+      allocator_type get_allocator() const { return _M_data_allocator; }
 
-  /// See bits/stl_deque.h's _Deque_base for an explanation.
-  template<typename _Tp, typename _Alloc>
-    struct _Vector_base
-    {
-      typedef typename __gnu_cxx::__alloc_traits<_Alloc>::template
-        rebind<_Tp>::other _Tp_alloc_type;
-      typedef typename __gnu_cxx::__alloc_traits<_Tp_alloc_type>::pointer
-       	pointer;
-
-      struct _Vector_impl 
-      : public _Tp_alloc_type
+      _Vector_alloc_base(const allocator_type &__a)
+          : _M_data_allocator(__a), _M_start(0), _M_finish(0), _M_end_of_storage(0)
       {
-	pointer _M_start;
-	pointer _M_finish;
-	pointer _M_end_of_storage;
+      }
 
-	_Vector_impl()
-	: _Tp_alloc_type(), _M_start(0), _M_finish(0), _M_end_of_storage(0)
-	{ }
+protected:
+      allocator_type _M_data_allocator; //分配器
+      _Tp *_M_start;                    //内存起始
+      _Tp *_M_finish;                   //当前使用结束位置
+      _Tp *_M_end_of_storage;           //内存结束
 
-	_Vector_impl(_Tp_alloc_type const& __a) _GLIBCXX_NOEXCEPT
-	: _Tp_alloc_type(__a), _M_start(0), _M_finish(0), _M_end_of_storage(0)
-	{ }
+      //分配内存
+      _Tp *_M_allocate(size_t __n)
+      {
+            return _M_data_allocator.allocate(__n);
+      }
+      //销毁内存
+      void _M_deallocate(_Tp *__p, size_t __n)
+      {
+            if (__p)
+                  _M_data_allocator.deallocate(__p, __n);
+      }
+};
 
-#if __cplusplus >= 201103L
-	_Vector_impl(_Tp_alloc_type&& __a) noexcept
-	: _Tp_alloc_type(std::move(__a)),
-	  _M_start(0), _M_finish(0), _M_end_of_storage(0)
-	{ }
-#endif
+// Specialization for allocators that have the property that we don't
+// actually have to store an allocator object.
+template <class _Tp, class _Allocator>
+class _Vector_alloc_base<_Tp, _Allocator, true>
+{
+public:
+      typedef typename _Alloc_traits<_Tp, _Allocator>::allocator_type
+          allocator_type;
+      allocator_type get_allocator() const { return allocator_type(); }
 
-	void _M_swap_data(_Vector_impl& __x) _GLIBCXX_NOEXCEPT
-	{
-	  std::swap(_M_start, __x._M_start);
-	  std::swap(_M_finish, __x._M_finish);
-	  std::swap(_M_end_of_storage, __x._M_end_of_storage);
-	}
-      };
-      
-    public:
+      _Vector_alloc_base(const allocator_type &)
+          : _M_start(0), _M_finish(0), _M_end_of_storage(0)
+      {
+      }
+
+protected:
+      _Tp *_M_start;          //内存起始
+      _Tp *_M_finish;         //当前使用结束位置
+      _Tp *_M_end_of_storage; //内存结束
+
+      typedef typename _Alloc_traits<_Tp, _Allocator>::_Alloc_type _Alloc_type;
+      //分配内存
+      _Tp *_M_allocate(size_t __n)
+      {
+            return _Alloc_type::allocate(__n);
+      }
+      //销毁内存
+      void _M_deallocate(_Tp *__p, size_t __n)
+      {
+            _Alloc_type::deallocate(__p, __n);
+      }
+};
+
+template <class _Tp, class _Alloc>
+struct _Vector_base
+    : public _Vector_alloc_base<_Tp, _Alloc,
+                                _Alloc_traits<_Tp, _Alloc>::_S_instanceless>
+{
+      typedef _Vector_alloc_base<_Tp, _Alloc,
+                                 _Alloc_traits<_Tp, _Alloc>::_S_instanceless>
+          _Base;
+      typedef typename _Base::allocator_type allocator_type;
+
+      _Vector_base(const allocator_type &__a) : _Base(__a) {}
+      _Vector_base(size_t __n, const allocator_type &__a) : _Base(__a)
+      {
+            _M_start = _M_allocate(__n);
+            _M_finish = _M_start;
+            _M_end_of_storage = _M_start + __n;
+      }
+
+      ~_Vector_base() { _M_deallocate(_M_start, _M_end_of_storage - _M_start); }
+};
+
+#else /* __STL_USE_STD_ALLOCATORS */
+
+// vector_base处理内存的分配和析构
+template <class _Tp, class _Alloc>
+class _Vector_base
+{
+public:
       typedef _Alloc allocator_type;
+      //获取分配器
+      allocator_type get_allocator() const { return allocator_type(); }
 
-      _Tp_alloc_type&
-      _M_get_Tp_allocator() _GLIBCXX_NOEXCEPT
-      { return *static_cast<_Tp_alloc_type*>(&this->_M_impl); }
-
-      const _Tp_alloc_type&
-      _M_get_Tp_allocator() const _GLIBCXX_NOEXCEPT
-      { return *static_cast<const _Tp_alloc_type*>(&this->_M_impl); }
-
-      allocator_type
-      get_allocator() const _GLIBCXX_NOEXCEPT
-      { return allocator_type(_M_get_Tp_allocator()); }
-
-      _Vector_base()
-      : _M_impl() { }
-
-      _Vector_base(const allocator_type& __a) _GLIBCXX_NOEXCEPT
-      : _M_impl(__a) { }
-
-      _Vector_base(size_t __n)
-      : _M_impl()
-      { _M_create_storage(__n); }
-
-      _Vector_base(size_t __n, const allocator_type& __a)
-      : _M_impl(__a)
-      { _M_create_storage(__n); }
-
-#if __cplusplus >= 201103L
-      _Vector_base(_Tp_alloc_type&& __a) noexcept
-      : _M_impl(std::move(__a)) { }
-
-      _Vector_base(_Vector_base&& __x) noexcept
-      : _M_impl(std::move(__x._M_get_Tp_allocator()))
-      { this->_M_impl._M_swap_data(__x._M_impl); }
-
-      _Vector_base(_Vector_base&& __x, const allocator_type& __a)
-      : _M_impl(__a)
+      _Vector_base(const _Alloc &)
+          : _M_start(0), _M_finish(0), _M_end_of_storage(0) {}
+      _Vector_base(size_t __n, const _Alloc &)
+          : _M_start(0), _M_finish(0), _M_end_of_storage(0)
       {
-	if (__x.get_allocator() == __a)
-	  this->_M_impl._M_swap_data(__x._M_impl);
-	else
-	  {
-	    size_t __n = __x._M_impl._M_finish - __x._M_impl._M_start;
-	    _M_create_storage(__n);
-	  }
-      }
-#endif
-
-      ~_Vector_base() _GLIBCXX_NOEXCEPT
-      { _M_deallocate(this->_M_impl._M_start, this->_M_impl._M_end_of_storage
-		      - this->_M_impl._M_start); }
-
-    public:
-      _Vector_impl _M_impl;
-
-      pointer
-      _M_allocate(size_t __n)
-      {
-	typedef __gnu_cxx::__alloc_traits<_Tp_alloc_type> _Tr;
-	return __n != 0 ? _Tr::allocate(_M_impl, __n) : 0;
+            _M_start = _M_allocate(__n);
+            _M_finish = _M_start;
+            _M_end_of_storage = _M_start + __n;
       }
 
-      void
-      _M_deallocate(pointer __p, size_t __n)
+      ~_Vector_base() { _M_deallocate(_M_start, _M_end_of_storage - _M_start); }
+
+protected:
+      //可用区间[start, end)
+      //已用区间[start, finish)
+      _Tp *_M_start;          //内存起始
+      _Tp *_M_finish;         //当前使用结束位置
+      _Tp *_M_end_of_storage; //内存结束
+
+      //分配器
+      typedef simple_alloc<_Tp, _Alloc> _M_data_allocator;
+      //分配内存
+      _Tp *_M_allocate(size_t __n)
       {
-	typedef __gnu_cxx::__alloc_traits<_Tp_alloc_type> _Tr;
-	if (__p)
-	  _Tr::deallocate(_M_impl, __p, __n);
+            return _M_data_allocator::allocate(__n);
       }
-
-    private:
-      void
-      _M_create_storage(size_t __n)
+      //销毁内存
+      void _M_deallocate(_Tp *__p, size_t __n)
       {
-	this->_M_impl._M_start = this->_M_allocate(__n);
-	this->_M_impl._M_finish = this->_M_impl._M_start;
-	this->_M_impl._M_end_of_storage = this->_M_impl._M_start + __n;
+            _M_data_allocator::deallocate(__p, __n);
       }
-    };
+};
 
+#endif /* __STL_USE_STD_ALLOCATORS */
 
-  /**
-   *  @brief A standard container which offers fixed time access to
-   *  individual elements in any order.
-   *
-   *  @ingroup sequences
-   *
-   *  @tparam _Tp  Type of element.
-   *  @tparam _Alloc  Allocator type, defaults to allocator<_Tp>.
-   *
-   *  Meets the requirements of a <a href="tables.html#65">container</a>, a
-   *  <a href="tables.html#66">reversible container</a>, and a
-   *  <a href="tables.html#67">sequence</a>, including the
-   *  <a href="tables.html#68">optional sequence requirements</a> with the
-   *  %exception of @c push_front and @c pop_front.
-   *
-   *  In some terminology a %vector can be described as a dynamic
-   *  C-style array, it offers fast and efficient access to individual
-   *  elements in any order and saves the user from worrying about
-   *  memory and size allocation.  Subscripting ( @c [] ) access is
-   *  also provided as with C-style arrays.
-  */
-  template<typename _Tp, typename _Alloc = std::allocator<_Tp> >
-    class vector : protected _Vector_base<_Tp, _Alloc>
-    {
-      // Concept requirements.
-      typedef typename _Alloc::value_type                _Alloc_value_type;
-      __glibcxx_class_requires(_Tp, _SGIAssignableConcept)
-      __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept)
-      
-      typedef _Vector_base<_Tp, _Alloc>			 _Base;
-      typedef typename _Base::_Tp_alloc_type		 _Tp_alloc_type;
-      typedef __gnu_cxx::__alloc_traits<_Tp_alloc_type>  _Alloc_traits;
+template <class _Tp, class _Alloc = allocator<_Tp> >
+class vector : protected _Vector_base<_Tp, _Alloc>
+{
+      // requirements:
 
-    public:
-      typedef _Tp					 value_type;
-      typedef typename _Base::pointer                    pointer;
-      typedef typename _Alloc_traits::const_pointer      const_pointer;
-      typedef typename _Alloc_traits::reference          reference;
-      typedef typename _Alloc_traits::const_reference    const_reference;
-      typedef __gnu_cxx::__normal_iterator<pointer, vector> iterator;
-      typedef __gnu_cxx::__normal_iterator<const_pointer, vector>
-      const_iterator;
-      typedef std::reverse_iterator<const_iterator>  const_reverse_iterator;
-      typedef std::reverse_iterator<iterator>		 reverse_iterator;
-      typedef size_t					 size_type;
-      typedef ptrdiff_t					 difference_type;
-      typedef _Alloc                        		 allocator_type;
+      __STL_CLASS_REQUIRES(_Tp, _Assignable);
 
-    protected:
+private:
+      typedef _Vector_base<_Tp, _Alloc> _Base;
+      typedef vector<_Tp, _Alloc> vector_type;
+
+public:
+      typedef _Tp value_type;
+      typedef value_type *pointer;
+      typedef const value_type *const_pointer;
+      typedef __normal_iterator<pointer, vector_type> iterator; //将指针转化迭代器
+      typedef __normal_iterator<const_pointer, vector_type> const_iterator;
+      typedef value_type &reference;
+      typedef const value_type &const_reference;
+      typedef size_t size_type;
+      typedef ptrdiff_t difference_type;
+
+      typedef typename _Base::allocator_type allocator_type;
+      allocator_type get_allocator() const { return _Base::get_allocator(); }
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+      typedef reverse_iterator<const_iterator> const_reverse_iterator;
+      typedef reverse_iterator<iterator> reverse_iterator;
+#else  /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+      typedef reverse_iterator<const_iterator, value_type, const_reference,
+                               difference_type>
+          const_reverse_iterator;
+      typedef reverse_iterator<iterator, value_type, reference, difference_type>
+          reverse_iterator;
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+
+protected:
+#ifdef __STL_HAS_NAMESPACES
       using _Base::_M_allocate;
       using _Base::_M_deallocate;
-      using _Base::_M_impl;
-      using _Base::_M_get_Tp_allocator;
+      using _Base::_M_end_of_storage;
+      using _Base::_M_finish;
+      using _Base::_M_start;
+#endif /* __STL_HAS_NAMESPACES */
 
-    public:
-      // [23.2.4.1] construct/copy/destroy
-      // (assign() and get_allocator() are also listed in this section)
+protected:
+      void _M_insert_aux(iterator __position, const _Tp &__x);
+      void _M_insert_aux(iterator __position);
 
-      /**
-       *  @brief  Creates a %vector with no elements.
-       */
-      vector()
-#if __cplusplus >= 201103L
-      noexcept(is_nothrow_default_constructible<_Alloc>::value)
-#endif
-      : _Base() { }
+public:
+      iterator begin() { return iterator(_M_start); }
+      const_iterator begin() const
+      {
+            return const_iterator(_M_start);
+      }
+      iterator end() { return iterator(_M_finish); }
+      const_iterator end() const { return const_iterator(_M_finish); }
 
-      /**
-       *  @brief  Creates a %vector with no elements.
-       *  @param  __a  An allocator object.
-       */
-      explicit
-      vector(const allocator_type& __a) _GLIBCXX_NOEXCEPT
-      : _Base(__a) { }
+      reverse_iterator rbegin()
+      {
+            return reverse_iterator(end());
+      }
+      const_reverse_iterator rbegin() const
+      {
+            return const_reverse_iterator(end());
+      }
+      reverse_iterator rend()
+      {
+            return reverse_iterator(begin());
+      }
+      const_reverse_iterator rend() const
+      {
+            return const_reverse_iterator(begin());
+      }
 
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Creates a %vector with default constructed elements.
-       *  @param  __n  The number of elements to initially create.
-       *  @param  __a  An allocator.
-       *
-       *  This constructor fills the %vector with @a __n default
-       *  constructed elements.
-       */
-      explicit
-      vector(size_type __n, const allocator_type& __a = allocator_type())
-      : _Base(__n, __a)
-      { _M_default_initialize(__n); }
+      size_type size() const
+      {
+            return size_type(end() - begin());
+      }
+      size_type max_size() const
+      {
+            return size_type(-1) / sizeof(_Tp);
+      }
+      size_type capacity() const
+      {
+            return size_type(const_iterator(_M_end_of_storage) - begin());
+      }
+      bool empty() const
+      {
+            return begin() == end();
+      }
 
-      /**
-       *  @brief  Creates a %vector with copies of an exemplar element.
-       *  @param  __n  The number of elements to initially create.
-       *  @param  __value  An element to copy.
-       *  @param  __a  An allocator.
-       *
-       *  This constructor fills the %vector with @a __n copies of @a __value.
-       */
-      vector(size_type __n, const value_type& __value,
-	     const allocator_type& __a = allocator_type())
-      : _Base(__n, __a)
-      { _M_fill_initialize(__n, __value); }
+      reference operator[](size_type __n) { return *(begin() + __n); }
+      const_reference operator[](size_type __n) const { return *(begin() + __n); }
+
+#ifdef __STL_THROW_RANGE_ERRORS
+      void _M_range_check(size_type __n) const
+      {
+            if (__n >= this->size())
+                  __out_of_range("vector");
+      }
+
+      reference at(size_type __n)
+      {
+            _M_range_check(__n);
+            return (*this)[__n];
+      }
+      const_reference at(size_type __n) const
+      {
+            _M_range_check(__n);
+            return (*this)[__n];
+      }
+#endif /* __STL_THROW_RANGE_ERRORS */
+
+      explicit vector(const allocator_type &__a = allocator_type())
+          : _Base(__a)
+      {
+      }
+
+      vector(size_type __n, const _Tp &__value,
+             const allocator_type &__a = allocator_type())
+          : _Base(__n, __a)
+      {
+            //前n个元素赋值(或者原地构造)为value
+            _M_finish = uninitialized_fill_n(_M_start, __n, __value);
+      }
+
+      explicit vector(size_type __n)
+          : _Base(__n, allocator_type())
+      {
+            //前n个元素赋值(或者原地构造)为默认值
+            _M_finish = uninitialized_fill_n(_M_start, __n, _Tp());
+      }
+
+      vector(const vector<_Tp, _Alloc> &__x)
+          : _Base(__x.size(), __x.get_allocator())
+      {
+            // vector复制
+            _M_finish = uninitialized_copy(__x.begin(), __x.end(), _M_start);
+      }
+
+#ifdef __STL_MEMBER_TEMPLATES
+      // Check whether it's an integral type.  If so, it's not an iterator.
+      template <class _InputIterator>
+      vector(_InputIterator __first, _InputIterator __last,
+             const allocator_type &__a = allocator_type()) : _Base(__a)
+      {
+            typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
+            _M_initialize_aux(__first, __last, _Integral());
+      }
+
+      template <class _Integer>
+      void _M_initialize_aux(_Integer __n, _Integer __value, __true_type)
+      {
+            _M_start = _M_allocate(__n);
+            _M_end_of_storage = _M_start + __n;
+            _M_finish = uninitialized_fill_n(_M_start, __n, __value);
+      }
+
+      template <class _InputIterator>
+      void _M_initialize_aux(_InputIterator __first, _InputIterator __last,
+                             __false_type)
+      {
+            _M_range_initialize(__first, __last, __ITERATOR_CATEGORY(__first));
+      }
+
 #else
-      /**
-       *  @brief  Creates a %vector with copies of an exemplar element.
-       *  @param  __n  The number of elements to initially create.
-       *  @param  __value  An element to copy.
-       *  @param  __a  An allocator.
-       *
-       *  This constructor fills the %vector with @a __n copies of @a __value.
-       */
-      explicit
-      vector(size_type __n, const value_type& __value = value_type(),
-	     const allocator_type& __a = allocator_type())
-      : _Base(__n, __a)
-      { _M_fill_initialize(__n, __value); }
-#endif
-
-      /**
-       *  @brief  %Vector copy constructor.
-       *  @param  __x  A %vector of identical element and allocator types.
-       *
-       *  The newly-created %vector uses a copy of the allocation
-       *  object used by @a __x.  All the elements of @a __x are copied,
-       *  but any extra memory in
-       *  @a __x (for fast expansion) will not be copied.
-       */
-      vector(const vector& __x)
-      : _Base(__x.size(),
-        _Alloc_traits::_S_select_on_copy(__x._M_get_Tp_allocator()))
-      { this->_M_impl._M_finish =
-	  std::__uninitialized_copy_a(__x.begin(), __x.end(),
-				      this->_M_impl._M_start,
-				      _M_get_Tp_allocator());
-      }
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  %Vector move constructor.
-       *  @param  __x  A %vector of identical element and allocator types.
-       *
-       *  The newly-created %vector contains the exact contents of @a __x.
-       *  The contents of @a __x are a valid, but unspecified %vector.
-       */
-      vector(vector&& __x) noexcept
-      : _Base(std::move(__x)) { }
-
-      /// Copy constructor with alternative allocator
-      vector(const vector& __x, const allocator_type& __a)
-      : _Base(__x.size(), __a)
-      { this->_M_impl._M_finish =
-	  std::__uninitialized_copy_a(__x.begin(), __x.end(),
-				      this->_M_impl._M_start,
-				      _M_get_Tp_allocator());
-      }
-
-      /// Move constructor with alternative allocator
-      vector(vector&& __rv, const allocator_type& __m)
-      noexcept(_Alloc_traits::_S_always_equal())
-      : _Base(std::move(__rv), __m)
+      //使用[first, last)的元素初始化
+      vector(const _Tp *__first, const _Tp *__last,
+             const allocator_type &__a = allocator_type())
+          : _Base(__last - __first, __a)
       {
-	if (__rv.get_allocator() != __m)
-	  {
-	    this->_M_impl._M_finish =
-	      std::__uninitialized_move_a(__rv.begin(), __rv.end(),
-					  this->_M_impl._M_start,
-					  _M_get_Tp_allocator());
-	    __rv.clear();
-	  }
+            _M_finish = uninitialized_copy(__first, __last, _M_start);
       }
+#endif /* __STL_MEMBER_TEMPLATES */
 
-      /**
-       *  @brief  Builds a %vector from an initializer list.
-       *  @param  __l  An initializer_list.
-       *  @param  __a  An allocator.
-       *
-       *  Create a %vector consisting of copies of the elements in the
-       *  initializer_list @a __l.
-       *
-       *  This will call the element type's copy constructor N times
-       *  (where N is @a __l.size()) and do no memory reallocation.
-       */
-      vector(initializer_list<value_type> __l,
-	     const allocator_type& __a = allocator_type())
-      : _Base(__a)
+      ~vector()
       {
-	_M_range_initialize(__l.begin(), __l.end(),
-			    random_access_iterator_tag());
+            destroy(_M_start, _M_finish);
       }
-#endif
 
-      /**
-       *  @brief  Builds a %vector from a range.
-       *  @param  __first  An input iterator.
-       *  @param  __last  An input iterator.
-       *  @param  __a  An allocator.
-       *
-       *  Create a %vector consisting of copies of the elements from
-       *  [first,last).
-       *
-       *  If the iterators are forward, bidirectional, or
-       *  random-access, then this will call the elements' copy
-       *  constructor N times (where N is distance(first,last)) and do
-       *  no memory reallocation.  But if only input iterators are
-       *  used, then this will do at most 2N calls to the copy
-       *  constructor, and logN memory reallocations.
-       */
-#if __cplusplus >= 201103L
-      template<typename _InputIterator,
-	       typename = std::_RequireInputIter<_InputIterator>>
-        vector(_InputIterator __first, _InputIterator __last,
-	       const allocator_type& __a = allocator_type())
-	: _Base(__a)
-        { _M_initialize_dispatch(__first, __last, __false_type()); }
-#else
-      template<typename _InputIterator>
-        vector(_InputIterator __first, _InputIterator __last,
-	       const allocator_type& __a = allocator_type())
-	: _Base(__a)
-        {
-	  // Check whether it's an integral type.  If so, it's not an iterator.
-	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
-	  _M_initialize_dispatch(__first, __last, _Integral());
-	}
-#endif
-
-      /**
-       *  The dtor only erases the elements, and note that if the
-       *  elements themselves are pointers, the pointed-to memory is
-       *  not touched in any way.  Managing the pointer is the user's
-       *  responsibility.
-       */
-      ~vector() _GLIBCXX_NOEXCEPT
-      { std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
-		      _M_get_Tp_allocator()); }
-
-      /**
-       *  @brief  %Vector assignment operator.
-       *  @param  __x  A %vector of identical element and allocator types.
-       *
-       *  All the elements of @a __x are copied, but any extra memory in
-       *  @a __x (for fast expansion) will not be copied.  Unlike the
-       *  copy constructor, the allocator object is not copied.
-       */
-      vector&
-      operator=(const vector& __x);
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  %Vector move assignment operator.
-       *  @param  __x  A %vector of identical element and allocator types.
-       *
-       *  The contents of @a __x are moved into this %vector (without copying,
-       *  if the allocators permit it).
-       *  @a __x is a valid, but unspecified %vector.
-       */
-      vector&
-      operator=(vector&& __x) noexcept(_Alloc_traits::_S_nothrow_move())
+      vector<_Tp, _Alloc> &operator=(const vector<_Tp, _Alloc> &__x);
+      //重分配内存容量
+      void reserve(size_type __n)
       {
-        constexpr bool __move_storage =
-          _Alloc_traits::_S_propagate_on_move_assign()
-          || _Alloc_traits::_S_always_equal();
-        _M_move_assign(std::move(__x),
-                       integral_constant<bool, __move_storage>());
-	return *this;
+            if (capacity() < __n)
+            {
+                  const size_type __old_size = size();
+                  //分配新空间和赋值(或者原地构造)[start, finish)
+                  pointer __tmp = _M_allocate_and_copy(__n, _M_start, _M_finish);
+                  //析构原来的元素
+                  destroy(_M_start, _M_finish);
+                  //销毁原来的内存
+                  _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                  //使用新空间和元素
+                  _M_start = __tmp;
+                  _M_finish = __tmp + __old_size;
+                  _M_end_of_storage = _M_start + __n;
+            }
       }
 
-      /**
-       *  @brief  %Vector list assignment operator.
-       *  @param  __l  An initializer_list.
-       *
-       *  This function fills a %vector with copies of the elements in the
-       *  initializer list @a __l.
-       *
-       *  Note that the assignment completely changes the %vector and
-       *  that the resulting %vector's size is the same as the number
-       *  of elements assigned.  Old data may be lost.
-       */
-      vector&
-      operator=(initializer_list<value_type> __l)
+      // assign(), a generalized assignment member function.  Two
+      // versions: one that takes a count, and one that takes a range.
+      // The range version is a member template, so we dispatch on whether
+      // or not the type is an integer.
+
+      void assign(size_type __n, const _Tp &__val) { _M_fill_assign(__n, __val); }
+      void _M_fill_assign(size_type __n, const _Tp &__val);
+
+#ifdef __STL_MEMBER_TEMPLATES
+
+      template <class _InputIterator>
+      void assign(_InputIterator __first, _InputIterator __last)
       {
-	this->assign(__l.begin(), __l.end());
-	return *this;
+            typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
+            _M_assign_dispatch(__first, __last, _Integral());
       }
-#endif
 
-      /**
-       *  @brief  Assigns a given value to a %vector.
-       *  @param  __n  Number of elements to be assigned.
-       *  @param  __val  Value to be assigned.
-       *
-       *  This function fills a %vector with @a __n copies of the given
-       *  value.  Note that the assignment completely changes the
-       *  %vector and that the resulting %vector's size is the same as
-       *  the number of elements assigned.  Old data may be lost.
-       */
-      void
-      assign(size_type __n, const value_type& __val)
-      { _M_fill_assign(__n, __val); }
-
-      /**
-       *  @brief  Assigns a range to a %vector.
-       *  @param  __first  An input iterator.
-       *  @param  __last   An input iterator.
-       *
-       *  This function fills a %vector with copies of the elements in the
-       *  range [__first,__last).
-       *
-       *  Note that the assignment completely changes the %vector and
-       *  that the resulting %vector's size is the same as the number
-       *  of elements assigned.  Old data may be lost.
-       */
-#if __cplusplus >= 201103L
-      template<typename _InputIterator,
-	       typename = std::_RequireInputIter<_InputIterator>>
-        void
-        assign(_InputIterator __first, _InputIterator __last)
-        { _M_assign_dispatch(__first, __last, __false_type()); }
-#else
-      template<typename _InputIterator>
-        void
-        assign(_InputIterator __first, _InputIterator __last)
-        {
-	  // Check whether it's an integral type.  If so, it's not an iterator.
-	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
-	  _M_assign_dispatch(__first, __last, _Integral());
-	}
-#endif
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Assigns an initializer list to a %vector.
-       *  @param  __l  An initializer_list.
-       *
-       *  This function fills a %vector with copies of the elements in the
-       *  initializer list @a __l.
-       *
-       *  Note that the assignment completely changes the %vector and
-       *  that the resulting %vector's size is the same as the number
-       *  of elements assigned.  Old data may be lost.
-       */
-      void
-      assign(initializer_list<value_type> __l)
-      { this->assign(__l.begin(), __l.end()); }
-#endif
-
-      /// Get a copy of the memory allocation object.
-      using _Base::get_allocator;
-
-      // iterators
-      /**
-       *  Returns a read/write iterator that points to the first
-       *  element in the %vector.  Iteration is done in ordinary
-       *  element order.
-       */
-      iterator
-      begin() _GLIBCXX_NOEXCEPT
-      { return iterator(this->_M_impl._M_start); }
-
-      /**
-       *  Returns a read-only (constant) iterator that points to the
-       *  first element in the %vector.  Iteration is done in ordinary
-       *  element order.
-       */
-      const_iterator
-      begin() const _GLIBCXX_NOEXCEPT
-      { return const_iterator(this->_M_impl._M_start); }
-
-      /**
-       *  Returns a read/write iterator that points one past the last
-       *  element in the %vector.  Iteration is done in ordinary
-       *  element order.
-       */
-      iterator
-      end() _GLIBCXX_NOEXCEPT
-      { return iterator(this->_M_impl._M_finish); }
-
-      /**
-       *  Returns a read-only (constant) iterator that points one past
-       *  the last element in the %vector.  Iteration is done in
-       *  ordinary element order.
-       */
-      const_iterator
-      end() const _GLIBCXX_NOEXCEPT
-      { return const_iterator(this->_M_impl._M_finish); }
-
-      /**
-       *  Returns a read/write reverse iterator that points to the
-       *  last element in the %vector.  Iteration is done in reverse
-       *  element order.
-       */
-      reverse_iterator
-      rbegin() _GLIBCXX_NOEXCEPT
-      { return reverse_iterator(end()); }
-
-      /**
-       *  Returns a read-only (constant) reverse iterator that points
-       *  to the last element in the %vector.  Iteration is done in
-       *  reverse element order.
-       */
-      const_reverse_iterator
-      rbegin() const _GLIBCXX_NOEXCEPT
-      { return const_reverse_iterator(end()); }
-
-      /**
-       *  Returns a read/write reverse iterator that points to one
-       *  before the first element in the %vector.  Iteration is done
-       *  in reverse element order.
-       */
-      reverse_iterator
-      rend() _GLIBCXX_NOEXCEPT
-      { return reverse_iterator(begin()); }
-
-      /**
-       *  Returns a read-only (constant) reverse iterator that points
-       *  to one before the first element in the %vector.  Iteration
-       *  is done in reverse element order.
-       */
-      const_reverse_iterator
-      rend() const _GLIBCXX_NOEXCEPT
-      { return const_reverse_iterator(begin()); }
-
-#if __cplusplus >= 201103L
-      /**
-       *  Returns a read-only (constant) iterator that points to the
-       *  first element in the %vector.  Iteration is done in ordinary
-       *  element order.
-       */
-      const_iterator
-      cbegin() const noexcept
-      { return const_iterator(this->_M_impl._M_start); }
-
-      /**
-       *  Returns a read-only (constant) iterator that points one past
-       *  the last element in the %vector.  Iteration is done in
-       *  ordinary element order.
-       */
-      const_iterator
-      cend() const noexcept
-      { return const_iterator(this->_M_impl._M_finish); }
-
-      /**
-       *  Returns a read-only (constant) reverse iterator that points
-       *  to the last element in the %vector.  Iteration is done in
-       *  reverse element order.
-       */
-      const_reverse_iterator
-      crbegin() const noexcept
-      { return const_reverse_iterator(end()); }
-
-      /**
-       *  Returns a read-only (constant) reverse iterator that points
-       *  to one before the first element in the %vector.  Iteration
-       *  is done in reverse element order.
-       */
-      const_reverse_iterator
-      crend() const noexcept
-      { return const_reverse_iterator(begin()); }
-#endif
-
-      // [23.2.4.2] capacity
-      /**  Returns the number of elements in the %vector.  */
-      size_type
-      size() const _GLIBCXX_NOEXCEPT
-      { return size_type(this->_M_impl._M_finish - this->_M_impl._M_start); }
-
-      /**  Returns the size() of the largest possible %vector.  */
-      size_type
-      max_size() const _GLIBCXX_NOEXCEPT
-      { return _Alloc_traits::max_size(_M_get_Tp_allocator()); }
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Resizes the %vector to the specified number of elements.
-       *  @param  __new_size  Number of elements the %vector should contain.
-       *
-       *  This function will %resize the %vector to the specified
-       *  number of elements.  If the number is smaller than the
-       *  %vector's current size the %vector is truncated, otherwise
-       *  default constructed elements are appended.
-       */
-      void
-      resize(size_type __new_size)
+      template <class _Integer>
+      void _M_assign_dispatch(_Integer __n, _Integer __val, __true_type)
       {
-	if (__new_size > size())
-	  _M_default_append(__new_size - size());
-	else if (__new_size < size())
-	  _M_erase_at_end(this->_M_impl._M_start + __new_size);
+            _M_fill_assign((size_type)__n, (_Tp)__val);
       }
 
-      /**
-       *  @brief  Resizes the %vector to the specified number of elements.
-       *  @param  __new_size  Number of elements the %vector should contain.
-       *  @param  __x  Data with which new elements should be populated.
-       *
-       *  This function will %resize the %vector to the specified
-       *  number of elements.  If the number is smaller than the
-       *  %vector's current size the %vector is truncated, otherwise
-       *  the %vector is extended and new elements are populated with
-       *  given data.
-       */
-      void
-      resize(size_type __new_size, const value_type& __x)
+      template <class _InputIter>
+      void _M_assign_dispatch(_InputIter __first, _InputIter __last, __false_type)
       {
-	if (__new_size > size())
-	  insert(end(), __new_size - size(), __x);
-	else if (__new_size < size())
-	  _M_erase_at_end(this->_M_impl._M_start + __new_size);
+            _M_assign_aux(__first, __last, __ITERATOR_CATEGORY(__first));
       }
-#else
-      /**
-       *  @brief  Resizes the %vector to the specified number of elements.
-       *  @param  __new_size  Number of elements the %vector should contain.
-       *  @param  __x  Data with which new elements should be populated.
-       *
-       *  This function will %resize the %vector to the specified
-       *  number of elements.  If the number is smaller than the
-       *  %vector's current size the %vector is truncated, otherwise
-       *  the %vector is extended and new elements are populated with
-       *  given data.
-       */
-      void
-      resize(size_type __new_size, value_type __x = value_type())
+
+      template <class _InputIterator>
+      void _M_assign_aux(_InputIterator __first, _InputIterator __last,
+                         input_iterator_tag);
+
+      template <class _ForwardIterator>
+      void _M_assign_aux(_ForwardIterator __first, _ForwardIterator __last,
+                         forward_iterator_tag);
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
+      reference front()
       {
-	if (__new_size > size())
-	  insert(end(), __new_size - size(), __x);
-	else if (__new_size < size())
-	  _M_erase_at_end(this->_M_impl._M_start + __new_size);
+            return *begin();
       }
-#endif
+      const_reference front() const { return *begin(); }
+      reference back() { return *(end() - 1); }
+      const_reference back() const { return *(end() - 1); }
 
-#if __cplusplus >= 201103L
-      /**  A non-binding request to reduce capacity() to size().  */
-      void
-      shrink_to_fit()
-      { _M_shrink_to_fit(); }
-#endif
-
-      /**
-       *  Returns the total number of elements that the %vector can
-       *  hold before needing to allocate more memory.
-       */
-      size_type
-      capacity() const _GLIBCXX_NOEXCEPT
-      { return size_type(this->_M_impl._M_end_of_storage
-			 - this->_M_impl._M_start); }
-
-      /**
-       *  Returns true if the %vector is empty.  (Thus begin() would
-       *  equal end().)
-       */
-      bool
-      empty() const _GLIBCXX_NOEXCEPT
-      { return begin() == end(); }
-
-      /**
-       *  @brief  Attempt to preallocate enough memory for specified number of
-       *          elements.
-       *  @param  __n  Number of elements required.
-       *  @throw  std::length_error  If @a n exceeds @c max_size().
-       *
-       *  This function attempts to reserve enough memory for the
-       *  %vector to hold the specified number of elements.  If the
-       *  number requested is more than max_size(), length_error is
-       *  thrown.
-       *
-       *  The advantage of this function is that if optimal code is a
-       *  necessity and the user can determine the number of elements
-       *  that will be required, the user can reserve the memory in
-       *  %advance, and thus prevent a possible reallocation of memory
-       *  and copying of %vector data.
-       */
-      void
-      reserve(size_type __n);
-
-      // element access
-      /**
-       *  @brief  Subscript access to the data contained in the %vector.
-       *  @param __n The index of the element for which data should be
-       *  accessed.
-       *  @return  Read/write reference to data.
-       *
-       *  This operator allows for easy, array-style, data access.
-       *  Note that data access with this operator is unchecked and
-       *  out_of_range lookups are not defined. (For checked lookups
-       *  see at().)
-       */
-      reference
-      operator[](size_type __n) _GLIBCXX_NOEXCEPT
-      { return *(this->_M_impl._M_start + __n); }
-
-      /**
-       *  @brief  Subscript access to the data contained in the %vector.
-       *  @param __n The index of the element for which data should be
-       *  accessed.
-       *  @return  Read-only (constant) reference to data.
-       *
-       *  This operator allows for easy, array-style, data access.
-       *  Note that data access with this operator is unchecked and
-       *  out_of_range lookups are not defined. (For checked lookups
-       *  see at().)
-       */
-      const_reference
-      operator[](size_type __n) const _GLIBCXX_NOEXCEPT
-      { return *(this->_M_impl._M_start + __n); }
-
-    protected:
-      /// Safety check used only from at().
-      void
-      _M_range_check(size_type __n) const
+      void push_back(const _Tp &__x)
       {
-	if (__n >= this->size())
-	  __throw_out_of_range_fmt(__N("vector::_M_range_check: __n "
-				       "(which is %zu) >= this->size() "
-				       "(which is %zu)"),
-				   __n, this->size());
+            if (_M_finish != _M_end_of_storage)
+            {
+                  //原地构造
+                  construct(_M_finish, __x);
+                  ++_M_finish;
+            }
+            else
+                  //空间不够，调用插入函数，内部重新分配空间并插入尾部
+                  _M_insert_aux(end(), __x);
       }
-
-    public:
-      /**
-       *  @brief  Provides access to the data contained in the %vector.
-       *  @param __n The index of the element for which data should be
-       *  accessed.
-       *  @return  Read/write reference to data.
-       *  @throw  std::out_of_range  If @a __n is an invalid index.
-       *
-       *  This function provides for safer data access.  The parameter
-       *  is first checked that it is in the range of the vector.  The
-       *  function throws out_of_range if the check fails.
-       */
-      reference
-      at(size_type __n)
+      void push_back()
       {
-	_M_range_check(__n);
-	return (*this)[__n]; 
+            if (_M_finish != _M_end_of_storage)
+            {
+                  construct(_M_finish);
+                  ++_M_finish;
+            }
+            else
+                  _M_insert_aux(end());
       }
-
-      /**
-       *  @brief  Provides access to the data contained in the %vector.
-       *  @param __n The index of the element for which data should be
-       *  accessed.
-       *  @return  Read-only (constant) reference to data.
-       *  @throw  std::out_of_range  If @a __n is an invalid index.
-       *
-       *  This function provides for safer data access.  The parameter
-       *  is first checked that it is in the range of the vector.  The
-       *  function throws out_of_range if the check fails.
-       */
-      const_reference
-      at(size_type __n) const
+      void swap(vector<_Tp, _Alloc> &__x)
       {
-	_M_range_check(__n);
-	return (*this)[__n];
+            //交换关键(指针)成员即可完成交换！
+            __STD::swap(_M_start, __x._M_start);
+            __STD::swap(_M_finish, __x._M_finish);
+            __STD::swap(_M_end_of_storage, __x._M_end_of_storage);
       }
 
-      /**
-       *  Returns a read/write reference to the data at the first
-       *  element of the %vector.
-       */
-      reference
-      front() _GLIBCXX_NOEXCEPT
-      { return *begin(); }
-
-      /**
-       *  Returns a read-only (constant) reference to the data at the first
-       *  element of the %vector.
-       */
-      const_reference
-      front() const _GLIBCXX_NOEXCEPT
-      { return *begin(); }
-
-      /**
-       *  Returns a read/write reference to the data at the last
-       *  element of the %vector.
-       */
-      reference
-      back() _GLIBCXX_NOEXCEPT
-      { return *(end() - 1); }
-      
-      /**
-       *  Returns a read-only (constant) reference to the data at the
-       *  last element of the %vector.
-       */
-      const_reference
-      back() const _GLIBCXX_NOEXCEPT
-      { return *(end() - 1); }
-
-      // _GLIBCXX_RESOLVE_LIB_DEFECTS
-      // DR 464. Suggestion for new member functions in standard containers.
-      // data access
-      /**
-       *   Returns a pointer such that [data(), data() + size()) is a valid
-       *   range.  For a non-empty %vector, data() == &front().
-       */
-#if __cplusplus >= 201103L
-      _Tp*
-#else
-      pointer
-#endif
-      data() _GLIBCXX_NOEXCEPT
-      { return _M_data_ptr(this->_M_impl._M_start); }
-
-#if __cplusplus >= 201103L
-      const _Tp*
-#else
-      const_pointer
-#endif
-      data() const _GLIBCXX_NOEXCEPT
-      { return _M_data_ptr(this->_M_impl._M_start); }
-
-      // [23.2.4.3] modifiers
-      /**
-       *  @brief  Add data to the end of the %vector.
-       *  @param  __x  Data to be added.
-       *
-       *  This is a typical stack operation.  The function creates an
-       *  element at the end of the %vector and assigns the given data
-       *  to it.  Due to the nature of a %vector this operation can be
-       *  done in constant time if the %vector has preallocated space
-       *  available.
-       */
-      void
-      push_back(const value_type& __x)
+      iterator insert(iterator __position, const _Tp &__x)
       {
-	if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage)
-	  {
-	    _Alloc_traits::construct(this->_M_impl, this->_M_impl._M_finish,
-	                             __x);
-	    ++this->_M_impl._M_finish;
-	  }
-	else
-#if __cplusplus >= 201103L
-	  _M_emplace_back_aux(__x);
-#else
-	  _M_insert_aux(end(), __x);
-#endif
+            size_type __n = __position - begin();
+            //尾部插入并且空间充足，直接在尾部原地构造
+            if (_M_finish != _M_end_of_storage && __position == end())
+            {
+                  construct(_M_finish, __x);
+                  ++_M_finish;
+            }
+            else
+                  _M_insert_aux(iterator(__position), __x);
+            //返回插入元素的前一个位置，可以实现头插法
+            return begin() + __n;
       }
-
-#if __cplusplus >= 201103L
-      void
-      push_back(value_type&& __x)
-      { emplace_back(std::move(__x)); }
-
-      template<typename... _Args>
-        void
-        emplace_back(_Args&&... __args);
-#endif
-
-      /**
-       *  @brief  Removes last element.
-       *
-       *  This is a typical stack operation. It shrinks the %vector by one.
-       *
-       *  Note that no data is returned, and if the last element's
-       *  data is needed, it should be retrieved before pop_back() is
-       *  called.
-       */
-      void
-      pop_back() _GLIBCXX_NOEXCEPT
+      iterator insert(iterator __position)
       {
-	--this->_M_impl._M_finish;
-	_Alloc_traits::destroy(this->_M_impl, this->_M_impl._M_finish);
+            size_type __n = __position - begin();
+            if (_M_finish != _M_end_of_storage && __position == end())
+            {
+                  construct(_M_finish);
+                  ++_M_finish;
+            }
+            else
+                  _M_insert_aux(iterator(__position));
+            return begin() + __n;
       }
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Inserts an object in %vector before specified iterator.
-       *  @param  __position  A const_iterator into the %vector.
-       *  @param  __args  Arguments.
-       *  @return  An iterator that points to the inserted data.
-       *
-       *  This function will insert an object of type T constructed
-       *  with T(std::forward<Args>(args)...) before the specified location.
-       *  Note that this kind of operation could be expensive for a %vector
-       *  and if it is frequently used the user should consider using
-       *  std::list.
-       */
-      template<typename... _Args>
-        iterator
-        emplace(const_iterator __position, _Args&&... __args);
-
-      /**
-       *  @brief  Inserts given value into %vector before specified iterator.
-       *  @param  __position  A const_iterator into the %vector.
-       *  @param  __x  Data to be inserted.
-       *  @return  An iterator that points to the inserted data.
-       *
-       *  This function will insert a copy of the given value before
-       *  the specified location.  Note that this kind of operation
-       *  could be expensive for a %vector and if it is frequently
-       *  used the user should consider using std::list.
-       */
-      iterator
-      insert(const_iterator __position, const value_type& __x);
-#else
-      /**
-       *  @brief  Inserts given value into %vector before specified iterator.
-       *  @param  __position  An iterator into the %vector.
-       *  @param  __x  Data to be inserted.
-       *  @return  An iterator that points to the inserted data.
-       *
-       *  This function will insert a copy of the given value before
-       *  the specified location.  Note that this kind of operation
-       *  could be expensive for a %vector and if it is frequently
-       *  used the user should consider using std::list.
-       */
-      iterator
-      insert(iterator __position, const value_type& __x);
-#endif
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Inserts given rvalue into %vector before specified iterator.
-       *  @param  __position  A const_iterator into the %vector.
-       *  @param  __x  Data to be inserted.
-       *  @return  An iterator that points to the inserted data.
-       *
-       *  This function will insert a copy of the given rvalue before
-       *  the specified location.  Note that this kind of operation
-       *  could be expensive for a %vector and if it is frequently
-       *  used the user should consider using std::list.
-       */
-      iterator
-      insert(const_iterator __position, value_type&& __x)
-      { return emplace(__position, std::move(__x)); }
-
-      /**
-       *  @brief  Inserts an initializer_list into the %vector.
-       *  @param  __position  An iterator into the %vector.
-       *  @param  __l  An initializer_list.
-       *
-       *  This function will insert copies of the data in the 
-       *  initializer_list @a l into the %vector before the location
-       *  specified by @a position.
-       *
-       *  Note that this kind of operation could be expensive for a
-       *  %vector and if it is frequently used the user should
-       *  consider using std::list.
-       */
-      iterator
-      insert(const_iterator __position, initializer_list<value_type> __l)
-      { return this->insert(__position, __l.begin(), __l.end()); }
-#endif
-
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Inserts a number of copies of given data into the %vector.
-       *  @param  __position  A const_iterator into the %vector.
-       *  @param  __n  Number of elements to be inserted.
-       *  @param  __x  Data to be inserted.
-       *  @return  An iterator that points to the inserted data.
-       *
-       *  This function will insert a specified number of copies of
-       *  the given data before the location specified by @a position.
-       *
-       *  Note that this kind of operation could be expensive for a
-       *  %vector and if it is frequently used the user should
-       *  consider using std::list.
-       */
-      iterator
-      insert(const_iterator __position, size_type __n, const value_type& __x)
+#ifdef __STL_MEMBER_TEMPLATES
+      // Check whether it's an integral type.  If so, it's not an iterator.
+      template <class _InputIterator>
+      void insert(iterator __pos, _InputIterator __first, _InputIterator __last)
       {
-	difference_type __offset = __position - cbegin();
-	_M_fill_insert(begin() + __offset, __n, __x);
-	return begin() + __offset;
+            typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
+            _M_insert_dispatch(__pos, __first, __last, _Integral());
       }
-#else
-      /**
-       *  @brief  Inserts a number of copies of given data into the %vector.
-       *  @param  __position  An iterator into the %vector.
-       *  @param  __n  Number of elements to be inserted.
-       *  @param  __x  Data to be inserted.
-       *
-       *  This function will insert a specified number of copies of
-       *  the given data before the location specified by @a position.
-       *
-       *  Note that this kind of operation could be expensive for a
-       *  %vector and if it is frequently used the user should
-       *  consider using std::list.
-       */
-      void
-      insert(iterator __position, size_type __n, const value_type& __x)
-      { _M_fill_insert(__position, __n, __x); }
-#endif
 
-#if __cplusplus >= 201103L
-      /**
-       *  @brief  Inserts a range into the %vector.
-       *  @param  __position  A const_iterator into the %vector.
-       *  @param  __first  An input iterator.
-       *  @param  __last   An input iterator.
-       *  @return  An iterator that points to the inserted data.
-       *
-       *  This function will insert copies of the data in the range
-       *  [__first,__last) into the %vector before the location specified
-       *  by @a pos.
-       *
-       *  Note that this kind of operation could be expensive for a
-       *  %vector and if it is frequently used the user should
-       *  consider using std::list.
-       */
-      template<typename _InputIterator,
-	       typename = std::_RequireInputIter<_InputIterator>>
-        iterator
-        insert(const_iterator __position, _InputIterator __first,
-	       _InputIterator __last)
-        {
-	  difference_type __offset = __position - cbegin();
-	  _M_insert_dispatch(begin() + __offset,
-			     __first, __last, __false_type());
-	  return begin() + __offset;
-	}
-#else
-      /**
-       *  @brief  Inserts a range into the %vector.
-       *  @param  __position  An iterator into the %vector.
-       *  @param  __first  An input iterator.
-       *  @param  __last   An input iterator.
-       *
-       *  This function will insert copies of the data in the range
-       *  [__first,__last) into the %vector before the location specified
-       *  by @a pos.
-       *
-       *  Note that this kind of operation could be expensive for a
-       *  %vector and if it is frequently used the user should
-       *  consider using std::list.
-       */
-      template<typename _InputIterator>
-        void
-        insert(iterator __position, _InputIterator __first,
-	       _InputIterator __last)
-        {
-	  // Check whether it's an integral type.  If so, it's not an iterator.
-	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
-	  _M_insert_dispatch(__position, __first, __last, _Integral());
-	}
-#endif
-
-      /**
-       *  @brief  Remove element at given position.
-       *  @param  __position  Iterator pointing to element to be erased.
-       *  @return  An iterator pointing to the next element (or end()).
-       *
-       *  This function will erase the element at the given position and thus
-       *  shorten the %vector by one.
-       *
-       *  Note This operation could be expensive and if it is
-       *  frequently used the user should consider using std::list.
-       *  The user is also cautioned that this function only erases
-       *  the element, and that if the element is itself a pointer,
-       *  the pointed-to memory is not touched in any way.  Managing
-       *  the pointer is the user's responsibility.
-       */
-      iterator
-#if __cplusplus >= 201103L
-      erase(const_iterator __position)
-      { return _M_erase(begin() + (__position - cbegin())); }
-#else
-      erase(iterator __position)
-      { return _M_erase(__position); }
-#endif
-
-      /**
-       *  @brief  Remove a range of elements.
-       *  @param  __first  Iterator pointing to the first element to be erased.
-       *  @param  __last  Iterator pointing to one past the last element to be
-       *                  erased.
-       *  @return  An iterator pointing to the element pointed to by @a __last
-       *           prior to erasing (or end()).
-       *
-       *  This function will erase the elements in the range
-       *  [__first,__last) and shorten the %vector accordingly.
-       *
-       *  Note This operation could be expensive and if it is
-       *  frequently used the user should consider using std::list.
-       *  The user is also cautioned that this function only erases
-       *  the elements, and that if the elements themselves are
-       *  pointers, the pointed-to memory is not touched in any way.
-       *  Managing the pointer is the user's responsibility.
-       */
-      iterator
-#if __cplusplus >= 201103L
-      erase(const_iterator __first, const_iterator __last)
+      template <class _Integer>
+      void _M_insert_dispatch(iterator __pos, _Integer __n, _Integer __val,
+                              __true_type)
       {
-	const auto __beg = begin();
-	const auto __cbeg = cbegin();
-	return _M_erase(__beg + (__first - __cbeg), __beg + (__last - __cbeg));
+            _M_fill_insert(__pos, (size_type)__n, (_Tp)__val);
       }
-#else
-      erase(iterator __first, iterator __last)
-      { return _M_erase(__first, __last); }
-#endif
 
-      /**
-       *  @brief  Swaps data with another %vector.
-       *  @param  __x  A %vector of the same element and allocator types.
-       *
-       *  This exchanges the elements between two vectors in constant time.
-       *  (Three pointers, so it should be quite fast.)
-       *  Note that the global std::swap() function is specialized such that
-       *  std::swap(v1,v2) will feed to this function.
-       */
-      void
-      swap(vector& __x)
-#if __cplusplus >= 201103L
-      noexcept(_Alloc_traits::_S_nothrow_swap())
-#endif
+      template <class _InputIterator>
+      void _M_insert_dispatch(iterator __pos,
+                              _InputIterator __first, _InputIterator __last,
+                              __false_type)
       {
-	this->_M_impl._M_swap_data(__x._M_impl);
-	_Alloc_traits::_S_on_swap(_M_get_Tp_allocator(),
-	                          __x._M_get_Tp_allocator());
+            _M_range_insert(__pos, __first, __last, __ITERATOR_CATEGORY(__first));
       }
+#else  /* __STL_MEMBER_TEMPLATES */
+      void insert(iterator __position,
+                  const_iterator __first, const_iterator __last);
+#endif /* __STL_MEMBER_TEMPLATES */
 
-      /**
-       *  Erases all the elements.  Note that this function only erases the
-       *  elements, and that if the elements themselves are pointers, the
-       *  pointed-to memory is not touched in any way.  Managing the pointer is
-       *  the user's responsibility.
-       */
-      void
-      clear() _GLIBCXX_NOEXCEPT
-      { _M_erase_at_end(this->_M_impl._M_start); }
-
-    protected:
-      /**
-       *  Memory expansion handler.  Uses the member allocation function to
-       *  obtain @a n bytes of memory, and then copies [first,last) into it.
-       */
-      template<typename _ForwardIterator>
-        pointer
-        _M_allocate_and_copy(size_type __n,
-			     _ForwardIterator __first, _ForwardIterator __last)
-        {
-	  pointer __result = this->_M_allocate(__n);
-	  __try
-	    {
-	      std::__uninitialized_copy_a(__first, __last, __result,
-					  _M_get_Tp_allocator());
-	      return __result;
-	    }
-	  __catch(...)
-	    {
-	      _M_deallocate(__result, __n);
-	      __throw_exception_again;
-	    }
-	}
-
-
-      // Internal constructor functions follow.
-
-      // Called by the range constructor to implement [23.1.1]/9
-
-      // _GLIBCXX_RESOLVE_LIB_DEFECTS
-      // 438. Ambiguity in the "do the right thing" clause
-      template<typename _Integer>
-        void
-        _M_initialize_dispatch(_Integer __n, _Integer __value, __true_type)
-        {
-	  this->_M_impl._M_start = _M_allocate(static_cast<size_type>(__n));
-	  this->_M_impl._M_end_of_storage =
-	    this->_M_impl._M_start + static_cast<size_type>(__n);
-	  _M_fill_initialize(static_cast<size_type>(__n), __value);
-	}
-
-      // Called by the range constructor to implement [23.1.1]/9
-      template<typename _InputIterator>
-        void
-        _M_initialize_dispatch(_InputIterator __first, _InputIterator __last,
-			       __false_type)
-        {
-	  typedef typename std::iterator_traits<_InputIterator>::
-	    iterator_category _IterCategory;
-	  _M_range_initialize(__first, __last, _IterCategory());
-	}
-
-      // Called by the second initialize_dispatch above
-      template<typename _InputIterator>
-        void
-        _M_range_initialize(_InputIterator __first,
-			    _InputIterator __last, std::input_iterator_tag)
-        {
-	  for (; __first != __last; ++__first)
-#if __cplusplus >= 201103L
-	    emplace_back(*__first);
-#else
-	    push_back(*__first);
-#endif
-	}
-
-      // Called by the second initialize_dispatch above
-      template<typename _ForwardIterator>
-        void
-        _M_range_initialize(_ForwardIterator __first,
-			    _ForwardIterator __last, std::forward_iterator_tag)
-        {
-	  const size_type __n = std::distance(__first, __last);
-	  this->_M_impl._M_start = this->_M_allocate(__n);
-	  this->_M_impl._M_end_of_storage = this->_M_impl._M_start + __n;
-	  this->_M_impl._M_finish =
-	    std::__uninitialized_copy_a(__first, __last,
-					this->_M_impl._M_start,
-					_M_get_Tp_allocator());
-	}
-
-      // Called by the first initialize_dispatch above and by the
-      // vector(n,value,a) constructor.
-      void
-      _M_fill_initialize(size_type __n, const value_type& __value)
+      void insert(iterator __pos, size_type __n, const _Tp &__x)
       {
-	std::__uninitialized_fill_n_a(this->_M_impl._M_start, __n, __value, 
-				      _M_get_Tp_allocator());
-	this->_M_impl._M_finish = this->_M_impl._M_end_of_storage;
+            _M_fill_insert(__pos, __n, __x);
       }
 
-#if __cplusplus >= 201103L
-      // Called by the vector(n) constructor.
-      void
-      _M_default_initialize(size_type __n)
+      void _M_fill_insert(iterator __pos, size_type __n, const _Tp &__x);
+
+      void pop_back()
       {
-	std::__uninitialized_default_n_a(this->_M_impl._M_start, __n, 
-					 _M_get_Tp_allocator());
-	this->_M_impl._M_finish = this->_M_impl._M_end_of_storage;
+            --_M_finish;
+            destroy(_M_finish);
       }
+      iterator erase(iterator __position)
+      {
+            //如果不是最后一个元素，将后面的元素都前移一个位置
+            if (__position + 1 != end())
+                  copy(__position + 1, end(), __position);
+            --_M_finish;
+            //析构
+            destroy(_M_finish);
+            //返回原删除元素的位置，实际指向了原来的下一个元素，位置相同，值却是原来的后一个元素
+            return __position;
+      }
+      iterator erase(iterator __first, iterator __last)
+      {
+            iterator __i(copy(__last, end(), __first));
+            destroy(__i, end());
+            _M_finish = _M_finish - (__last - __first);
+            return __first;
+      }
+
+      void resize(size_type __new_size, const _Tp &__x)
+      {
+            if (__new_size < size())
+                  erase(begin() + __new_size, end());
+            else
+                  insert(end(), __new_size - size(), __x);
+      }
+      void resize(size_type __new_size) { resize(__new_size, _Tp()); }
+      void clear() { erase(begin(), end()); }
+
+protected:
+#ifdef __STL_MEMBER_TEMPLATES
+      template <class _ForwardIterator>
+      pointer _M_allocate_and_copy(size_type __n, _ForwardIterator __first,
+                                   _ForwardIterator __last)
+      {
+            pointer __result = _M_allocate(__n);
+            __STL_TRY
+            {
+                  uninitialized_copy(__first, __last, __result);
+                  return __result;
+            }
+            __STL_UNWIND(_M_deallocate(__result, __n));
+      }
+#else  /* __STL_MEMBER_TEMPLATES */
+      pointer _M_allocate_and_copy(size_type __n, const_iterator __first,
+                                   const_iterator __last)
+      {
+            iterator __result(_M_allocate(__n));
+            __STL_TRY
+            {
+                  uninitialized_copy(__first, __last, __result);
+                  return __result;
+            }
+            __STL_UNWIND(_M_deallocate(__result, __n));
+      }
+#endif /* __STL_MEMBER_TEMPLATES */
+
+#ifdef __STL_MEMBER_TEMPLATES
+      template <class _InputIterator>
+      void _M_range_initialize(_InputIterator __first,
+                               _InputIterator __last, input_iterator_tag)
+      {
+            for (; __first != __last; ++__first)
+                  push_back(*__first);
+      }
+
+      // This function is only called by the constructor.
+      template <class _ForwardIterator>
+      void _M_range_initialize(_ForwardIterator __first,
+                               _ForwardIterator __last, forward_iterator_tag)
+      {
+            size_type __n = 0;
+            distance(__first, __last, __n);
+            _M_start = _M_allocate(__n);
+            _M_end_of_storage = _M_start + __n;
+            _M_finish = uninitialized_copy(__first, __last, _M_start);
+      }
+
+      template <class _InputIterator>
+      void _M_range_insert(iterator __pos,
+                           _InputIterator __first, _InputIterator __last,
+                           input_iterator_tag);
+
+      template <class _ForwardIterator>
+      void _M_range_insert(iterator __pos,
+                           _ForwardIterator __first, _ForwardIterator __last,
+                           forward_iterator_tag);
+
+#endif /* __STL_MEMBER_TEMPLATES */
+};
+
+template <class _Tp, class _Alloc>
+inline bool
+operator==(const vector<_Tp, _Alloc> &__x, const vector<_Tp, _Alloc> &__y)
+{
+      return __x.size() == __y.size() &&
+             equal(__x.begin(), __x.end(), __y.begin());
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator<(const vector<_Tp, _Alloc> &__x, const vector<_Tp, _Alloc> &__y)
+{
+      return lexicographical_compare(__x.begin(), __x.end(),
+                                     __y.begin(), __y.end());
+}
+
+#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Tp, class _Alloc>
+inline void swap(vector<_Tp, _Alloc> &__x, vector<_Tp, _Alloc> &__y)
+{
+      __x.swap(__y);
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator!=(const vector<_Tp, _Alloc> &__x, const vector<_Tp, _Alloc> &__y)
+{
+      return !(__x == __y);
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator>(const vector<_Tp, _Alloc> &__x, const vector<_Tp, _Alloc> &__y)
+{
+      return __y < __x;
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator<=(const vector<_Tp, _Alloc> &__x, const vector<_Tp, _Alloc> &__y)
+{
+      return !(__y < __x);
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator>=(const vector<_Tp, _Alloc> &__x, const vector<_Tp, _Alloc> &__y)
+{
+      return !(__x < __y);
+}
+
+#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
+
+template <class _Tp, class _Alloc>
+vector<_Tp, _Alloc> &
+vector<_Tp, _Alloc>::operator=(const vector<_Tp, _Alloc> &__x)
+{
+      if (&__x != this)
+      {
+            const size_type __xlen = __x.size();
+            if (__xlen > capacity())
+            {
+                  pointer __tmp = _M_allocate_and_copy(__xlen, __x.begin(), __x.end());
+                  destroy(_M_start, _M_finish);
+                  _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                  _M_start = __tmp;
+                  _M_end_of_storage = _M_start + __xlen;
+            }
+            else if (size() >= __xlen)
+            {
+                  iterator __i(copy(__x.begin(), __x.end(), begin()));
+                  destroy(__i, end());
+            }
+            else
+            {
+                  copy(__x.begin(), __x.begin() + size(), _M_start);
+                  uninitialized_copy(__x.begin() + size(), __x.end(), _M_finish);
+            }
+            _M_finish = _M_start + __xlen;
+      }
+      return *this;
+}
+
+template <class _Tp, class _Alloc>
+void vector<_Tp, _Alloc>::_M_fill_assign(size_t __n, const value_type &__val)
+{
+      if (__n > capacity())
+      {
+            vector<_Tp, _Alloc> __tmp(__n, __val, get_allocator());
+            __tmp.swap(*this);
+      }
+      else if (__n > size())
+      {
+            fill(begin(), end(), __val);
+            _M_finish = uninitialized_fill_n(_M_finish, __n - size(), __val);
+      }
+      else
+            erase(fill_n(begin(), __n, __val), end());
+}
+
+#ifdef __STL_MEMBER_TEMPLATES
+
+template <class _Tp, class _Alloc>
+template <class _InputIter>
+void vector<_Tp, _Alloc>::_M_assign_aux(_InputIter __first, _InputIter __last,
+                                        input_iterator_tag)
+{
+      iterator __cur(begin());
+      for (; __first != __last && __cur != end(); ++__cur, ++__first)
+            *__cur = *__first;
+      if (__first == __last)
+            erase(__cur, end());
+      else
+            insert(end(), __first, __last);
+}
+
+template <class _Tp, class _Alloc>
+template <class _ForwardIter>
+void vector<_Tp, _Alloc>::_M_assign_aux(_ForwardIter __first, _ForwardIter __last,
+                                        forward_iterator_tag)
+{
+      size_type __len = 0;
+      distance(__first, __last, __len);
+
+      if (__len > capacity())
+      {
+            pointer __tmp(_M_allocate_and_copy(__len, __first, __last));
+            destroy(_M_start, _M_finish);
+            _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+            _M_start = __tmp;
+            _M_end_of_storage = _M_finish = _M_start + __len;
+      }
+      else if (size() >= __len)
+      {
+            iterator __new_finish(copy(__first, __last, _M_start));
+            destroy(__new_finish, end());
+            _M_finish = __new_finish.base();
+      }
+      else
+      {
+            _ForwardIter __mid = __first;
+            advance(__mid, size());
+            copy(__first, __mid, _M_start);
+            _M_finish = uninitialized_copy(__mid, __last, _M_finish);
+      }
+}
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
+template <class _Tp, class _Alloc>
+void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position, const _Tp &__x)
+{
+      //空间足够
+      if (_M_finish != _M_end_of_storage)
+      {
+            //在备用空间中构造新元素
+            construct(_M_finish, *(_M_finish - 1));
+            ++_M_finish;
+            _Tp __x_copy = __x;
+            //[position, finish-2)元素后移一个位置到[finish-1+(finish-2 - position), finish-1)
+            copy_backward(__position, iterator(_M_finish - 2), iterator(_M_finish - 1));
+            // position位置到元素修改为插入值
+            *__position = __x_copy;
+      }
+      //空间不足
+      else
+      {
+            //空间翻倍
+            const size_type __old_size = size();
+            const size_type __len = __old_size != 0 ? 2 * __old_size : 1;
+            iterator __new_start(_M_allocate(__len));
+            iterator __new_finish(__new_start);
+            __STL_TRY
+            {
+                  //处理插入位前到元素
+                  __new_finish = uninitialized_copy(iterator(_M_start), __position,
+                                                    __new_start);
+                  //处理插入位
+                  construct(__new_finish.base(), __x);
+                  ++__new_finish;
+                  //处理剩下元素
+                  __new_finish = uninitialized_copy(__position, iterator(_M_finish),
+                                                    __new_finish);
+            }
+            //异常处理，销毁新空间
+            __STL_UNWIND((destroy(__new_start, __new_finish),
+                          _M_deallocate(__new_start.base(), __len)));
+            //处理旧空间
+            destroy(begin(), end());
+            _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+            //使用新空间
+            _M_start = __new_start.base();
+            _M_finish = __new_finish.base();
+            _M_end_of_storage = __new_start.base() + __len;
+      }
+}
+
+template <class _Tp, class _Alloc>
+void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position)
+{
+      if (_M_finish != _M_end_of_storage)
+      {
+            construct(_M_finish, *(_M_finish - 1));
+            ++_M_finish;
+            copy_backward(__position, iterator(_M_finish - 2),
+                          iterator(_M_finish - 1));
+            *__position = _Tp();
+      }
+      else
+      {
+            const size_type __old_size = size();
+            const size_type __len = __old_size != 0 ? 2 * __old_size : 1;
+            pointer __new_start = _M_allocate(__len);
+            pointer __new_finish = __new_start;
+            __STL_TRY
+            {
+                  __new_finish = uninitialized_copy(iterator(_M_start), __position,
+                                                    __new_start);
+                  construct(__new_finish);
+                  ++__new_finish;
+                  __new_finish = uninitialized_copy(__position, iterator(_M_finish),
+                                                    __new_finish);
+            }
+            __STL_UNWIND((destroy(__new_start, __new_finish),
+                          _M_deallocate(__new_start, __len)));
+            destroy(begin(), end());
+            _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+            _M_start = __new_start;
+            _M_finish = __new_finish;
+            _M_end_of_storage = __new_start + __len;
+      }
+}
+
+template <class _Tp, class _Alloc>
+void vector<_Tp, _Alloc>::_M_fill_insert(iterator __position, size_type __n,
+                                         const _Tp &__x)
+{
+      if (__n != 0)
+      {
+            if (size_type(_M_end_of_storage - _M_finish) >= __n)
+            {
+                  _Tp __x_copy = __x;
+                  const size_type __elems_after = end() - __position;
+                  iterator __old_finish(_M_finish);
+                  if (__elems_after > __n)
+                  {
+                        uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
+                        _M_finish += __n;
+                        copy_backward(__position, __old_finish - __n, __old_finish);
+                        fill(__position, __position + __n, __x_copy);
+                  }
+                  else
+                  {
+                        uninitialized_fill_n(_M_finish, __n - __elems_after, __x_copy);
+                        _M_finish += __n - __elems_after;
+                        uninitialized_copy(__position, __old_finish, _M_finish);
+                        _M_finish += __elems_after;
+                        fill(__position, __old_finish, __x_copy);
+                  }
+            }
+            else
+            {
+                  const size_type __old_size = size();
+                  const size_type __len = __old_size + max(__old_size, __n);
+                  iterator __new_start(_M_allocate(__len));
+                  iterator __new_finish(__new_start);
+                  __STL_TRY
+                  {
+                        __new_finish = uninitialized_copy(begin(), __position, __new_start);
+                        __new_finish = uninitialized_fill_n(__new_finish, __n, __x);
+                        __new_finish = uninitialized_copy(__position, end(), __new_finish);
+                  }
+                  __STL_UNWIND((destroy(__new_start, __new_finish),
+                                _M_deallocate(__new_start.base(), __len)));
+                  destroy(_M_start, _M_finish);
+                  _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                  _M_start = __new_start.base();
+                  _M_finish = __new_finish.base();
+                  _M_end_of_storage = __new_start.base() + __len;
+            }
+      }
+}
+
+#ifdef __STL_MEMBER_TEMPLATES
+
+template <class _Tp, class _Alloc>
+template <class _InputIterator>
+void vector<_Tp, _Alloc>::_M_range_insert(iterator __pos,
+                                          _InputIterator __first,
+                                          _InputIterator __last,
+                                          input_iterator_tag)
+{
+      for (; __first != __last; ++__first)
+      {
+            __pos = insert(__pos, *__first);
+            ++__pos;
+      }
+}
+
+template <class _Tp, class _Alloc>
+template <class _ForwardIterator>
+void vector<_Tp, _Alloc>::_M_range_insert(iterator __position,
+                                          _ForwardIterator __first,
+                                          _ForwardIterator __last,
+                                          forward_iterator_tag)
+{
+      if (__first != __last)
+      {
+            size_type __n = 0;
+            distance(__first, __last, __n);
+            if (size_type(_M_end_of_storage - _M_finish) >= __n)
+            {
+                  const size_type __elems_after = end() - __position;
+                  iterator __old_finish(_M_finish);
+                  if (__elems_after > __n)
+                  {
+                        uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
+                        _M_finish += __n;
+                        copy_backward(__position, __old_finish - __n, __old_finish);
+                        copy(__first, __last, __position);
+                  }
+                  else
+                  {
+                        _ForwardIterator __mid = __first;
+                        advance(__mid, __elems_after);
+                        uninitialized_copy(__mid, __last, _M_finish);
+                        _M_finish += __n - __elems_after;
+                        uninitialized_copy(__position, __old_finish, _M_finish);
+                        _M_finish += __elems_after;
+                        copy(__first, __mid, __position);
+                  }
+            }
+            else
+            {
+                  const size_type __old_size = size();
+                  const size_type __len = __old_size + max(__old_size, __n);
+                  iterator __new_start(_M_allocate(__len));
+                  iterator __new_finish(__new_start);
+                  __STL_TRY
+                  {
+                        __new_finish = uninitialized_copy(iterator(_M_start),
+                                                          __position, __new_start);
+                        __new_finish = uninitialized_copy(__first, __last, __new_finish);
+                        __new_finish = uninitialized_copy(__position, iterator(_M_finish), __new_finish);
+                  }
+                  __STL_UNWIND((destroy(__new_start, __new_finish),
+                                _M_deallocate(__new_start.base(), __len)));
+                  destroy(_M_start, _M_finish);
+                  _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                  _M_start = __new_start.base();
+                  _M_finish = __new_finish.base();
+                  _M_end_of_storage = __new_start.base() + __len;
+            }
+      }
+}
+
+#else /* __STL_MEMBER_TEMPLATES */
+
+template <class _Tp, class _Alloc>
+void vector<_Tp, _Alloc>::insert(iterator __position,
+                                 const_iterator __first,
+                                 const_iterator __last)
+{
+      if (__first != __last)
+      {
+            size_type __n = 0;
+            distance(__first, __last, __n);
+            if (size_type(_M_end_of_storage - _M_finish) >= __n)
+            {
+                  const size_type __elems_after = _M_finish - __position;
+                  iterator __old_finish(_M_finish);
+                  if (__elems_after > __n)
+                  {
+                        uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
+                        _M_finish += __n;
+                        copy_backward(__position, __old_finish - __n, __old_finish);
+                        copy(__first, __last, __position);
+                  }
+                  else
+                  {
+                        uninitialized_copy(__first + __elems_after, __last, _M_finish);
+                        _M_finish += __n - __elems_after;
+                        uninitialized_copy(__position, __old_finish, _M_finish);
+                        _M_finish += __elems_after;
+                        copy(__first, __first + __elems_after, __position);
+                  }
+            }
+            else
+            {
+                  const size_type __old_size = size();
+                  const size_type __len = __old_size + max(__old_size, __n);
+                  iterator __new_start(_M_allocate(__len));
+                  iterator __new_finish(__new_start);
+                  __STL_TRY
+                  {
+                        __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+                        __new_finish = uninitialized_copy(__first, __last, __new_finish);
+                        __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
+                  }
+                  __STL_UNWIND((destroy(__new_start, __new_finish),
+                                _M_deallocate(__new_start, __len)));
+                  destroy(_M_start, _M_finish);
+                  _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                  _M_start = __new_start;
+                  _M_finish = __new_finish;
+                  _M_end_of_storage = __new_start + __len;
+            }
+      }
+}
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
+#if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
+#pragma reset woff 1174
+#pragma reset woff 1375
 #endif
 
-      // Internal assign functions follow.  The *_aux functions do the actual
-      // assignment work for the range versions.
+__STL_END_NAMESPACE
 
-      // Called by the range assign to implement [23.1.1]/9
+#endif /* __SGI_STL_INTERNAL_VECTOR_H */
 
-      // _GLIBCXX_RESOLVE_LIB_DEFECTS
-      // 438. Ambiguity in the "do the right thing" clause
-      template<typename _Integer>
-        void
-        _M_assign_dispatch(_Integer __n, _Integer __val, __true_type)
-        { _M_fill_assign(__n, __val); }
-
-      // Called by the range assign to implement [23.1.1]/9
-      template<typename _InputIterator>
-        void
-        _M_assign_dispatch(_InputIterator __first, _InputIterator __last,
-			   __false_type)
-        {
-	  typedef typename std::iterator_traits<_InputIterator>::
-	    iterator_category _IterCategory;
-	  _M_assign_aux(__first, __last, _IterCategory());
-	}
-
-      // Called by the second assign_dispatch above
-      template<typename _InputIterator>
-        void
-        _M_assign_aux(_InputIterator __first, _InputIterator __last,
-		      std::input_iterator_tag);
-
-      // Called by the second assign_dispatch above
-      template<typename _ForwardIterator>
-        void
-        _M_assign_aux(_ForwardIterator __first, _ForwardIterator __last,
-		      std::forward_iterator_tag);
-
-      // Called by assign(n,t), and the range assign when it turns out
-      // to be the same thing.
-      void
-      _M_fill_assign(size_type __n, const value_type& __val);
-
-
-      // Internal insert functions follow.
-
-      // Called by the range insert to implement [23.1.1]/9
-
-      // _GLIBCXX_RESOLVE_LIB_DEFECTS
-      // 438. Ambiguity in the "do the right thing" clause
-      template<typename _Integer>
-        void
-        _M_insert_dispatch(iterator __pos, _Integer __n, _Integer __val,
-			   __true_type)
-        { _M_fill_insert(__pos, __n, __val); }
-
-      // Called by the range insert to implement [23.1.1]/9
-      template<typename _InputIterator>
-        void
-        _M_insert_dispatch(iterator __pos, _InputIterator __first,
-			   _InputIterator __last, __false_type)
-        {
-	  typedef typename std::iterator_traits<_InputIterator>::
-	    iterator_category _IterCategory;
-	  _M_range_insert(__pos, __first, __last, _IterCategory());
-	}
-
-      // Called by the second insert_dispatch above
-      template<typename _InputIterator>
-        void
-        _M_range_insert(iterator __pos, _InputIterator __first,
-			_InputIterator __last, std::input_iterator_tag);
-
-      // Called by the second insert_dispatch above
-      template<typename _ForwardIterator>
-        void
-        _M_range_insert(iterator __pos, _ForwardIterator __first,
-			_ForwardIterator __last, std::forward_iterator_tag);
-
-      // Called by insert(p,n,x), and the range insert when it turns out to be
-      // the same thing.
-      void
-      _M_fill_insert(iterator __pos, size_type __n, const value_type& __x);
-
-#if __cplusplus >= 201103L
-      // Called by resize(n).
-      void
-      _M_default_append(size_type __n);
-
-      bool
-      _M_shrink_to_fit();
-#endif
-
-      // Called by insert(p,x)
-#if __cplusplus < 201103L
-      void
-      _M_insert_aux(iterator __position, const value_type& __x);
-#else
-      template<typename... _Args>
-        void
-        _M_insert_aux(iterator __position, _Args&&... __args);
-
-      template<typename... _Args>
-        void
-        _M_emplace_back_aux(_Args&&... __args);
-#endif
-
-      // Called by the latter.
-      size_type
-      _M_check_len(size_type __n, const char* __s) const
-      {
-	if (max_size() - size() < __n)
-	  __throw_length_error(__N(__s));
-
-	const size_type __len = size() + std::max(size(), __n);
-	return (__len < size() || __len > max_size()) ? max_size() : __len;
-      }
-
-      // Internal erase functions follow.
-
-      // Called by erase(q1,q2), clear(), resize(), _M_fill_assign,
-      // _M_assign_aux.
-      void
-      _M_erase_at_end(pointer __pos) _GLIBCXX_NOEXCEPT
-      {
-	std::_Destroy(__pos, this->_M_impl._M_finish, _M_get_Tp_allocator());
-	this->_M_impl._M_finish = __pos;
-      }
-
-      iterator
-      _M_erase(iterator __position);
-
-      iterator
-      _M_erase(iterator __first, iterator __last);
-
-#if __cplusplus >= 201103L
-    private:
-      // Constant-time move assignment when source object's memory can be
-      // moved, either because the source's allocator will move too
-      // or because the allocators are equal.
-      void
-      _M_move_assign(vector&& __x, std::true_type) noexcept
-      {
-	vector __tmp(get_allocator());
-	this->_M_impl._M_swap_data(__tmp._M_impl);
-	this->_M_impl._M_swap_data(__x._M_impl);
-	std::__alloc_on_move(_M_get_Tp_allocator(), __x._M_get_Tp_allocator());
-      }
-
-      // Do move assignment when it might not be possible to move source
-      // object's memory, resulting in a linear-time operation.
-      void
-      _M_move_assign(vector&& __x, std::false_type)
-      {
-	if (__x._M_get_Tp_allocator() == this->_M_get_Tp_allocator())
-	  _M_move_assign(std::move(__x), std::true_type());
-	else
-	  {
-	    // The rvalue's allocator cannot be moved and is not equal,
-	    // so we need to individually move each element.
-	    this->assign(std::__make_move_if_noexcept_iterator(__x.begin()),
-			 std::__make_move_if_noexcept_iterator(__x.end()));
-	    __x.clear();
-	  }
-      }
-#endif
-
-#if __cplusplus >= 201103L
-      template<typename _Up>
-	_Up*
-	_M_data_ptr(_Up* __ptr) const
-	{ return __ptr; }
-
-      template<typename _Ptr>
-	typename std::pointer_traits<_Ptr>::element_type*
-	_M_data_ptr(_Ptr __ptr) const
-	{ return empty() ? nullptr : std::__addressof(*__ptr); }
-#else
-      template<typename _Ptr>
-	_Ptr
-	_M_data_ptr(_Ptr __ptr) const
-	{ return __ptr; }
-#endif
-    };
-
-
-  /**
-   *  @brief  Vector equality comparison.
-   *  @param  __x  A %vector.
-   *  @param  __y  A %vector of the same type as @a __x.
-   *  @return  True iff the size and elements of the vectors are equal.
-   *
-   *  This is an equivalence relation.  It is linear in the size of the
-   *  vectors.  Vectors are considered equivalent if their sizes are equal,
-   *  and if corresponding elements compare equal.
-  */
-  template<typename _Tp, typename _Alloc>
-    inline bool
-    operator==(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y)
-    { return (__x.size() == __y.size()
-	      && std::equal(__x.begin(), __x.end(), __y.begin())); }
-
-  /**
-   *  @brief  Vector ordering relation.
-   *  @param  __x  A %vector.
-   *  @param  __y  A %vector of the same type as @a __x.
-   *  @return  True iff @a __x is lexicographically less than @a __y.
-   *
-   *  This is a total ordering relation.  It is linear in the size of the
-   *  vectors.  The elements must be comparable with @c <.
-   *
-   *  See std::lexicographical_compare() for how the determination is made.
-  */
-  template<typename _Tp, typename _Alloc>
-    inline bool
-    operator<(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y)
-    { return std::lexicographical_compare(__x.begin(), __x.end(),
-					  __y.begin(), __y.end()); }
-
-  /// Based on operator==
-  template<typename _Tp, typename _Alloc>
-    inline bool
-    operator!=(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y)
-    { return !(__x == __y); }
-
-  /// Based on operator<
-  template<typename _Tp, typename _Alloc>
-    inline bool
-    operator>(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y)
-    { return __y < __x; }
-
-  /// Based on operator<
-  template<typename _Tp, typename _Alloc>
-    inline bool
-    operator<=(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y)
-    { return !(__y < __x); }
-
-  /// Based on operator<
-  template<typename _Tp, typename _Alloc>
-    inline bool
-    operator>=(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y)
-    { return !(__x < __y); }
-
-  /// See std::vector::swap().
-  template<typename _Tp, typename _Alloc>
-    inline void
-    swap(vector<_Tp, _Alloc>& __x, vector<_Tp, _Alloc>& __y)
-    { __x.swap(__y); }
-
-_GLIBCXX_END_NAMESPACE_CONTAINER
-} // namespace std
-
-#endif /* _STL_VECTOR_H */
+// Local Variables:
+// mode:C++
+// End:

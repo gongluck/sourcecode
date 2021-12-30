@@ -215,6 +215,7 @@ void *__malloc_alloc_template<__inst>::_S_oom_realloc(void *__p, size_t __n)
 
 typedef __malloc_alloc_template<0> malloc_alloc;
 
+//对构造器简单封装，以元素字节大小为单位分配内存
 template <class _Tp, class _Alloc>
 class simple_alloc
 {
@@ -939,7 +940,7 @@ const bool _Alloc_traits<_Tp, _Allocator>::_S_instanceless;
 // The version for the default allocator.
 
 template <class _Tp, class _Tp1>
-struct _Alloc_traits<_Tp, allocator<_Tp1>>
+struct _Alloc_traits<_Tp, allocator<_Tp1> >
 {
   static const bool _S_instanceless = true;
   typedef simple_alloc<_Tp, alloc> _Alloc_type;
@@ -949,31 +950,31 @@ struct _Alloc_traits<_Tp, allocator<_Tp1>>
 // Versions for the predefined SGI-style allocators.
 
 template <class _Tp, int __inst>
-struct _Alloc_traits<_Tp, __malloc_alloc_template<__inst>>
+struct _Alloc_traits<_Tp, __malloc_alloc_template<__inst> >
 {
   static const bool _S_instanceless = true;
-  typedef simple_alloc<_Tp, __malloc_alloc_template<__inst>> _Alloc_type;
-  typedef __allocator<_Tp, __malloc_alloc_template<__inst>> allocator_type;
+  typedef simple_alloc<_Tp, __malloc_alloc_template<__inst> > _Alloc_type;
+  typedef __allocator<_Tp, __malloc_alloc_template<__inst> > allocator_type;
 };
 
 #ifndef __USE_MALLOC
 template <class _Tp, bool __threads, int __inst>
-struct _Alloc_traits<_Tp, __default_alloc_template<__threads, __inst>>
+struct _Alloc_traits<_Tp, __default_alloc_template<__threads, __inst> >
 {
   static const bool _S_instanceless = true;
-  typedef simple_alloc<_Tp, __default_alloc_template<__threads, __inst>>
+  typedef simple_alloc<_Tp, __default_alloc_template<__threads, __inst> >
       _Alloc_type;
-  typedef __allocator<_Tp, __default_alloc_template<__threads, __inst>>
+  typedef __allocator<_Tp, __default_alloc_template<__threads, __inst> >
       allocator_type;
 };
 #endif
 
 template <class _Tp, class _Alloc>
-struct _Alloc_traits<_Tp, debug_alloc<_Alloc>>
+struct _Alloc_traits<_Tp, debug_alloc<_Alloc> >
 {
   static const bool _S_instanceless = true;
-  typedef simple_alloc<_Tp, debug_alloc<_Alloc>> _Alloc_type;
-  typedef __allocator<_Tp, debug_alloc<_Alloc>> allocator_type;
+  typedef simple_alloc<_Tp, debug_alloc<_Alloc> > _Alloc_type;
+  typedef __allocator<_Tp, debug_alloc<_Alloc> > allocator_type;
 };
 
 // Versions for the __allocator adaptor used with the predefined
@@ -981,33 +982,33 @@ struct _Alloc_traits<_Tp, debug_alloc<_Alloc>>
 
 template <class _Tp, class _Tp1, int __inst>
 struct _Alloc_traits<_Tp,
-                     __allocator<_Tp1, __malloc_alloc_template<__inst>>>
+                     __allocator<_Tp1, __malloc_alloc_template<__inst> > >
 {
   static const bool _S_instanceless = true;
-  typedef simple_alloc<_Tp, __malloc_alloc_template<__inst>> _Alloc_type;
-  typedef __allocator<_Tp, __malloc_alloc_template<__inst>> allocator_type;
+  typedef simple_alloc<_Tp, __malloc_alloc_template<__inst> > _Alloc_type;
+  typedef __allocator<_Tp, __malloc_alloc_template<__inst> > allocator_type;
 };
 
 #ifndef __USE_MALLOC
 template <class _Tp, class _Tp1, bool __thr, int __inst>
 struct _Alloc_traits<_Tp,
                      __allocator<_Tp1,
-                                 __default_alloc_template<__thr, __inst>>>
+                                 __default_alloc_template<__thr, __inst> > >
 {
   static const bool _S_instanceless = true;
-  typedef simple_alloc<_Tp, __default_alloc_template<__thr, __inst>>
+  typedef simple_alloc<_Tp, __default_alloc_template<__thr, __inst> >
       _Alloc_type;
-  typedef __allocator<_Tp, __default_alloc_template<__thr, __inst>>
+  typedef __allocator<_Tp, __default_alloc_template<__thr, __inst> >
       allocator_type;
 };
 #endif
 
 template <class _Tp, class _Tp1, class _Alloc>
-struct _Alloc_traits<_Tp, __allocator<_Tp1, debug_alloc<_Alloc>>>
+struct _Alloc_traits<_Tp, __allocator<_Tp1, debug_alloc<_Alloc> > >
 {
   static const bool _S_instanceless = true;
-  typedef simple_alloc<_Tp, debug_alloc<_Alloc>> _Alloc_type;
-  typedef __allocator<_Tp, debug_alloc<_Alloc>> allocator_type;
+  typedef simple_alloc<_Tp, debug_alloc<_Alloc> > _Alloc_type;
+  typedef __allocator<_Tp, debug_alloc<_Alloc> > allocator_type;
 };
 
 #endif /* __STL_USE_STD_ALLOCATORS */

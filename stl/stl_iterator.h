@@ -714,7 +714,7 @@ operator!=(const istream_iterator<_Tp, _CharT, _Traits, _Dist> &__x,
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
 template <class _Tp,
-          class _CharT = char, class _Traits = char_traits<_CharT>>
+          class _CharT = char, class _Traits = char_traits<_CharT> >
 class ostream_iterator
 {
 public:
@@ -1058,6 +1058,8 @@ iterator_category(const ostream_iterator<_Tp> &)
 // The _Container parameter exists solely so that different containers
 // using this template can instantiate different types, even if the
 // _Iterator parameter is the same.
+
+//将指针转化迭代器
 template <typename _Iterator, typename _Container>
 class __normal_iterator
     : public iterator<iterator_traits<_Iterator>::iterator_category,
