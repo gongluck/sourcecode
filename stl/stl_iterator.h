@@ -166,6 +166,7 @@ inline insert_iterator<_Container> inserter(_Container &__x, _Iterator __i)
   return insert_iterator<_Container>(__x, __iter(__i));
 }
 
+//反向的可双向访问迭代器
 template <class _BidirectionalIterator, class _Tp, class _Reference = _Tp &,
           class _Distance = ptrdiff_t>
 class reverse_bidirectional_iterator
@@ -188,8 +189,10 @@ public:
   explicit reverse_bidirectional_iterator(_BidirectionalIterator __x)
       : current(__x) {}
   _BidirectionalIterator base() const { return current; }
+  //解引用操作
   _Reference operator*() const
   {
+    //先获取上一个元素，再解引用
     _BidirectionalIterator __tmp = current;
     return *--__tmp;
   }
@@ -199,6 +202,8 @@ public:
     return &(operator*());
   }
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
+
+  //反向操作
   _Self &operator++()
   {
     --current;
