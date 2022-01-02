@@ -107,6 +107,7 @@ struct _List_iterator : public _List_iterator_base
   }
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
 
+  //自增自减操作
   _Self &operator++()
   {
     this->_M_incr();
@@ -256,7 +257,9 @@ public:
   }
   ~_List_base()
   {
+    //清空链表
     clear();
+    //销毁空节点
     _M_put_node(_M_node);
   }
 
@@ -296,7 +299,7 @@ void _List_base<_Tp, _Alloc>::clear()
 }
 
 //链表
-template <class _Tp, class _Alloc = allocator<_Tp> >
+template <class _Tp, class _Alloc = allocator<_Tp>>
 class list : protected _List_base<_Tp, _Alloc>
 {
   // requirements:
@@ -519,12 +522,14 @@ public:
     //删除哨兵前一个元素
     erase(--__tmp);
   }
+  //构造，n个元素，值都为value
   list(size_type __n, const _Tp &__value,
        const allocator_type &__a = allocator_type())
       : _Base(__a)
   {
     insert(begin(), __n, __value);
   }
+  //构造，n个元素，值都为默认值
   explicit list(size_type __n)
       : _Base(allocator_type())
   {
@@ -545,6 +550,7 @@ public:
 
 #else /* __STL_MEMBER_TEMPLATES */
 
+  //构造，初始为[first, last)的值
   list(const _Tp *__first, const _Tp *__last,
        const allocator_type &__a = allocator_type())
       : _Base(__a)
@@ -559,11 +565,14 @@ public:
   }
 
 #endif /* __STL_MEMBER_TEMPLATES */
+
+  //拷贝构造
   list(const list<_Tp, _Alloc> &__x) : _Base(__x.get_allocator())
   {
     insert(begin(), __x.begin(), __x.end());
   }
 
+  //链表基类负责内存管理了，链表类无需处理
   ~list() {}
 
   list<_Tp, _Alloc> &operator=(const list<_Tp, _Alloc> &__x);
@@ -600,29 +609,40 @@ public:
 #endif /* __STL_MEMBER_TEMPLATES */
 
 protected:
+  // 移动[first, last)的元素到position前
   void transfer(iterator __position, iterator __first, iterator __last)
   {
     if (__position != __last)
     {
       // Remove [first, last) from its old position.
+
+      // position节点成为last前节点的后继
       __last._M_node->_M_prev->_M_next = __position._M_node;
+      // last节点成为first前节点的后继
       __first._M_node->_M_prev->_M_next = __last._M_node;
+      // first节点成为position前节点的后继
       __position._M_node->_M_prev->_M_next = __first._M_node;
 
       // Splice [first, last) into its new position.
+
       _List_node_base *__tmp = __position._M_node->_M_prev;
+      // last前节点成为position前节点
       __position._M_node->_M_prev = __last._M_node->_M_prev;
+      // fist前节点成为last前节点
       __last._M_node->_M_prev = __first._M_node->_M_prev;
+      // position前节点成为first前节点
       __first._M_node->_M_prev = __tmp;
     }
   }
 
 public:
+  //将链表x拼接到position前
   void splice(iterator __position, list &__x)
   {
     if (!__x.empty())
       this->transfer(__position, __x.begin(), __x.end());
   }
+  //将i移动到position前
   void splice(iterator __position, list &, iterator __i)
   {
     iterator __j = __i;
@@ -631,6 +651,7 @@ public:
       return;
     this->transfer(__position, __i, __j);
   }
+  //将[first, last)移动到position前
   void splice(iterator __position, list &, iterator __first, iterator __last)
   {
     if (__first != __last)
@@ -733,6 +754,7 @@ void list<_Tp, _Alloc>::_M_insert_dispatch(iterator __position,
 
 #else /* __STL_MEMBER_TEMPLATES */
 
+// position前插入[first, last)
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::insert(iterator __position,
                                const _Tp *__first, const _Tp *__last)
@@ -741,6 +763,7 @@ void list<_Tp, _Alloc>::insert(iterator __position,
     insert(__position, *__first);
 }
 
+// position前插入[first, last)
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::insert(iterator __position,
                                const_iterator __first, const_iterator __last)
@@ -751,6 +774,7 @@ void list<_Tp, _Alloc>::insert(iterator __position,
 
 #endif /* __STL_MEMBER_TEMPLATES */
 
+// position前插入n个x
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::_M_fill_insert(iterator __position,
                                        size_type __n, const _Tp &__x)
@@ -759,6 +783,7 @@ void list<_Tp, _Alloc>::_M_fill_insert(iterator __position,
     insert(__position, __x);
 }
 
+// 删除[first, last)
 template <class _Tp, class _Alloc>
 typename list<_Tp, _Alloc>::iterator list<_Tp, _Alloc>::erase(iterator __first,
                                                               iterator __last)
@@ -768,6 +793,7 @@ typename list<_Tp, _Alloc>::iterator list<_Tp, _Alloc>::erase(iterator __first,
   return __last;
 }
 
+// 重新设置大小
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::resize(size_type __new_size, const _Tp &__x)
 {
@@ -776,11 +802,12 @@ void list<_Tp, _Alloc>::resize(size_type __new_size, const _Tp &__x)
   for (; __i != end() && __len < __new_size; ++__i, ++__len)
     ;
   if (__len == __new_size)
-    erase(__i, end());
-  else // __i == end()
-    insert(end(), __new_size - __len, __x);
+    erase(__i, end());                      //如果当前大小大于新大小，删除多余元素
+  else                                      // __i == end()
+    insert(end(), __new_size - __len, __x); //尾部补充缺少元素
 }
 
+// 链表拷贝
 template <class _Tp, class _Alloc>
 list<_Tp, _Alloc> &list<_Tp, _Alloc>::operator=(const list<_Tp, _Alloc> &__x)
 {
@@ -790,16 +817,18 @@ list<_Tp, _Alloc> &list<_Tp, _Alloc>::operator=(const list<_Tp, _Alloc> &__x)
     iterator __last1 = end();
     const_iterator __first2 = __x.begin();
     const_iterator __last2 = __x.end();
+    // 元素值拷贝
     while (__first1 != __last1 && __first2 != __last2)
       *__first1++ = *__first2++;
     if (__first2 == __last2)
-      erase(__first1, __last1);
+      erase(__first1, __last1); //删除多余元素
     else
-      insert(__last1, __first2, __last2);
+      insert(__last1, __first2, __last2); //补充插入剩下的元素
   }
   return *this;
 }
 
+// 链表重新赋值为n个val
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::_M_fill_assign(size_type __n, const _Tp &__val)
 {
@@ -807,9 +836,9 @@ void list<_Tp, _Alloc>::_M_fill_assign(size_type __n, const _Tp &__val)
   for (; __i != end() && __n > 0; ++__i, --__n)
     *__i = __val;
   if (__n > 0)
-    insert(end(), __n, __val);
+    insert(end(), __n, __val); //补充插入
   else
-    erase(__i, end());
+    erase(__i, end()); //删除多余
 }
 
 #ifdef __STL_MEMBER_TEMPLATES
@@ -831,6 +860,7 @@ void list<_Tp, _Alloc>::_M_assign_dispatch(_InputIter __first2, _InputIter __las
 
 #endif /* __STL_MEMBER_TEMPLATES */
 
+//删除value元素
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::remove(const _Tp &__value)
 {
@@ -838,14 +868,18 @@ void list<_Tp, _Alloc>::remove(const _Tp &__value)
   iterator __last = end();
   while (__first != __last)
   {
+    //先获取下一个迭代器
     iterator __next = __first;
     ++__next;
+    //等于value就删除
     if (*__first == __value)
       erase(__first);
+    //赋值为next进行下一轮循环
     __first = __next;
   }
 }
 
+//删除多余重复元素
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::unique()
 {
@@ -857,13 +891,14 @@ void list<_Tp, _Alloc>::unique()
   while (++__next != __last)
   {
     if (*__first == *__next)
-      erase(__next);
+      erase(__next); // *first==*lext，有重复，删除next
     else
       __first = __next;
     __next = __first;
   }
 }
 
+//合并链表
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::merge(list<_Tp, _Alloc> &__x)
 {
@@ -874,32 +909,39 @@ void list<_Tp, _Alloc>::merge(list<_Tp, _Alloc> &__x)
   while (__first1 != __last1 && __first2 != __last2)
     if (*__first2 < *__first1)
     {
+      //插入first2
       iterator __next = __first2;
       transfer(__first1, __first2, ++__next);
       __first2 = __next;
     }
     else
+      // first1滑动一个位置
       ++__first1;
   if (__first2 != __last2)
+    //插入剩余节点
     transfer(__last1, __first2, __last2);
 }
 
+//反转链表
 inline void __List_base_reverse(_List_node_base *__p)
 {
   _List_node_base *__tmp = __p;
   do
   {
+    //循环交换prev和next
     __STD::swap(__tmp->_M_next, __tmp->_M_prev);
     __tmp = __tmp->_M_prev; // Old next node is now prev.
   } while (__tmp != __p);
 }
 
+//反转链表
 template <class _Tp, class _Alloc>
 inline void list<_Tp, _Alloc>::reverse()
 {
   __List_base_reverse(this->_M_node);
 }
 
+//排序
 template <class _Tp, class _Alloc>
 void list<_Tp, _Alloc>::sort()
 {
@@ -911,6 +953,7 @@ void list<_Tp, _Alloc>::sort()
     int __fill = 0;
     while (!empty())
     {
+      //移动第一个元素到临时链表开头
       __carry.splice(__carry.begin(), *this, begin());
       int __i = 0;
       while (__i < __fill && !__counter[__i].empty())
