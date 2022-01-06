@@ -230,12 +230,16 @@ public:
     return c.empty();
   }
   size_type size() const { return c.size(); }
+  //获取顶部最“大”值
   const_reference top() const { return c.front(); }
+  //入堆
   void push(const value_type &__x)
   {
     __STL_TRY
     {
+      //先添加到底层容器中
       c.push_back(__x);
+      //调整堆，内部执行插入最后值
       push_heap(c.begin(), c.end(), comp);
     }
     __STL_UNWIND(c.clear());
@@ -244,7 +248,9 @@ public:
   {
     __STL_TRY
     {
+      //将最“大”值(根，第一个元素)出堆，内部是移动到底层容器最后，之后重新调整堆
       pop_heap(c.begin(), c.end(), comp);
+      //弹出最后的最“大”值
       c.pop_back();
     }
     __STL_UNWIND(c.clear());
