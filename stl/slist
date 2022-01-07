@@ -28,24 +28,29 @@ __STL_BEGIN_NAMESPACE
 #pragma set woff 1375
 #endif
 
+//单向链表节点基类
 struct _Slist_node_base
 {
-  _Slist_node_base *_M_next;
+  _Slist_node_base *_M_next; //指向下一个节点
 };
 
+//连接两个节点 新节点插入到prev节点后，返回新节点
 inline _Slist_node_base *
 __slist_make_link(_Slist_node_base *__prev_node,
                   _Slist_node_base *__new_node)
 {
+  //新节点插入到prev节点后
   __new_node->_M_next = __prev_node->_M_next;
   __prev_node->_M_next = __new_node;
   return __new_node;
 }
 
+//返回指定节点的前一个节点
 inline _Slist_node_base *
 __slist_previous(_Slist_node_base *__head,
                  const _Slist_node_base *__node)
 {
+  //单向链表只能从头遍历寻找
   while (__head && __head->_M_next != __node)
     __head = __head->_M_next;
   return __head;
@@ -60,6 +65,7 @@ __slist_previous(const _Slist_node_base *__head,
   return __head;
 }
 
+//在pos后拼接(first, last]节点
 inline void __slist_splice_after(_Slist_node_base *__pos,
                                  _Slist_node_base *__before_first,
                                  _Slist_node_base *__before_last)
@@ -68,40 +74,53 @@ inline void __slist_splice_after(_Slist_node_base *__pos,
   {
     _Slist_node_base *__first = __before_first->_M_next;
     _Slist_node_base *__after = __pos->_M_next;
+    //抽出(first, last]
     __before_first->_M_next = __before_last->_M_next;
+    //(first, last]插到pos后
     __pos->_M_next = __first;
     __before_last->_M_next = __after;
   }
 }
 
+//在pos后拼接(head, ...)的节点
 inline void
 __slist_splice_after(_Slist_node_base *__pos, _Slist_node_base *__head)
 {
+  //获取最后一个节点
   _Slist_node_base *__before_last = __slist_previous(__head, 0);
   if (__before_last != __head)
   {
     _Slist_node_base *__after = __pos->_M_next;
+    //插入head指向的链表到pos后
     __pos->_M_next = __head->_M_next;
-    __head->_M_next = 0;
     __before_last->_M_next = __after;
+    //置空原链表
+    __head->_M_next = 0;
   }
 }
 
+//反转链表
 inline _Slist_node_base *__slist_reverse(_Slist_node_base *__node)
 {
+  //头节点
   _Slist_node_base *__result = __node;
+  // next节点
   __node = __node->_M_next;
   __result->_M_next = 0;
   while (__node)
   {
     _Slist_node_base *__next = __node->_M_next;
+    // result  -->  node  -->  next
     __node->_M_next = __result;
+    // result  <--  node       next
     __result = __node;
+    //             result      node
     __node = __next;
   }
   return __result;
 }
 
+//遍历得出链表长度
 inline size_t __slist_size(_Slist_node_base *__node)
 {
   size_t __result = 0;
@@ -110,26 +129,29 @@ inline size_t __slist_size(_Slist_node_base *__node)
   return __result;
 }
 
+//链表节点
 template <class _Tp>
 struct _Slist_node : public _Slist_node_base
 {
   _Tp _M_data;
 };
 
+//链表迭代器基类
 struct _Slist_iterator_base
 {
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
-  typedef forward_iterator_tag iterator_category;
+  typedef forward_iterator_tag iterator_category; //可单向遍历类别
 
+  //指向节点
   _Slist_node_base *_M_node;
 
   _Slist_iterator_base(_Slist_node_base *__x) : _M_node(__x) {}
-  void _M_incr() { _M_node = _M_node->_M_next; }
+  void _M_incr() { _M_node = _M_node->_M_next; } //++
 
   bool operator==(const _Slist_iterator_base &__x) const
   {
-    return _M_node == __x._M_node;
+    return _M_node == __x._M_node; //节点指针比较
   }
   bool operator!=(const _Slist_iterator_base &__x) const
   {
@@ -137,6 +159,7 @@ struct _Slist_iterator_base
   }
 };
 
+//链表迭代器
 template <class _Tp, class _Ref, class _Ptr>
 struct _Slist_iterator : public _Slist_iterator_base
 {
@@ -153,6 +176,7 @@ struct _Slist_iterator : public _Slist_iterator_base
   _Slist_iterator() : _Slist_iterator_base(0) {}
   _Slist_iterator(const iterator &__x) : _Slist_iterator_base(__x._M_node) {}
 
+  //解引用实际转换为节点数据类型
   reference operator*() const { return ((_Node *)_M_node)->_M_data; }
 #ifndef __SGI_STL_NO_ARROW_OPERATOR
   pointer operator->() const
@@ -161,6 +185,7 @@ struct _Slist_iterator : public _Slist_iterator_base
   }
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
 
+  //后置++
   _Self &operator++()
   {
     _M_incr();
@@ -280,6 +305,7 @@ protected:
 
 #else /* __STL_USE_STD_ALLOCATORS */
 
+//链表基类
 template <class _Tp, class _Alloc>
 struct _Slist_base
 {
@@ -291,26 +317,34 @@ struct _Slist_base
 
 protected:
   typedef simple_alloc<_Slist_node<_Tp>, _Alloc> _Alloc_type;
+  //分配节点空间
   _Slist_node<_Tp> *_M_get_node() { return _Alloc_type::allocate(1); }
+  //销毁节点空间
   void _M_put_node(_Slist_node<_Tp> *__p) { _Alloc_type::deallocate(__p, 1); }
 
+  //删除pos后的节点
   _Slist_node_base *_M_erase_after(_Slist_node_base *__pos)
   {
+    // pos  -->  next  -->  nextnext
     _Slist_node<_Tp> *__next = (_Slist_node<_Tp> *)(__pos->_M_next);
-    _Slist_node_base *__next_next = __next->_M_next;
+    _Slist_node_base *__next_next = __next->_M_next; //__next为NULL会抛出空指针访问异常
     __pos->_M_next = __next_next;
-    destroy(&__next->_M_data);
-    _M_put_node(__next);
-    return __next_next;
+    // pos       next  -->  nextnext
+    //  |                       ^
+    //  - - - - - - - - - - - - |
+    destroy(&__next->_M_data); //析构
+    _M_put_node(__next);       //销毁内存
+    return __next_next;        //返回删除节点的后一个节点
   }
   _Slist_node_base *_M_erase_after(_Slist_node_base *, _Slist_node_base *);
 
 protected:
-  _Slist_node_base _M_head;
+  _Slist_node_base _M_head; //哨兵
 };
 
 #endif /* __STL_USE_STD_ALLOCATORS */
 
+//删除(first, last)
 template <class _Tp, class _Alloc>
 _Slist_node_base *
 _Slist_base<_Tp, _Alloc>::_M_erase_after(_Slist_node_base *__before_first,
@@ -328,6 +362,7 @@ _Slist_base<_Tp, _Alloc>::_M_erase_after(_Slist_node_base *__before_first,
   return __last_node;
 }
 
+//单向链表
 template <class _Tp, class _Alloc = __STL_DEFAULT_ALLOCATOR(_Tp)>
 class slist : private _Slist_base<_Tp, _Alloc>
 {
@@ -358,18 +393,20 @@ private:
   typedef _Slist_node_base _Node_base;
   typedef _Slist_iterator_base _Iterator_base;
 
+  //创建节点
   _Node *_M_create_node(const value_type &__x)
   {
+    //申请空间
     _Node *__node = this->_M_get_node();
     __STL_TRY
     {
+      //构造
       construct(&__node->_M_data, __x);
       __node->_M_next = 0;
     }
     __STL_UNWIND(this->_M_put_node(__node));
     return __node;
   }
-
   _Node *_M_create_node()
   {
     _Node *__node = this->_M_get_node();
@@ -463,6 +500,7 @@ public:
 #endif /* __STL_MEMBER_TEMPLATES */
 
 public:
+  //类似list的设计，真正可用节点是哨兵节点后的节点
   iterator begin() { return iterator((_Node *)this->_M_head._M_next); }
   const_iterator begin() const
   {
@@ -489,6 +527,7 @@ public:
 
   size_type max_size() const { return size_type(-1); }
 
+  //哨兵指向空即为空链表
   bool empty() const { return this->_M_head._M_next == 0; }
 
   void swap(slist &__x)
@@ -575,6 +614,7 @@ private:
 
 #else /* __STL_MEMBER_TEMPLATES */
 
+  // pos后插入[first, last)
   void _M_insert_after_range(_Node_base *__pos,
                              const_iterator __first, const_iterator __last)
   {
