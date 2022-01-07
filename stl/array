@@ -53,6 +53,8 @@ namespace std _GLIBCXX_VISIBILITY(default)
      *  @param  Tp  Type of element. Required to be a complete type.
      *  @param  N  Number of elements.
      */
+
+    //数组
     template <typename _Tp, std::size_t _Nm>
     struct array
     {
@@ -67,142 +69,121 @@ namespace std _GLIBCXX_VISIBILITY(default)
       typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
       // Support for zero-sized arrays mandatory.
-      value_type _M_instance[_Nm ? _Nm : 1];
+      value_type _M_instance[_Nm ? _Nm : 1]; //底层数组
 
       // No explicit construct/copy/destroy for aggregate type.
 
-      void
-      assign(const value_type &__u)
+      //覆盖值
+      void assign(const value_type &__u)
       {
         std::fill_n(begin(), size(), __u);
       }
 
-      void
-      swap(array &__other)
+      //交换
+      void swap(array &__other)
       {
         std::swap_ranges(begin(), end(), __other.begin());
       }
 
       // Iterators.
-      iterator
-      begin()
+      iterator begin()
       {
         return iterator(std::__addressof(_M_instance[0]));
       }
 
-      const_iterator
-      begin() const
+      const_iterator begin() const
       {
         return const_iterator(std::__addressof(_M_instance[0]));
       }
 
-      iterator
-      end()
+      iterator end()
       {
         return iterator(std::__addressof(_M_instance[_Nm]));
       }
 
-      const_iterator
-      end() const
+      const_iterator end() const
       {
         return const_iterator(std::__addressof(_M_instance[_Nm]));
       }
 
-      reverse_iterator
-      rbegin()
+      reverse_iterator rbegin()
       {
         return reverse_iterator(end());
       }
 
-      const_reverse_iterator
-      rbegin() const
+      const_reverse_iterator rbegin() const
       {
         return const_reverse_iterator(end());
       }
 
-      reverse_iterator
-      rend()
+      reverse_iterator rend()
       {
         return reverse_iterator(begin());
       }
 
-      const_reverse_iterator
-      rend() const
+      const_reverse_iterator rend() const
       {
         return const_reverse_iterator(begin());
       }
 
       // Capacity.
-      size_type
-      size() const { return _Nm; }
+      size_type size() const { return _Nm; }
 
-      size_type
-      max_size() const { return _Nm; }
+      size_type max_size() const { return _Nm; }
 
-      bool
-      empty() const { return size() == 0; }
+      bool empty() const { return size() == 0; }
 
       // Element access.
-      reference
-      operator[](size_type __n)
+      reference operator[](size_type __n)
       {
         return _M_instance[__n];
       }
 
-      const_reference
-      operator[](size_type __n) const
+      const_reference operator[](size_type __n) const
       {
         return _M_instance[__n];
       }
 
-      reference
-      at(size_type __n)
+      reference at(size_type __n)
       {
         if (__n >= _Nm)
           std::__throw_out_of_range(__N("array::at"));
         return _M_instance[__n];
       }
 
-      const_reference
-      at(size_type __n) const
+      const_reference at(size_type __n) const
       {
         if (__n >= _Nm)
           std::__throw_out_of_range(__N("array::at"));
         return _M_instance[__n];
       }
 
-      reference
-      front()
+      reference front()
       {
         return *begin();
       }
 
-      const_reference
-      front() const
+      const_reference front() const
       {
         return *begin();
       }
 
-      reference
-      back()
+      reference back()
       {
         return _Nm ? *(end() - 1) : *end();
       }
 
-      const_reference
-      back() const
+      const_reference back() const
       {
         return _Nm ? *(end() - 1) : *end();
       }
 
-      _Tp *
-      data()
+      _Tp *data()
       {
         return std::__addressof(_M_instance[0]);
       }
 
-      const _Tp *
-      data() const
+      const _Tp *data() const
       {
         return std::__addressof(_M_instance[0]);
       }
@@ -210,44 +191,38 @@ namespace std _GLIBCXX_VISIBILITY(default)
 
     // Array comparisons.
     template <typename _Tp, std::size_t _Nm>
-    inline bool
-    operator==(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
+    inline bool operator==(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
     {
       return std::equal(__one.begin(), __one.end(), __two.begin());
     }
 
     template <typename _Tp, std::size_t _Nm>
-    inline bool
-    operator!=(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
+    inline bool operator!=(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
     {
       return !(__one == __two);
     }
 
     template <typename _Tp, std::size_t _Nm>
-    inline bool
-    operator<(const array<_Tp, _Nm> &__a, const array<_Tp, _Nm> &__b)
+    inline bool operator<(const array<_Tp, _Nm> &__a, const array<_Tp, _Nm> &__b)
     {
       return std::lexicographical_compare(__a.begin(), __a.end(),
                                           __b.begin(), __b.end());
     }
 
     template <typename _Tp, std::size_t _Nm>
-    inline bool
-    operator>(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
+    inline bool operator>(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
     {
       return __two < __one;
     }
 
     template <typename _Tp, std::size_t _Nm>
-    inline bool
-    operator<=(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
+    inline bool operator<=(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
     {
       return !(__one > __two);
     }
 
     template <typename _Tp, std::size_t _Nm>
-    inline bool
-    operator>=(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
+    inline bool operator>=(const array<_Tp, _Nm> &__one, const array<_Tp, _Nm> &__two)
     {
       return !(__one < __two);
     }
@@ -271,17 +246,17 @@ namespace std _GLIBCXX_VISIBILITY(default)
     class tuple_element;
 
     template <typename _Tp, std::size_t _Nm>
-    struct tuple_size<array<_Tp, _Nm>>
+    struct tuple_size<array<_Tp, _Nm> >
     {
       static const int value = _Nm;
     };
 
     template <typename _Tp, std::size_t _Nm>
     const int
-        tuple_size<array<_Tp, _Nm>>::value;
+        tuple_size<array<_Tp, _Nm> >::value;
 
     template <int _Int, typename _Tp, std::size_t _Nm>
-    struct tuple_element<_Int, array<_Tp, _Nm>>
+    struct tuple_element<_Int, array<_Tp, _Nm> >
     {
       typedef _Tp type;
     };
