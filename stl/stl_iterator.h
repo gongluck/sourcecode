@@ -12,7 +12,7 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  *
  *
- * Copyright (c) 1996-1998
+ * Copyright (c) 1996,1997
  * Silicon Graphics Computer Systems, Inc.
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -33,170 +33,528 @@
 
 __STL_BEGIN_NAMESPACE
 
-template <class _Container>
+//迭代器类型定义
+struct input_iterator_tag
+{
+};
+struct output_iterator_tag
+{
+};
+struct forward_iterator_tag : public input_iterator_tag
+{
+};
+struct bidirectional_iterator_tag : public forward_iterator_tag
+{
+};
+struct random_access_iterator_tag : public bidirectional_iterator_tag
+{
+};
+
+template <class T, class Distance>
+struct input_iterator
+{
+  typedef input_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef T *pointer;
+  typedef T &reference;
+};
+
+struct output_iterator
+{
+  typedef output_iterator_tag iterator_category;
+  typedef void value_type;
+  typedef void difference_type;
+  typedef void pointer;
+  typedef void reference;
+};
+
+template <class T, class Distance>
+struct forward_iterator
+{
+  typedef forward_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef T *pointer;
+  typedef T &reference;
+};
+
+template <class T, class Distance>
+struct bidirectional_iterator
+{
+  typedef bidirectional_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef T *pointer;
+  typedef T &reference;
+};
+
+template <class T, class Distance>
+struct random_access_iterator
+{
+  typedef random_access_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef T *pointer;
+  typedef T &reference;
+};
+
+#ifdef __STL_USE_NAMESPACES
+template <class Category, class T, class Distance = ptrdiff_t,
+          class Pointer = T *, class Reference = T &>
+struct iterator
+{
+  typedef Category iterator_category;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef Pointer pointer;
+  typedef Reference reference;
+};
+#endif /* __STL_USE_NAMESPACES */
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+
+template <class Iterator>
+struct iterator_traits
+{
+  typedef typename Iterator::iterator_category iterator_category;
+  typedef typename Iterator::value_type value_type;
+  typedef typename Iterator::difference_type difference_type;
+  typedef typename Iterator::pointer pointer;
+  typedef typename Iterator::reference reference;
+};
+
+template <class T>
+struct iterator_traits<T *>
+{
+  typedef random_access_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef ptrdiff_t difference_type;
+  typedef T *pointer;
+  typedef T &reference;
+};
+
+template <class T>
+struct iterator_traits<const T *>
+{
+  typedef random_access_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef ptrdiff_t difference_type;
+  typedef const T *pointer;
+  typedef const T &reference;
+};
+
+template <class Iterator>
+inline typename iterator_traits<Iterator>::iterator_category
+iterator_category(const Iterator &)
+{
+  typedef typename iterator_traits<Iterator>::iterator_category category;
+  return category();
+}
+
+template <class Iterator>
+inline typename iterator_traits<Iterator>::difference_type *
+distance_type(const Iterator &)
+{
+  return static_cast<typename iterator_traits<Iterator>::difference_type *>(0);
+}
+
+template <class Iterator>
+inline typename iterator_traits<Iterator>::value_type *
+value_type(const Iterator &)
+{
+  return static_cast<typename iterator_traits<Iterator>::value_type *>(0);
+}
+
+#else /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+
+template <class T, class Distance>
+inline input_iterator_tag
+iterator_category(const input_iterator<T, Distance> &)
+{
+  return input_iterator_tag();
+}
+
+inline output_iterator_tag iterator_category(const output_iterator &)
+{
+  return output_iterator_tag();
+}
+
+template <class T, class Distance>
+inline forward_iterator_tag
+iterator_category(const forward_iterator<T, Distance> &)
+{
+  return forward_iterator_tag();
+}
+
+template <class T, class Distance>
+inline bidirectional_iterator_tag
+iterator_category(const bidirectional_iterator<T, Distance> &)
+{
+  return bidirectional_iterator_tag();
+}
+
+template <class T, class Distance>
+inline random_access_iterator_tag
+iterator_category(const random_access_iterator<T, Distance> &)
+{
+  return random_access_iterator_tag();
+}
+
+template <class T>
+inline random_access_iterator_tag iterator_category(const T *)
+{
+  return random_access_iterator_tag();
+}
+
+//迭代器value_type返回T*
+template <class T, class Distance>
+inline T *value_type(const input_iterator<T, Distance> &)
+{
+  return (T *)(0);
+}
+
+template <class T, class Distance>
+inline T *value_type(const forward_iterator<T, Distance> &)
+{
+  return (T *)(0);
+}
+
+template <class T, class Distance>
+inline T *value_type(const bidirectional_iterator<T, Distance> &)
+{
+  return (T *)(0);
+}
+
+template <class T, class Distance>
+inline T *value_type(const random_access_iterator<T, Distance> &)
+{
+  return (T *)(0);
+}
+
+template <class T>
+inline T *value_type(const T *) { return (T *)(0); }
+
+//迭代器distance_type返回Distance*
+template <class T, class Distance>
+inline Distance *distance_type(const input_iterator<T, Distance> &)
+{
+  return (Distance *)(0);
+}
+
+template <class T, class Distance>
+inline Distance *distance_type(const forward_iterator<T, Distance> &)
+{
+  return (Distance *)(0);
+}
+
+template <class T, class Distance>
+inline Distance *
+distance_type(const bidirectional_iterator<T, Distance> &)
+{
+  return (Distance *)(0);
+}
+
+template <class T, class Distance>
+inline Distance *
+distance_type(const random_access_iterator<T, Distance> &)
+{
+  return (Distance *)(0);
+}
+
+template <class T>
+inline ptrdiff_t *distance_type(const T *) { return (ptrdiff_t *)(0); }
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+
+//输入迭代器distance计算 遍历
+template <class InputIterator, class Distance>
+inline void __distance(InputIterator first, InputIterator last, Distance &n,
+                       input_iterator_tag)
+{
+  while (first != last)
+  {
+    ++first;
+    ++n;
+  }
+}
+
+//随机迭代器distance计算 operator-
+template <class RandomAccessIterator, class Distance>
+inline void __distance(RandomAccessIterator first, RandomAccessIterator last,
+                       Distance &n, random_access_iterator_tag)
+{
+  n += last - first;
+}
+
+// distance接口
+template <class InputIterator, class Distance>
+inline void distance(InputIterator first, InputIterator last, Distance &n)
+{
+  // InputIterator是模板参数，实际可用输入迭代器和随机迭代器类型匹配上面重载的__distance方法
+  __distance(first, last, n, iterator_category(first));
+}
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+
+template <class InputIterator>
+inline iterator_traits<InputIterator>::difference_type
+__distance(InputIterator first, InputIterator last, input_iterator_tag)
+{
+  iterator_traits<InputIterator>::difference_type n = 0;
+  while (first != last)
+  {
+    ++first;
+    ++n;
+  }
+  return n;
+}
+
+template <class RandomAccessIterator>
+inline iterator_traits<RandomAccessIterator>::difference_type
+__distance(RandomAccessIterator first, RandomAccessIterator last,
+           random_access_iterator_tag)
+{
+  return last - first;
+}
+
+template <class InputIterator>
+inline iterator_traits<InputIterator>::difference_type
+distance(InputIterator first, InputIterator last)
+{
+  typedef typename iterator_traits<InputIterator>::iterator_category category;
+  return __distance(first, last, category());
+}
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+
+//输入迭代器前进 遍历
+template <class InputIterator, class Distance>
+inline void __advance(InputIterator &i, Distance n, input_iterator_tag)
+{
+  while (n--)
+    ++i;
+}
+
+#if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
+#pragma set woff 1183
+#endif
+
+//双向迭代器前进或者后退 遍历
+template <class BidirectionalIterator, class Distance>
+inline void __advance(BidirectionalIterator &i, Distance n,
+                      bidirectional_iterator_tag)
+{
+  if (n >= 0)
+    while (n--)
+      ++i;
+  else
+    while (n++)
+      --i;
+}
+
+#if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
+#pragma reset woff 1183
+#endif
+
+//随机迭代器前进 operator+
+template <class RandomAccessIterator, class Distance>
+inline void __advance(RandomAccessIterator &i, Distance n,
+                      random_access_iterator_tag)
+{
+  i += n;
+}
+
+//迭代器前进接口
+template <class InputIterator, class Distance>
+inline void advance(InputIterator &i, Distance n)
+{
+  // InputIterator是模板参数，实际可用输入迭代器、双向迭代器和随机迭代器类型匹配上面重载的__advance方法
+  __advance(i, n, iterator_category(i));
+}
+
+//尾部插入迭代器
+template <class Container>
 class back_insert_iterator
 {
 protected:
-  _Container *container;
+  Container *container; //指向容器
 
 public:
-  typedef _Container container_type;
   typedef output_iterator_tag iterator_category;
   typedef void value_type;
   typedef void difference_type;
   typedef void pointer;
   typedef void reference;
 
-  explicit back_insert_iterator(_Container &__x) : container(&__x) {}
-  back_insert_iterator<_Container> &
-  operator=(const typename _Container::value_type &__value)
+  explicit back_insert_iterator(Container &x) : container(&x) {}
+  //在容器尾部插入
+  back_insert_iterator<Container> &
+  operator=(const typename Container::value_type &value)
   {
-    container->push_back(__value);
+    container->push_back(value);
     return *this;
   }
-  back_insert_iterator<_Container> &operator*() { return *this; }
-  back_insert_iterator<_Container> &operator++() { return *this; }
-  back_insert_iterator<_Container> &operator++(int) { return *this; }
+  //前置和后置operator++都返回*this，结合operator=，+=实现链式尾部插入
+  back_insert_iterator<Container> &operator*() { return *this; }
+  back_insert_iterator<Container> &operator++() { return *this; }
+  back_insert_iterator<Container> &operator++(int) { return *this; }
 };
 
 #ifndef __STL_CLASS_PARTIAL_SPECIALIZATION
 
-template <class _Container>
+//尾部插入迭代器属于输出迭代器类别
+template <class Container>
 inline output_iterator_tag
-iterator_category(const back_insert_iterator<_Container> &)
+iterator_category(const back_insert_iterator<Container> &)
 {
   return output_iterator_tag();
 }
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
-template <class _Container>
-inline back_insert_iterator<_Container> back_inserter(_Container &__x)
+//生成尾部插入迭代器
+template <class Container>
+inline back_insert_iterator<Container> back_inserter(Container &x)
 {
-  return back_insert_iterator<_Container>(__x);
+  return back_insert_iterator<Container>(x);
 }
 
-template <class _Container>
+//头部插入迭代器
+template <class Container>
 class front_insert_iterator
 {
 protected:
-  _Container *container;
+  Container *container; //指向容器
 
 public:
-  typedef _Container container_type;
   typedef output_iterator_tag iterator_category;
   typedef void value_type;
   typedef void difference_type;
   typedef void pointer;
   typedef void reference;
 
-  explicit front_insert_iterator(_Container &__x) : container(&__x) {}
-  front_insert_iterator<_Container> &
-  operator=(const typename _Container::value_type &__value)
+  explicit front_insert_iterator(Container &x) : container(&x) {}
+  //在容器头部插入
+  front_insert_iterator<Container> &
+  operator=(const typename Container::value_type &value)
   {
-    container->push_front(__value);
+    container->push_front(value);
     return *this;
   }
-  front_insert_iterator<_Container> &operator*() { return *this; }
-  front_insert_iterator<_Container> &operator++() { return *this; }
-  front_insert_iterator<_Container> &operator++(int) { return *this; }
+  //前置和后置operator++都返回*this，结合operator=，+=实现链式头部插入
+  front_insert_iterator<Container> &operator*() { return *this; }
+  front_insert_iterator<Container> &operator++() { return *this; }
+  front_insert_iterator<Container> &operator++(int) { return *this; }
 };
 
 #ifndef __STL_CLASS_PARTIAL_SPECIALIZATION
 
-template <class _Container>
+//头部插入迭代器属于输出迭代器类别
+template <class Container>
 inline output_iterator_tag
-iterator_category(const front_insert_iterator<_Container> &)
+iterator_category(const front_insert_iterator<Container> &)
 {
   return output_iterator_tag();
 }
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
-template <class _Container>
-inline front_insert_iterator<_Container> front_inserter(_Container &__x)
+//生成头部插入迭代器
+template <class Container>
+inline front_insert_iterator<Container> front_inserter(Container &x)
 {
-  return front_insert_iterator<_Container>(__x);
+  return front_insert_iterator<Container>(x);
 }
 
-template <class _Container>
+//插入迭代器
+template <class Container>
 class insert_iterator
 {
 protected:
-  _Container *container;
-  typename _Container::iterator iter;
+  Container *container;              //指向容器
+  typename Container::iterator iter; //当前插入点的迭代器
 
 public:
-  typedef _Container container_type;
   typedef output_iterator_tag iterator_category;
   typedef void value_type;
   typedef void difference_type;
   typedef void pointer;
   typedef void reference;
 
-  insert_iterator(_Container &__x, typename _Container::iterator __i)
-      : container(&__x), iter(__i) {}
-  insert_iterator<_Container> &
-  operator=(const typename _Container::value_type &__value)
+  insert_iterator(Container &x, typename Container::iterator i)
+      : container(&x), iter(i) {}
+  //在iter处插入
+  insert_iterator<Container> &
+  operator=(const typename Container::value_type &value)
   {
-    iter = container->insert(iter, __value);
+    iter = container->insert(iter, value);
     ++iter;
     return *this;
   }
-  insert_iterator<_Container> &operator*() { return *this; }
-  insert_iterator<_Container> &operator++() { return *this; }
-  insert_iterator<_Container> &operator++(int) { return *this; }
+  //前置和后置operator++都返回*this，结合operator=，+=实现链式插入
+  insert_iterator<Container> &operator*() { return *this; }
+  insert_iterator<Container> &operator++() { return *this; }
+  insert_iterator<Container> &operator++(int) { return *this; }
 };
 
 #ifndef __STL_CLASS_PARTIAL_SPECIALIZATION
 
-template <class _Container>
+//插入迭代器属于输出迭代器类别
+template <class Container>
 inline output_iterator_tag
-iterator_category(const insert_iterator<_Container> &)
+iterator_category(const insert_iterator<Container> &)
 {
   return output_iterator_tag();
 }
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
-template <class _Container, class _Iterator>
-inline insert_iterator<_Container> inserter(_Container &__x, _Iterator __i)
+//生成插入迭代器
+template <class Container, class Iterator>
+inline insert_iterator<Container> inserter(Container &x, Iterator i)
 {
-  typedef typename _Container::iterator __iter;
-  return insert_iterator<_Container>(__x, __iter(__i));
+  typedef typename Container::iterator iter;
+  return insert_iterator<Container>(x, iter(i));
 }
 
-//反向的可双向访问迭代器
-template <class _BidirectionalIterator, class _Tp, class _Reference = _Tp &,
-          class _Distance = ptrdiff_t>
+#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
+template <class BidirectionalIterator, class T, class Reference = T &,
+          class Distance = ptrdiff_t>
+#else
+template <class BidirectionalIterator, class T, class Reference,
+          class Distance>
+#endif
+//反向双向迭代器
 class reverse_bidirectional_iterator
 {
-  typedef reverse_bidirectional_iterator<_BidirectionalIterator, _Tp,
-                                         _Reference, _Distance>
-      _Self;
+  typedef reverse_bidirectional_iterator<BidirectionalIterator, T, Reference,
+                                         Distance>
+      self;
 
 protected:
-  _BidirectionalIterator current;
+  BidirectionalIterator current; //当前位置迭代器
 
 public:
   typedef bidirectional_iterator_tag iterator_category;
-  typedef _Tp value_type;
-  typedef _Distance difference_type;
-  typedef _Tp *pointer;
-  typedef _Reference reference;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef T *pointer;
+  typedef Reference reference;
 
   reverse_bidirectional_iterator() {}
-  explicit reverse_bidirectional_iterator(_BidirectionalIterator __x)
-      : current(__x) {}
-  _BidirectionalIterator base() const { return current; }
+  explicit reverse_bidirectional_iterator(BidirectionalIterator x)
+      : current(x) {}
+  BidirectionalIterator base() const { return current; }
   //解引用操作
-  _Reference operator*() const
+  Reference operator*() const
   {
-    //先获取上一个元素，再解引用
-    _BidirectionalIterator __tmp = current;
-    return *--__tmp;
+    BidirectionalIterator tmp = current;
+    //向前移动后，解引用
+    return *--tmp;
   }
 #ifndef __SGI_STL_NO_ARROW_OPERATOR
+  //成员引用运算符返回operator*操作结果的地址
   pointer operator->() const
   {
     return &(operator*());
@@ -204,82 +562,73 @@ public:
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
 
   //反向操作
-  _Self &operator++()
+  self &operator++()
   {
     --current;
     return *this;
   }
-  _Self operator++(int)
+  self operator++(int)
   {
-    _Self __tmp = *this;
+    self tmp = *this;
     --current;
-    return __tmp;
+    return tmp;
   }
-  _Self &operator--()
+  self &operator--()
   {
     ++current;
     return *this;
   }
-  _Self operator--(int)
+  self operator--(int)
   {
-    _Self __tmp = *this;
+    self tmp = *this;
     ++current;
-    return __tmp;
+    return tmp;
   }
 };
 
 #ifndef __STL_CLASS_PARTIAL_SPECIALIZATION
 
-template <class _BidirectionalIterator, class _Tp, class _Reference,
-          class _Distance>
+//反向双向迭代器属于双向迭代器类别
+template <class BidirectionalIterator, class T, class Reference,
+          class Distance>
 inline bidirectional_iterator_tag
-iterator_category(const reverse_bidirectional_iterator<_BidirectionalIterator,
-                                                       _Tp, _Reference,
-                                                       _Distance> &)
+iterator_category(const reverse_bidirectional_iterator<BidirectionalIterator,
+                                                       T,
+                                                       Reference, Distance> &)
 {
   return bidirectional_iterator_tag();
 }
 
-template <class _BidirectionalIterator, class _Tp, class _Reference,
-          class _Distance>
-inline _Tp *
-value_type(const reverse_bidirectional_iterator<_BidirectionalIterator, _Tp,
-                                                _Reference, _Distance> &)
+template <class BidirectionalIterator, class T, class Reference,
+          class Distance>
+inline T *
+value_type(const reverse_bidirectional_iterator<BidirectionalIterator, T,
+                                                Reference, Distance> &)
 {
-  return (_Tp *)0;
+  return (T *)0;
 }
 
-template <class _BidirectionalIterator, class _Tp, class _Reference,
-          class _Distance>
-inline _Distance *
-distance_type(const reverse_bidirectional_iterator<_BidirectionalIterator,
-                                                   _Tp,
-                                                   _Reference, _Distance> &)
+template <class BidirectionalIterator, class T, class Reference,
+          class Distance>
+inline Distance *
+distance_type(const reverse_bidirectional_iterator<BidirectionalIterator, T,
+                                                   Reference, Distance> &)
 {
-  return (_Distance *)0;
+  return (Distance *)0;
 }
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
-template <class _BiIter, class _Tp, class _Ref, class _Distance>
+template <class BidirectionalIterator, class T, class Reference,
+          class Distance>
 inline bool operator==(
-    const reverse_bidirectional_iterator<_BiIter, _Tp, _Ref, _Distance> &__x,
-    const reverse_bidirectional_iterator<_BiIter, _Tp, _Ref, _Distance> &__y)
+    const reverse_bidirectional_iterator<BidirectionalIterator, T, Reference,
+                                         Distance> &x,
+    const reverse_bidirectional_iterator<BidirectionalIterator, T, Reference,
+                                         Distance> &y)
 {
-  return __x.base() == __y.base();
+  return x.base() == y.base();
 }
-
-#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
-
-template <class _BiIter, class _Tp, class _Ref, class _Distance>
-inline bool operator!=(
-    const reverse_bidirectional_iterator<_BiIter, _Tp, _Ref, _Distance> &__x,
-    const reverse_bidirectional_iterator<_BiIter, _Tp, _Ref, _Distance> &__y)
-{
-  return !(__x == __y);
-}
-
-#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
 #ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
 
@@ -289,36 +638,35 @@ inline bool operator!=(
 //  reverse_bidirectional_iterator is no longer part of the draft
 //  standard, but it is retained for backward compatibility.
 
-template <class _Iterator>
+template <class Iterator>
 class reverse_iterator
 {
 protected:
-  _Iterator current;
+  Iterator current;
 
 public:
-  typedef typename iterator_traits<_Iterator>::iterator_category
+  typedef typename iterator_traits<Iterator>::iterator_category
       iterator_category;
-  typedef typename iterator_traits<_Iterator>::value_type
+  typedef typename iterator_traits<Iterator>::value_type
       value_type;
-  typedef typename iterator_traits<_Iterator>::difference_type
+  typedef typename iterator_traits<Iterator>::difference_type
       difference_type;
-  typedef typename iterator_traits<_Iterator>::pointer
+  typedef typename iterator_traits<Iterator>::pointer
       pointer;
-  typedef typename iterator_traits<_Iterator>::reference
+  typedef typename iterator_traits<Iterator>::reference
       reference;
 
-  typedef _Iterator iterator_type;
-  typedef reverse_iterator<_Iterator> _Self;
+  typedef Iterator iterator_type;
+  typedef reverse_iterator<Iterator> self;
 
 public:
   reverse_iterator() {}
-  explicit reverse_iterator(iterator_type __x) : current(__x) {}
+  explicit reverse_iterator(iterator_type x) : current(x) {}
 
-  reverse_iterator(const _Self &__x) : current(__x.current) {}
+  reverse_iterator(const self &x) : current(x.current) {}
 #ifdef __STL_MEMBER_TEMPLATES
-  template <class _Iter>
-  reverse_iterator(const reverse_iterator<_Iter> &__x)
-      : current(__x.base())
+  template <class Iter>
+  reverse_iterator(const reverse_iterator<Iter> &x) : current(x.current)
   {
   }
 #endif /* __STL_MEMBER_TEMPLATES */
@@ -329,8 +677,8 @@ public:
   }
   reference operator*() const
   {
-    _Iterator __tmp = current;
-    return *--__tmp;
+    Iterator tmp = current;
+    return *--tmp;
   }
 #ifndef __SGI_STL_NO_ARROW_OPERATOR
   pointer operator->() const
@@ -339,110 +687,78 @@ public:
   }
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
 
-  _Self &operator++()
+  self &operator++()
   {
     --current;
     return *this;
   }
-  _Self operator++(int)
+  self operator++(int)
   {
-    _Self __tmp = *this;
+    self tmp = *this;
     --current;
-    return __tmp;
+    return tmp;
   }
-  _Self &operator--()
+  self &operator--()
   {
     ++current;
     return *this;
   }
-  _Self operator--(int)
+  self operator--(int)
   {
-    _Self __tmp = *this;
+    self tmp = *this;
     ++current;
-    return __tmp;
+    return tmp;
   }
 
-  _Self operator+(difference_type __n) const
+  self operator+(difference_type n) const
   {
-    return _Self(current - __n);
+    return self(current - n);
   }
-  _Self &operator+=(difference_type __n)
+  self &operator+=(difference_type n)
   {
-    current -= __n;
+    current -= n;
     return *this;
   }
-  _Self operator-(difference_type __n) const
+  self operator-(difference_type n) const
   {
-    return _Self(current + __n);
+    return self(current + n);
   }
-  _Self &operator-=(difference_type __n)
+  self &operator-=(difference_type n)
   {
-    current += __n;
+    current += n;
     return *this;
   }
-  reference operator[](difference_type __n) const { return *(*this + __n); }
+  reference operator[](difference_type n) const { return *(*this + n); }
 };
 
-template <class _Iterator>
-inline bool operator==(const reverse_iterator<_Iterator> &__x,
-                       const reverse_iterator<_Iterator> &__y)
+template <class Iterator>
+inline bool operator==(const reverse_iterator<Iterator> &x,
+                       const reverse_iterator<Iterator> &y)
 {
-  return __x.base() == __y.base();
+  return x.base() == y.base();
 }
 
-template <class _Iterator>
-inline bool operator<(const reverse_iterator<_Iterator> &__x,
-                      const reverse_iterator<_Iterator> &__y)
+template <class Iterator>
+inline bool operator<(const reverse_iterator<Iterator> &x,
+                      const reverse_iterator<Iterator> &y)
 {
-  return __y.base() < __x.base();
+  return y.base() < x.base();
 }
 
-#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
-
-template <class _Iterator>
-inline bool operator!=(const reverse_iterator<_Iterator> &__x,
-                       const reverse_iterator<_Iterator> &__y)
+template <class Iterator>
+inline typename reverse_iterator<Iterator>::difference_type
+operator-(const reverse_iterator<Iterator> &x,
+          const reverse_iterator<Iterator> &y)
 {
-  return !(__x == __y);
+  return y.base() - x.base();
 }
 
-template <class _Iterator>
-inline bool operator>(const reverse_iterator<_Iterator> &__x,
-                      const reverse_iterator<_Iterator> &__y)
+template <class Iterator>
+inline reverse_iterator<Iterator>
+operator+(reverse_iterator<Iterator>::difference_type n,
+          const reverse_iterator<Iterator> &x)
 {
-  return __y < __x;
-}
-
-template <class _Iterator>
-inline bool operator<=(const reverse_iterator<_Iterator> &__x,
-                       const reverse_iterator<_Iterator> &__y)
-{
-  return !(__y < __x);
-}
-
-template <class _Iterator>
-inline bool operator>=(const reverse_iterator<_Iterator> &__x,
-                       const reverse_iterator<_Iterator> &__y)
-{
-  return !(__x < __y);
-}
-
-#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
-
-template <class _Iterator>
-inline typename reverse_iterator<_Iterator>::difference_type
-operator-(const reverse_iterator<_Iterator> &__x,
-          const reverse_iterator<_Iterator> &__y)
-{
-  return __y.base() - __x.base();
-}
-
-template <class _Iterator>
-inline reverse_iterator<_Iterator>
-operator+(typename reverse_iterator<_Iterator>::difference_type __n,
-          const reverse_iterator<_Iterator> &__x)
-{
-  return reverse_iterator<_Iterator>(__x.base() - __n);
+  return reverse_iterator<Iterator>(x.base() - n);
 }
 
 #else /* __STL_CLASS_PARTIAL_SPECIALIZATION */
@@ -450,576 +766,235 @@ operator+(typename reverse_iterator<_Iterator>::difference_type __n,
 // This is the old version of reverse_iterator, as found in the original
 //  HP STL.  It does not use partial specialization.
 
-template <class _RandomAccessIterator, class _Tp, class _Reference = _Tp &,
-          class _Distance = ptrdiff_t>
+#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
+template <class RandomAccessIterator, class T, class Reference = T &,
+          class Distance = ptrdiff_t>
+#else
+template <class RandomAccessIterator, class T, class Reference,
+          class Distance>
+#endif
+//反向迭代器
 class reverse_iterator
 {
-  typedef reverse_iterator<_RandomAccessIterator, _Tp, _Reference, _Distance>
-      _Self;
+  typedef reverse_iterator<RandomAccessIterator, T, Reference, Distance>
+      self;
 
 protected:
-  _RandomAccessIterator current;
+  RandomAccessIterator current; //当前位置迭代器
 
 public:
   typedef random_access_iterator_tag iterator_category;
-  typedef _Tp value_type;
-  typedef _Distance difference_type;
-  typedef _Tp *pointer;
-  typedef _Reference reference;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef T *pointer;
+  typedef Reference reference;
 
   reverse_iterator() {}
-  explicit reverse_iterator(_RandomAccessIterator __x) : current(__x) {}
-  _RandomAccessIterator base() const { return current; }
-  _Reference operator*() const { return *(current - 1); }
+  explicit reverse_iterator(RandomAccessIterator x) : current(x) {}
+  RandomAccessIterator base() const { return current; }
+  //解引用操作返回前一个位置的迭代器的解引用
+  Reference operator*() const { return *(current - 1); }
 #ifndef __SGI_STL_NO_ARROW_OPERATOR
+  //成员引用运算符返回解引用操作的结果的地址
   pointer operator->() const
   {
     return &(operator*());
   }
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
-  _Self &operator++()
+  //反向操作
+  self &operator++()
   {
     --current;
     return *this;
   }
-  _Self operator++(int)
+  self operator++(int)
   {
-    _Self __tmp = *this;
+    self tmp = *this;
     --current;
-    return __tmp;
+    return tmp;
   }
-  _Self &operator--()
+  self &operator--()
   {
     ++current;
     return *this;
   }
-  _Self operator--(int)
+  self operator--(int)
   {
-    _Self __tmp = *this;
+    self tmp = *this;
     ++current;
-    return __tmp;
+    return tmp;
   }
-  _Self operator+(_Distance __n) const
+  //随机迭代器能跳跃步长
+  self operator+(Distance n) const
   {
-    return _Self(current - __n);
+    return self(current - n);
   }
-  _Self &operator+=(_Distance __n)
+  self &operator+=(Distance n)
   {
-    current -= __n;
+    current -= n;
     return *this;
   }
-  _Self operator-(_Distance __n) const
+  self operator-(Distance n) const
   {
-    return _Self(current + __n);
+    return self(current + n);
   }
-  _Self &operator-=(_Distance __n)
+  self &operator-=(Distance n)
   {
-    current += __n;
+    current += n;
     return *this;
   }
-  _Reference operator[](_Distance __n) const { return *(*this + __n); }
+  //随机迭代器下标运算符
+  Reference operator[](Distance n) const { return *(*this + n); }
 };
 
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
+//反向迭代器属于随机迭代器类别
+template <class RandomAccessIterator, class T, class Reference, class Distance>
 inline random_access_iterator_tag
-iterator_category(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                         _Reference, _Distance> &)
+iterator_category(const reverse_iterator<RandomAccessIterator, T,
+                                         Reference, Distance> &)
 {
   return random_access_iterator_tag();
 }
 
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline _Tp *value_type(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                              _Reference, _Distance> &)
+template <class RandomAccessIterator, class T, class Reference, class Distance>
+inline T *value_type(const reverse_iterator<RandomAccessIterator, T,
+                                            Reference, Distance> &)
 {
-  return (_Tp *)0;
+  return (T *)0;
 }
 
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline _Distance *
-distance_type(const reverse_iterator<_RandomAccessIterator,
-                                     _Tp, _Reference, _Distance> &)
+template <class RandomAccessIterator, class T, class Reference, class Distance>
+inline Distance *distance_type(const reverse_iterator<RandomAccessIterator, T,
+                                                      Reference, Distance> &)
 {
-  return (_Distance *)0;
+  return (Distance *)0;
 }
 
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline bool
-operator==(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__x,
-           const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__y)
+template <class RandomAccessIterator, class T, class Reference, class Distance>
+inline bool operator==(const reverse_iterator<RandomAccessIterator, T,
+                                              Reference, Distance> &x,
+                       const reverse_iterator<RandomAccessIterator, T,
+                                              Reference, Distance> &y)
 {
-  return __x.base() == __y.base();
+  return x.base() == y.base();
 }
 
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline bool
-operator<(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                 _Reference, _Distance> &__x,
-          const reverse_iterator<_RandomAccessIterator, _Tp,
-                                 _Reference, _Distance> &__y)
+template <class RandomAccessIterator, class T, class Reference, class Distance>
+inline bool operator<(const reverse_iterator<RandomAccessIterator, T,
+                                             Reference, Distance> &x,
+                      const reverse_iterator<RandomAccessIterator, T,
+                                             Reference, Distance> &y)
 {
-  return __y.base() < __x.base();
+  return y.base() < x.base();
 }
 
-#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
-
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline bool
-operator!=(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__x,
-           const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__y)
+template <class RandomAccessIterator, class T, class Reference, class Distance>
+inline Distance operator-(const reverse_iterator<RandomAccessIterator, T,
+                                                 Reference, Distance> &x,
+                          const reverse_iterator<RandomAccessIterator, T,
+                                                 Reference, Distance> &y)
 {
-  return !(__x == __y);
+  return y.base() - x.base();
 }
 
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline bool
-operator>(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                 _Reference, _Distance> &__x,
-          const reverse_iterator<_RandomAccessIterator, _Tp,
-                                 _Reference, _Distance> &__y)
+template <class RandomAccessIter, class T, class Ref, class Dist>
+inline reverse_iterator<RandomAccessIter, T, Ref, Dist>
+operator+(Dist n, const reverse_iterator<RandomAccessIter, T, Ref, Dist> &x)
 {
-  return __y < __x;
-}
-
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline bool
-operator<=(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__x,
-           const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__y)
-{
-  return !(__y < __x);
-}
-
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline bool
-operator>=(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__x,
-           const reverse_iterator<_RandomAccessIterator, _Tp,
-                                  _Reference, _Distance> &__y)
-{
-  return !(__x < __y);
-}
-
-#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
-
-template <class _RandomAccessIterator, class _Tp,
-          class _Reference, class _Distance>
-inline _Distance
-operator-(const reverse_iterator<_RandomAccessIterator, _Tp,
-                                 _Reference, _Distance> &__x,
-          const reverse_iterator<_RandomAccessIterator, _Tp,
-                                 _Reference, _Distance> &__y)
-{
-  return __y.base() - __x.base();
-}
-
-template <class _RandAccIter, class _Tp, class _Ref, class _Dist>
-inline reverse_iterator<_RandAccIter, _Tp, _Ref, _Dist>
-operator+(_Dist __n,
-          const reverse_iterator<_RandAccIter, _Tp, _Ref, _Dist> &__x)
-{
-  return reverse_iterator<_RandAccIter, _Tp, _Ref, _Dist>(__x.base() - __n);
+  return reverse_iterator<RandomAccessIter, T, Ref, Dist>(x.base() - n);
 }
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
-// istream_iterator and ostream_iterator look very different if we're
-// using new, templatized iostreams than if we're using the old cfront
-// version.
-
-#ifdef __STL_USE_NEW_IOSTREAMS
-
-template <class _Tp,
-          class _CharT = char, class _Traits = char_traits<_CharT>,
-          class _Dist = ptrdiff_t>
+//输入流迭代器
+template <class T, class Distance = ptrdiff_t>
 class istream_iterator
 {
-public:
-  typedef _CharT char_type;
-  typedef _Traits traits_type;
-  typedef basic_istream<_CharT, _Traits> istream_type;
-
-  typedef input_iterator_tag iterator_category;
-  typedef _Tp value_type;
-  typedef _Dist difference_type;
-  typedef const _Tp *pointer;
-  typedef const _Tp &reference;
-
-  istream_iterator() : _M_stream(0), _M_ok(false) {}
-  istream_iterator(istream_type &__s) : _M_stream(&__s) { _M_read(); }
-
-  reference operator*() const { return _M_value; }
-  pointer operator->() const { return &(operator*()); }
-
-  istream_iterator &operator++()
-  {
-    _M_read();
-    return *this;
-  }
-  istream_iterator operator++(int)
-  {
-    istream_iterator __tmp = *this;
-    _M_read();
-    return __tmp;
-  }
-
-  bool _M_equal(const istream_iterator &__x) const
-  {
-    return (_M_ok == __x._M_ok) && (!_M_ok || _M_stream == __x._M_stream);
-  }
-
-private:
-  istream_type *_M_stream;
-  _Tp _M_value;
-  bool _M_ok;
-
-  void _M_read()
-  {
-    _M_ok = (_M_stream && *_M_stream) ? true : false;
-    if (_M_ok)
-    {
-      *_M_stream >> _M_value;
-      _M_ok = *_M_stream ? true : false;
-    }
-  }
-};
-
-template <class _Tp, class _CharT, class _Traits, class _Dist>
-inline bool
-operator==(const istream_iterator<_Tp, _CharT, _Traits, _Dist> &__x,
-           const istream_iterator<_Tp, _CharT, _Traits, _Dist> &__y)
-{
-  return __x._M_equal(__y);
-}
-
-#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
-
-template <class _Tp, class _CharT, class _Traits, class _Dist>
-inline bool
-operator!=(const istream_iterator<_Tp, _CharT, _Traits, _Dist> &__x,
-           const istream_iterator<_Tp, _CharT, _Traits, _Dist> &__y)
-{
-  return !__x._M_equal(__y);
-}
-
-#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
-
-template <class _Tp,
-          class _CharT = char, class _Traits = char_traits<_CharT> >
-class ostream_iterator
-{
-public:
-  typedef _CharT char_type;
-  typedef _Traits traits_type;
-  typedef basic_ostream<_CharT, _Traits> ostream_type;
-
-  typedef output_iterator_tag iterator_category;
-  typedef void value_type;
-  typedef void difference_type;
-  typedef void pointer;
-  typedef void reference;
-
-  ostream_iterator(ostream_type &__s) : _M_stream(&__s), _M_string(0) {}
-  ostream_iterator(ostream_type &__s, const _CharT *__c)
-      : _M_stream(&__s), _M_string(__c) {}
-  ostream_iterator<_Tp> &operator=(const _Tp &__value)
-  {
-    *_M_stream << __value;
-    if (_M_string)
-      *_M_stream << _M_string;
-    return *this;
-  }
-  ostream_iterator<_Tp> &operator*() { return *this; }
-  ostream_iterator<_Tp> &operator++() { return *this; }
-  ostream_iterator<_Tp> &operator++(int) { return *this; }
-
-private:
-  ostream_type *_M_stream;
-  const _CharT *_M_string;
-};
-
-// The default template argument is declared in iosfwd
-
-// We do not read any characters until operator* is called.  The first
-// time operator* is called, it calls getc.  Subsequent calls to getc
-// return a cached character, and calls to operator++ use snextc.  Before
-// operator* or operator++ has been called, _M_is_initialized is false.
-template <class _CharT, class _Traits>
-class istreambuf_iterator
-    : public iterator<input_iterator_tag, _CharT,
-                      typename _Traits::off_type, _CharT *, _CharT &>
-{
-public:
-  typedef _CharT char_type;
-  typedef _Traits traits_type;
-  typedef typename _Traits::int_type int_type;
-  typedef basic_streambuf<_CharT, _Traits> streambuf_type;
-  typedef basic_istream<_CharT, _Traits> istream_type;
-
-public:
-  istreambuf_iterator(streambuf_type *__p = 0) { this->_M_init(__p); }
-  istreambuf_iterator(istream_type &__is) { this->_M_init(__is.rdbuf()); }
-
-  char_type operator*() const
-  {
-    return _M_is_initialized ? _M_c : _M_dereference_aux();
-  }
-
-  istreambuf_iterator &operator++()
-  {
-    this->_M_nextc();
-    return *this;
-  }
-  istreambuf_iterator operator++(int)
-  {
-    if (!_M_is_initialized)
-      _M_postincr_aux();
-    istreambuf_iterator __tmp = *this;
-    this->_M_nextc();
-    return __tmp;
-  }
-
-  bool equal(const istreambuf_iterator &__i) const
-  {
-    return this->_M_is_initialized && __i._M_is_initialized
-               ? this->_M_eof == __i._M_eof
-               : this->_M_equal_aux(__i);
-  }
-
-private:
-  void _M_init(streambuf_type *__p)
-  {
-    _M_buf = __p;
-    _M_eof = !__p;
-    _M_is_initialized = _M_eof;
-  }
-
-  char_type _M_dereference_aux() const;
-  bool _M_equal_aux(const istreambuf_iterator &) const;
-  void _M_postincr_aux();
-
-  void _M_nextc()
-  {
-    int_type __c = _M_buf->snextc();
-    _M_c = traits_type::to_char_type(__c);
-    _M_eof = traits_type::eq_int_type(__c, traits_type::eof());
-    _M_is_initialized = true;
-  }
-
-  void _M_getc() const
-  {
-    int_type __c = _M_buf->sgetc();
-    _M_c = traits_type::to_char_type(__c);
-    _M_eof = traits_type::eq_int_type(__c, traits_type::eof());
-    _M_is_initialized = true;
-  }
-
-private:
-  streambuf_type *_M_buf;
-  mutable _CharT _M_c;
-  mutable bool _M_eof : 1;
-  mutable bool _M_is_initialized : 1;
-};
-
-template <class _CharT, class _Traits>
-_CharT istreambuf_iterator<_CharT, _Traits>::_M_dereference_aux() const
-{
-  this->_M_getc();
-  return _M_c;
-}
-
-template <class _CharT, class _Traits>
-bool istreambuf_iterator<_CharT, _Traits>::_M_equal_aux(const istreambuf_iterator &__i) const
-{
-  if (!this->_M_is_initialized)
-    this->_M_getc();
-  if (!__i._M_is_initialized)
-    __i._M_getc();
-
-  return this->_M_eof == __i._M_eof;
-}
-
-template <class _CharT, class _Traits>
-void istreambuf_iterator<_CharT, _Traits>::_M_postincr_aux()
-{
-  this->_M_getc();
-}
-
-template <class _CharT, class _Traits>
-inline bool operator==(const istreambuf_iterator<_CharT, _Traits> &__x,
-                       const istreambuf_iterator<_CharT, _Traits> &__y)
-{
-  return __x.equal(__y);
-}
-
-#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
-
-template <class _CharT, class _Traits>
-inline bool operator!=(const istreambuf_iterator<_CharT, _Traits> &__x,
-                       const istreambuf_iterator<_CharT, _Traits> &__y)
-{
-  return !__x.equal(__y);
-}
-
-#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
-
-// The default template argument is declared in iosfwd
-template <class _CharT, class _Traits>
-class ostreambuf_iterator
-    : public iterator<output_iterator_tag, void, void, void, void>
-{
-public:
-  typedef _CharT char_type;
-  typedef _Traits traits_type;
-  typedef typename _Traits::int_type int_type;
-  typedef basic_streambuf<_CharT, _Traits> streambuf_type;
-  typedef basic_ostream<_CharT, _Traits> ostream_type;
-
-public:
-  ostreambuf_iterator(streambuf_type *__buf) : _M_buf(__buf), _M_ok(__buf) {}
-  ostreambuf_iterator(ostream_type &__o)
-      : _M_buf(__o.rdbuf()), _M_ok(__o.rdbuf() != 0) {}
-
-  ostreambuf_iterator &operator=(char_type __c)
-  {
-    _M_ok = _M_ok && !traits_type::eq_int_type(_M_buf->sputc(__c),
-                                               traits_type::eof());
-    return *this;
-  }
-
-  ostreambuf_iterator &operator*() { return *this; }
-  ostreambuf_iterator &operator++() { return *this; }
-  ostreambuf_iterator &operator++(int) { return *this; }
-
-  bool failed() const { return !_M_ok; }
-
-private:
-  streambuf_type *_M_buf;
-  bool _M_ok;
-};
-
-#else /* __STL_USE_NEW_IOSTREAMS */
-
-template <class _Tp, class _Dist = ptrdiff_t>
-class istream_iterator;
-
-template <class _Tp, class _Dist>
-inline bool operator==(const istream_iterator<_Tp, _Dist> &,
-                       const istream_iterator<_Tp, _Dist> &);
-
-template <class _Tp, class _Dist>
-class istream_iterator
-{
-#ifdef __STL_TEMPLATE_FRIENDS
-  template <class _T1, class _D1>
-  friend bool operator==(const istream_iterator<_T1, _D1> &,
-                         const istream_iterator<_T1, _D1> &);
-#else  /* __STL_TEMPLATE_FRIENDS */
-  friend bool __STD_QUALIFIER
-  operator== __STL_NULL_TMPL_ARGS(const istream_iterator &,
-                                  const istream_iterator &);
-#endif /* __STL_TEMPLATE_FRIENDS */
+  friend bool
+  operator== __STL_NULL_TMPL_ARGS(const istream_iterator<T, Distance> &x,
+                                  const istream_iterator<T, Distance> &y);
 
 protected:
-  istream *_M_stream;
-  _Tp _M_value;
-  bool _M_end_marker;
-  void _M_read()
+  istream *stream; //指向输入流
+  T value;
+  bool end_marker; //流结束标记
+  //读取一个元素
+  void read()
   {
-    _M_end_marker = (*_M_stream) ? true : false;
-    if (_M_end_marker)
-      *_M_stream >> _M_value;
-    _M_end_marker = (*_M_stream) ? true : false;
+    end_marker = (*stream) ? true : false;
+    if (end_marker)
+      *stream >> value; //从流中读取一个元素
+    end_marker = (*stream) ? true : false;
   }
 
 public:
   typedef input_iterator_tag iterator_category;
-  typedef _Tp value_type;
-  typedef _Dist difference_type;
-  typedef const _Tp *pointer;
-  typedef const _Tp &reference;
+  typedef T value_type;
+  typedef Distance difference_type;
+  typedef const T *pointer;
+  typedef const T &reference;
 
-  istream_iterator() : _M_stream(&cin), _M_end_marker(false) {}
-  istream_iterator(istream &__s) : _M_stream(&__s) { _M_read(); }
-  reference operator*() const { return _M_value; }
+  //默认从cin中读取
+  istream_iterator() : stream(&cin), end_marker(false) {}
+  //自定义输入流时，构造时就读取一次了
+  istream_iterator(istream &s) : stream(&s) { read(); }
+  //解引用操作获取读入的元素
+  reference operator*() const { return value; }
 #ifndef __SGI_STL_NO_ARROW_OPERATOR
   pointer operator->() const
   {
     return &(operator*());
   }
 #endif /* __SGI_STL_NO_ARROW_OPERATOR */
-  istream_iterator<_Tp, _Dist> &operator++()
+  istream_iterator<T, Distance> &operator++()
   {
-    _M_read();
+    read();
     return *this;
   }
-  istream_iterator<_Tp, _Dist> operator++(int)
+  istream_iterator<T, Distance> operator++(int)
   {
-    istream_iterator<_Tp, _Dist> __tmp = *this;
-    _M_read();
-    return __tmp;
+    istream_iterator<T, Distance> tmp = *this;
+    read();
+    return tmp;
   }
 };
 
 #ifndef __STL_CLASS_PARTIAL_SPECIALIZATION
 
-template <class _Tp, class _Dist>
+//输入流迭代器属于输入迭代器类别
+template <class T, class Distance>
 inline input_iterator_tag
-iterator_category(const istream_iterator<_Tp, _Dist> &)
+iterator_category(const istream_iterator<T, Distance> &)
 {
   return input_iterator_tag();
 }
 
-template <class _Tp, class _Dist>
-inline _Tp *
-value_type(const istream_iterator<_Tp, _Dist> &) { return (_Tp *)0; }
+template <class T, class Distance>
+inline T *value_type(const istream_iterator<T, Distance> &) { return (T *)0; }
 
-template <class _Tp, class _Dist>
-inline _Dist *
-distance_type(const istream_iterator<_Tp, _Dist> &) { return (_Dist *)0; }
+template <class T, class Distance>
+inline Distance *distance_type(const istream_iterator<T, Distance> &)
+{
+  return (Distance *)0;
+}
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
-template <class _Tp, class _Distance>
-inline bool operator==(const istream_iterator<_Tp, _Distance> &__x,
-                       const istream_iterator<_Tp, _Distance> &__y)
+template <class T, class Distance>
+inline bool operator==(const istream_iterator<T, Distance> &x,
+                       const istream_iterator<T, Distance> &y)
 {
-  return (__x._M_stream == __y._M_stream &&
-          __x._M_end_marker == __y._M_end_marker) ||
-         __x._M_end_marker == false && __y._M_end_marker == false;
+  return x.stream == y.stream && x.end_marker == y.end_marker ||
+         x.end_marker == false && y.end_marker == false;
 }
 
-#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
-
-template <class _Tp, class _Distance>
-inline bool operator!=(const istream_iterator<_Tp, _Distance> &__x,
-                       const istream_iterator<_Tp, _Distance> &__y)
-{
-  return !(__x == __y);
-}
-
-#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
-
-template <class _Tp>
+//输出流迭代器
+template <class T>
 class ostream_iterator
 {
 protected:
-  ostream *_M_stream;
-  const char *_M_string;
+  ostream *stream; //指向输出流
+  const char *string;
 
 public:
   typedef output_iterator_tag iterator_category;
@@ -1028,203 +1003,33 @@ public:
   typedef void pointer;
   typedef void reference;
 
-  ostream_iterator(ostream &__s) : _M_stream(&__s), _M_string(0) {}
-  ostream_iterator(ostream &__s, const char *__c)
-      : _M_stream(&__s), _M_string(__c) {}
-  ostream_iterator<_Tp> &operator=(const _Tp &__value)
+  ostream_iterator(ostream &s) : stream(&s), string(0) {}
+  ostream_iterator(ostream &s, const char *c) : stream(&s), string(c) {}
+  //输出到流
+  ostream_iterator<T> &operator=(const T &value)
   {
-    *_M_stream << __value;
-    if (_M_string)
-      *_M_stream << _M_string;
+    *stream << value;
+    if (string)
+      *stream << string;
     return *this;
   }
-  ostream_iterator<_Tp> &operator*() { return *this; }
-  ostream_iterator<_Tp> &operator++() { return *this; }
-  ostream_iterator<_Tp> &operator++(int) { return *this; }
+  //前置和后置operator++都返回*this，结合operator=，+=实现链式输出
+  ostream_iterator<T> &operator*() { return *this; }
+  ostream_iterator<T> &operator++() { return *this; }
+  ostream_iterator<T> &operator++(int) { return *this; }
 };
 
 #ifndef __STL_CLASS_PARTIAL_SPECIALIZATION
 
-template <class _Tp>
+//流输出迭代器属于输出迭代器
+template <class T>
 inline output_iterator_tag
-iterator_category(const ostream_iterator<_Tp> &)
+iterator_category(const ostream_iterator<T> &)
 {
   return output_iterator_tag();
 }
 
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
-
-#endif /* __STL_USE_NEW_IOSTREAMS */
-
-// This iterator adapter is 'normal' in the sense that it does not
-// change the semantics of any of the operators of its itererator
-// parameter.  Its primary purpose is to convert an iterator that is
-// not a class, e.g. a pointer, into an iterator that is a class.
-// The _Container parameter exists solely so that different containers
-// using this template can instantiate different types, even if the
-// _Iterator parameter is the same.
-
-//将指针转化迭代器
-template <typename _Iterator, typename _Container>
-class __normal_iterator
-    : public iterator<iterator_traits<_Iterator>::iterator_category,
-                      iterator_traits<_Iterator>::value_type,
-                      iterator_traits<_Iterator>::difference_type,
-                      iterator_traits<_Iterator>::pointer,
-                      iterator_traits<_Iterator>::reference>
-{
-
-protected:
-  _Iterator _M_current;
-
-public:
-  typedef __normal_iterator<_Iterator, _Container> normal_iterator_type;
-  typedef iterator_traits<_Iterator> __traits_type;
-  typedef typename __traits_type::iterator_category iterator_category;
-  typedef typename __traits_type::value_type value_type;
-  typedef typename __traits_type::difference_type difference_type;
-  typedef typename __traits_type::pointer pointer;
-  typedef typename __traits_type::reference reference;
-
-  __normal_iterator() : _M_current(_Iterator()) {}
-
-  explicit __normal_iterator(const _Iterator &__i) : _M_current(__i) {}
-
-  // Allow iterator to const_iterator conversion
-  template <typename _Iter>
-  inline __normal_iterator(const __normal_iterator<_Iter, _Container> &__i)
-      : _M_current(__i.base()) {}
-
-  // Forward iterator requirements
-  reference
-  operator*() const { return *_M_current; }
-
-  pointer
-  operator->() const { return _M_current; }
-
-  normal_iterator_type &
-  operator++()
-  {
-    ++_M_current;
-    return *this;
-  }
-
-  normal_iterator_type
-  operator++(int) { return __normal_iterator(_M_current++); }
-
-  // Bidirectional iterator requirements
-  normal_iterator_type &
-  operator--()
-  {
-    --_M_current;
-    return *this;
-  }
-
-  normal_iterator_type
-  operator--(int) { return __normal_iterator(_M_current--); }
-
-  // Random access iterator requirements
-  reference
-  operator[](const difference_type &__n) const
-  {
-    return _M_current[__n];
-  }
-
-  normal_iterator_type &
-  operator+=(const difference_type &__n)
-  {
-    _M_current += __n;
-    return *this;
-  }
-
-  normal_iterator_type
-  operator+(const difference_type &__n) const
-  {
-    return __normal_iterator(_M_current + __n);
-  }
-
-  normal_iterator_type &
-  operator-=(const difference_type &__n)
-  {
-    _M_current -= __n;
-    return *this;
-  }
-
-  normal_iterator_type
-  operator-(const difference_type &__n) const
-  {
-    return __normal_iterator(_M_current - __n);
-  }
-
-  difference_type
-  operator-(const normal_iterator_type &__i) const
-  {
-    return _M_current - __i._M_current;
-  }
-
-  const _Iterator &
-  base() const { return _M_current; }
-};
-
-// forward iterator requirements
-
-template <typename _IteratorL, typename _IteratorR, typename _Container>
-inline bool
-operator==(const __normal_iterator<_IteratorL, _Container> &__lhs,
-           const __normal_iterator<_IteratorR, _Container> &__rhs)
-{
-  return __lhs.base() == __rhs.base();
-}
-
-template <typename _IteratorL, typename _IteratorR, typename _Container>
-inline bool
-operator!=(const __normal_iterator<_IteratorL, _Container> &__lhs,
-           const __normal_iterator<_IteratorR, _Container> &__rhs)
-{
-  return !(__lhs == __rhs);
-}
-
-// random access iterator requirements
-
-template <typename _IteratorL, typename _IteratorR, typename _Container>
-inline bool
-operator<(const __normal_iterator<_IteratorL, _Container> &__lhs,
-          const __normal_iterator<_IteratorR, _Container> &__rhs)
-{
-  return __lhs.base() < __rhs.base();
-}
-
-template <typename _IteratorL, typename _IteratorR, typename _Container>
-inline bool
-operator>(const __normal_iterator<_IteratorL, _Container> &__lhs,
-          const __normal_iterator<_IteratorR, _Container> &__rhs)
-{
-  return __rhs < __lhs;
-}
-
-template <typename _IteratorL, typename _IteratorR, typename _Container>
-inline bool
-operator<=(const __normal_iterator<_IteratorL, _Container> &__lhs,
-           const __normal_iterator<_IteratorR, _Container> &__rhs)
-{
-  return !(__rhs < __lhs);
-}
-
-template <typename _IteratorL, typename _IteratorR, typename _Container>
-inline bool
-operator>=(const __normal_iterator<_IteratorL, _Container> &__lhs,
-           const __normal_iterator<_IteratorR, _Container> &__rhs)
-{
-  return !(__lhs < __rhs);
-}
-
-template <typename _Iterator, typename _Container>
-inline __normal_iterator<_Iterator, _Container>
-operator+(__normal_iterator<_Iterator, _Container>::difference_type __n,
-          const __normal_iterator<_Iterator, _Container> &__i)
-{
-  return __normal_iterator<_Iterator, _Container>(__i.base() + __n);
-}
 
 __STL_END_NAMESPACE
 
