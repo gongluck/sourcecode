@@ -362,6 +362,7 @@ protected:
   {
     if (position != last)
     {
+      //画图理解较为直观
       (*(link_type((*last.node).prev))).next = position.node;
       (*(link_type((*first.node).prev))).next = last.node;
       (*(link_type((*position.node).prev))).next = first.node;
@@ -566,6 +567,7 @@ void list<T, Alloc>::unique()
   }
 }
 
+//将链表x元素按序迁移到主链表
 template <class T, class Alloc>
 void list<T, Alloc>::merge(list<T, Alloc> &x)
 {
@@ -574,16 +576,17 @@ void list<T, Alloc>::merge(list<T, Alloc> &x)
   iterator first2 = x.begin();
   iterator last2 = x.end();
   while (first1 != last1 && first2 != last2)
-    if (*first2 < *first1)
+    if (*first2 < *first1) //比较值
     {
+      //迁移x的元素
       iterator next = first2;
-      transfer(first1, first2, ++next);
-      first2 = next;
+      transfer(first1, first2, ++next); // first2迁移到first1前
+      first2 = next;                    //移动first2
     }
     else
-      ++first1;
-  if (first2 != last2)
-    transfer(last1, first2, last2);
+      ++first1;                     //移动first1
+  if (first2 != last2)              // x链表有未处理元素
+    transfer(last1, first2, last2); //迁移插入剩余元素
 }
 
 template <class T, class Alloc>
@@ -604,25 +607,41 @@ void list<T, Alloc>::reverse()
 template <class T, class Alloc>
 void list<T, Alloc>::sort()
 {
+  //元素个数<=1，不用排序
   if (node->next == node || link_type(node->next)->next == node)
     return;
-  list<T, Alloc> carry;
-  list<T, Alloc> counter[64];
-  int fill = 0;
+  //非递归实现合并排序 过程类似二进制的加法
+  list<T, Alloc> carry;       //操作表，操作数
+  list<T, Alloc> counter[64]; //缓存表，存放没层的合并表，每层进位是满二进一的，所以64层可以处理2^64个节点
+  int fill = 0;               //记录最深层数 fill不可达
   while (!empty())
   {
-    carry.splice(carry.begin(), *this, begin());
-    int i = 0;
-    while (i < fill && !counter[i].empty())
+    // 1
+    //此步前carry必然是空的 对应步骤3
+    carry.splice(carry.begin(), *this, begin()); //从待排序表中取出第一个节点，迁移到carry表最前面
+    int i = 0;                                   //记录经过的层数
+    // 2
+    //从小往大不断合并非空归并层次直至遇到空层或者到达当前最大归并层次
+    while (i < fill && !counter[i].empty()) //出这个循环，无论i是否超过最大层，count[i]必然是空的
     {
-      counter[i].merge(carry);
-      carry.swap(counter[i++]);
+      //处理第i层
+      counter[i].merge(carry); //按序合并链表 carry节点迁移到第i层缓存表 还未出最外层的循环，carry必然非空，即此步会使第i层缓存表变大
+      carry.swap(counter[i]);  // carry表和第i层缓存表交换 上一步造成carry表为空，这里使得第i层缓存表为空 carry表得到合并后的表
+      ++i;                     //增加层数
+
+      //合并上述步骤
+      // https://bbs.csdn.net/topics/390800025
+      // carry.merge(counter[i++]);
     }
-    carry.swap(counter[i]);
+    // 3
+    //将上面合并出来的表放入下一层
+    carry.swap(counter[i]); //根据上面循环的退出条件，count[i]必然是空的，这里相当于将carry这个操作结果放入下一次，并将carry置空 对应步骤1
+    // i到达当前最大归并层次，说明得增加一层
     if (i == fill)
       ++fill;
   }
 
+  //将每层的表合并
   for (int i = 1; i < fill; ++i)
     counter[i].merge(counter[i - 1]);
   swap(counter[fill - 1]);
