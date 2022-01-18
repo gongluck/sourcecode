@@ -15,80 +15,75 @@
 
 // Inclusion of this file is DEPRECATED.  This is the original HP
 // default allocator.  It is provided only for backward compatibility.
-// This file WILL BE REMOVED in a future release.
 //
 // DO NOT USE THIS FILE unless you have an old container implementation
-// that requires an allocator with the HP-style interface.
-//
-// Standard-conforming allocators have a very different interface.  The
-// standard default allocator is declared in the header <memory>.
+// that requires an allocator with the HP-style interface.  SGI STL
+// uses a different allocator interface.  SGI-style allocators are not
+// parametrized with respect to the object type; they traffic in void *
+// pointers.  This file is not included by any other SGI STL header.
 
-#ifndef _CPP_BACKWARD_DEFALLOC_H
-#define _CPP_BACKWARD_DEFALLOC_H 1
+#ifndef DEFALLOC_H
+#define DEFALLOC_H
 
-#include "new.h"
+#include <new.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
-#include "iostream.h"
-#include "algobase.h"
+#include <iostream.h>
+#include <algobase.h>
 
 //包装::operator new
-template <class _Tp>
-inline _Tp *allocate(ptrdiff_t __size, _Tp *)
+template <class T>
+inline T *allocate(ptrdiff_t size, T *)
 {
     set_new_handler(0);
-    _Tp *__tmp = (_Tp *)(::operator new((size_t)(__size * sizeof(_Tp))));
-    if (__tmp == 0)
+    T *tmp = (T *)(::operator new((size_t)(size * sizeof(T))));
+    if (tmp == 0)
     {
         cerr << "out of memory" << endl;
         exit(1);
     }
-    return __tmp;
+    return tmp;
 }
 
 //包装::operator delete
-template <class _Tp>
-inline void deallocate(_Tp *__buffer)
+template <class T>
+inline void deallocate(T *buffer)
 {
-    ::operator delete(__buffer);
+    ::operator delete(buffer);
 }
 
-template <class _Tp>
+//分配器
+template <class T>
 class allocator
 {
 public:
-    //下列类型定义可被萃取机使用
-    typedef _Tp value_type;
-    typedef _Tp *pointer;
-    typedef const _Tp *const_pointer;
-    typedef _Tp &reference;
-    typedef const _Tp &const_reference;
+    typedef T value_type;
+    typedef T *pointer;
+    typedef const T *const_pointer;
+    typedef T &reference;
+    typedef const T &const_reference;
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
 
-    //内存分配函数
-    pointer allocate(size_type __n)
+    //分配n个T的内存
+    pointer allocate(size_type n)
     {
-        //分配n个_Tp的内存
-        return ::allocate((difference_type)__n, (pointer)0);
+        return ::allocate((difference_type)n, (pointer)0);
     }
-
-    //内存释放函数
-    void deallocate(pointer __p) { ::deallocate(__p); }
-    
-    pointer address(reference __x) { return (pointer)&__x; }
-    const_pointer const_address(const_reference __x)
+    void deallocate(pointer p) { ::deallocate(p); }
+    pointer address(reference x) { return (pointer)&x; }
+    const_pointer const_address(const_reference x)
     {
-        return (const_pointer)&__x;
+        return (const_pointer)&x;
     }
     size_type init_page_size()
     {
-        return max(size_type(1), size_type(4096 / sizeof(_Tp)));
+        return max(size_type(1), size_type(4096 / sizeof(T)));
     }
     size_type max_size() const
     {
-        return max(size_type(1), size_type(UINT_MAX / sizeof(_Tp)));
+        return max(size_type(1), size_type(UINT_MAX / sizeof(T)));
     }
 };
 
@@ -98,4 +93,4 @@ public:
     typedef void *pointer;
 };
 
-#endif /* _CPP_BACKWARD_DEFALLOC_H */
+#endif

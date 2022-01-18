@@ -28,116 +28,62 @@
  *   You should not attempt to use it directly.
  */
 
-#ifndef _CPP_BITS_STL_CONSTRUCT_H
-#define _CPP_BITS_STL_CONSTRUCT_H 1
+#ifndef __SGI_STL_INTERNAL_CONSTRUCT_H
+#define __SGI_STL_INTERNAL_CONSTRUCT_H
 
-#include <new>
+#include <new.h>
 
 __STL_BEGIN_NAMESPACE
 
-// construct and destroy.  These functions are not part of the C++ standard,
-// and are provided for backward compatibility with the HP STL. We also
-// provide internal names _Construct and _Destroy that can be used within
-// the library, so that standard-conforming pieces don't have to rely on
-// non-standard extensions.
+//销毁实例 调用析构
+template <class T>
+inline void destroy(T *pointer)
+{
+  pointer->~T();
+}
 
-// Internal names
-
-template <class _T1, class _T2>
-inline void _Construct(_T1 *__p, const _T2 &__value)
+//创建实例 调用构造
+template <class T1, class T2>
+inline void construct(T1 *p, const T2 &value)
 {
   // placement new
-  new ((void *)__p) _T1(__value);
+  new (p) T1(value);
 }
 
-template <class _T1>
-inline void _Construct(_T1 *__p)
-{
-  // placement new
-  new ((void *)__p) _T1();
-}
-
-template <class _Tp>
-inline void _Destroy(_Tp *__pointer)
-{
-  //调用实例的析构函数
-  __pointer->~_Tp();
-}
-
-template <class _ForwardIterator>
-void __destroy_aux(_ForwardIterator __first, _ForwardIterator __last, __false_type)
-{
-  //遍历范围中的实例，逐一析构
-  for (; __first != __last; ++__first)
-    destroy(&*__first);
-}
-
-template <class _ForwardIterator>
-inline void __destroy_aux(_ForwardIterator, _ForwardIterator, __true_type) {}
-
-template <class _ForwardIterator, class _Tp>
+template <class ForwardIterator>
 inline void
-__destroy(_ForwardIterator __first, _ForwardIterator __last, _Tp *)
+__destroy_aux(ForwardIterator first, ForwardIterator last, __false_type)
+{
+  //遍历区间的所有实例 调用析构
+  for (; first < last; ++first)
+    destroy(&*first);
+}
+
+template <class ForwardIterator>
+inline void __destroy_aux(ForwardIterator, ForwardIterator, __true_type) {}
+
+template <class ForwardIterator, class T>
+inline void __destroy(ForwardIterator first, ForwardIterator last, T *)
 {
   //萃取trivial_destructor特性
   // trivial_destructor不重要的析构函数
-  typedef typename __type_traits<_Tp>::has_trivial_destructor
-      _Trivial_destructor;
-  __destroy_aux(__first, __last, _Trivial_destructor());
+  typedef typename __type_traits<T>::has_trivial_destructor trivial_destructor;
+  __destroy_aux(first, last, trivial_destructor());
 }
 
-template <class _ForwardIterator>
-inline void _Destroy(_ForwardIterator __first, _ForwardIterator __last)
+//范围destroy
+template <class ForwardIterator>
+inline void destroy(ForwardIterator first, ForwardIterator last)
 {
-  __destroy(__first, __last, __VALUE_TYPE(__first));
+  __destroy(first, last, value_type(first));
 }
-
-//析构器特化版本
-inline void _Destroy(char *, char *) {}
-inline void _Destroy(int *, int *) {}
-inline void _Destroy(long *, long *) {}
-inline void _Destroy(float *, float *) {}
-inline void _Destroy(double *, double *) {}
-#ifdef __STL_HAS_WCHAR_T
-inline void _Destroy(wchar_t *, wchar_t *)
-{
-}
-#endif /* __STL_HAS_WCHAR_T */
-
-// --------------------------------------------------
-// Old names from the HP STL.
-
-//带初始值的构造器
-template <class _T1, class _T2>
-inline void construct(_T1 *__p, const _T2 &__value)
-{
-  _Construct(__p, __value);
-}
-
-//不带初始值的构造器
-template <class _T1>
-inline void construct(_T1 *__p)
-{
-  _Construct(__p);
-}
-
-//析构器
-template <class _Tp>
-inline void destroy(_Tp *__pointer)
-{
-  _Destroy(__pointer);
-}
-
-//范围析构器
-template <class _ForwardIterator>
-inline void destroy(_ForwardIterator __first, _ForwardIterator __last)
-{
-  _Destroy(__first, __last);
-}
+//范围destroy的特化版本
+inline void destroy(char *, char *) {}
+inline void destroy(wchar_t *, wchar_t *) {}
 
 __STL_END_NAMESPACE
 
-#endif /* _CPP_BITS_STL_CONSTRUCT_H */
+#endif /* __SGI_STL_INTERNAL_CONSTRUCT_H */
 
 // Local Variables:
 // mode:C++

@@ -31,268 +31,192 @@
 #ifndef __SGI_STL_INTERNAL_SET_H
 #define __SGI_STL_INTERNAL_SET_H
 
-#include <bits/concept_checks.h>
-
 __STL_BEGIN_NAMESPACE
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
 #pragma set woff 1174
-#pragma set woff 1375
 #endif
 
-// Forward declarations of operators < and ==, needed for friend declaration.
-
-// set集合 底层红黑树实现
-template <class _Key, class _Compare = less<_Key>,
-          class _Alloc = allocator<_Key> >
-class set;
-
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator==(const set<_Key, _Compare, _Alloc> &__x,
-                       const set<_Key, _Compare, _Alloc> &__y);
-
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator<(const set<_Key, _Compare, _Alloc> &__x,
-                      const set<_Key, _Compare, _Alloc> &__y);
-
-template <class _Key, class _Compare, class _Alloc>
+//集合
+#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
+template <class Key, class Compare = less<Key>, class Alloc = alloc>
+#else
+template <class Key, class Compare, class Alloc = alloc>
+#endif
 class set
 {
-  // requirements:
-
-  __STL_CLASS_REQUIRES(_Key, _Assignable);
-  __STL_CLASS_BINARY_FUNCTION_CHECK(_Compare, bool, _Key, _Key);
-
 public:
   // typedefs:
 
-  typedef _Key key_type;
-  typedef _Key value_type;
-  typedef _Compare key_compare;   // key比较方法
-  typedef _Compare value_compare; // value比较方法
+  typedef Key key_type;
+  typedef Key value_type;
+  typedef Compare key_compare;   // key比较方法
+  typedef Compare value_compare; // value比较方法
 
 private:
-  // set的红黑树key和value相同
-  typedef _Rb_tree<key_type, value_type,
-                   _Identity<value_type>, key_compare, _Alloc>
-      _Rep_type;
-  _Rep_type _M_t; // red-black tree representing set
+  // set底层使用红黑树实现
+  typedef rb_tree<key_type, value_type,
+                  identity<value_type>, key_compare, Alloc>
+      rep_type;
+  rep_type t; // red-black tree representing set
 public:
-  // set不支持修改元素值，所以下面的类型都使用const
-  typedef typename _Rep_type::const_pointer pointer;
-  typedef typename _Rep_type::const_pointer const_pointer;
-  typedef typename _Rep_type::const_reference reference;
-  typedef typename _Rep_type::const_reference const_reference;
-  typedef typename _Rep_type::const_iterator iterator;
-  typedef typename _Rep_type::const_iterator const_iterator;
-  typedef typename _Rep_type::const_reverse_iterator reverse_iterator;
-  typedef typename _Rep_type::const_reverse_iterator const_reverse_iterator;
-  typedef typename _Rep_type::size_type size_type;
-  typedef typename _Rep_type::difference_type difference_type;
-  typedef typename _Rep_type::allocator_type allocator_type;
+  // set元素不支持修改，所以以下类型使用const
+  typedef typename rep_type::const_pointer pointer;
+  typedef typename rep_type::const_pointer const_pointer;
+  typedef typename rep_type::const_reference reference;
+  typedef typename rep_type::const_reference const_reference;
+  typedef typename rep_type::const_iterator iterator;
+  typedef typename rep_type::const_iterator const_iterator;
+  typedef typename rep_type::const_reverse_iterator reverse_iterator;
+  typedef typename rep_type::const_reverse_iterator const_reverse_iterator;
+  typedef typename rep_type::size_type size_type;
+  typedef typename rep_type::difference_type difference_type;
 
   // allocation/deallocation
 
-  set() : _M_t(_Compare(), allocator_type()) {}
-  explicit set(const _Compare &__comp,
-               const allocator_type &__a = allocator_type())
-      : _M_t(__comp, __a) {}
+  set() : t(Compare()) {}
+  explicit set(const Compare &comp) : t(comp) {}
 
 #ifdef __STL_MEMBER_TEMPLATES
-  template <class _InputIterator>
-  set(_InputIterator __first, _InputIterator __last)
-      : _M_t(_Compare(), allocator_type())
+  template <class InputIterator>
+  set(InputIterator first, InputIterator last)
+      : t(Compare())
   {
-    _M_t.insert_unique(__first, __last);
+    t.insert_unique(first, last);
   }
 
-  template <class _InputIterator>
-  set(_InputIterator __first, _InputIterator __last, const _Compare &__comp,
-      const allocator_type &__a = allocator_type())
-      : _M_t(__comp, __a) { _M_t.insert_unique(__first, __last); }
+  template <class InputIterator>
+  set(InputIterator first, InputIterator last, const Compare &comp)
+      : t(comp) { t.insert_unique(first, last); }
 #else
-  set(const value_type *__first, const value_type *__last)
-      : _M_t(_Compare(), allocator_type())
+  // set不支持元素重复，使用insert_unique
+  set(const value_type *first, const value_type *last)
+      : t(Compare())
   {
-    // set不允许元素重复
-    _M_t.insert_unique(__first, __last);
+    t.insert_unique(first, last);
   }
+  set(const value_type *first, const value_type *last, const Compare &comp)
+      : t(comp) { t.insert_unique(first, last); }
 
-  set(const value_type *__first,
-      const value_type *__last, const _Compare &__comp,
-      const allocator_type &__a = allocator_type())
-      : _M_t(__comp, __a) { _M_t.insert_unique(__first, __last); }
-
-  set(const_iterator __first, const_iterator __last)
-      : _M_t(_Compare(), allocator_type())
-  {
-    _M_t.insert_unique(__first, __last);
-  }
-
-  set(const_iterator __first, const_iterator __last, const _Compare &__comp,
-      const allocator_type &__a = allocator_type())
-      : _M_t(__comp, __a) { _M_t.insert_unique(__first, __last); }
+  set(const_iterator first, const_iterator last)
+      : t(Compare()) { t.insert_unique(first, last); }
+  set(const_iterator first, const_iterator last, const Compare &comp)
+      : t(comp) { t.insert_unique(first, last); }
 #endif /* __STL_MEMBER_TEMPLATES */
 
-  set(const set<_Key, _Compare, _Alloc> &__x) : _M_t(__x._M_t)
+  set(const set<Key, Compare, Alloc> &x) : t(x.t)
   {
   }
-  set<_Key, _Compare, _Alloc> &operator=(const set<_Key, _Compare, _Alloc> &__x)
+  set<Key, Compare, Alloc> &operator=(const set<Key, Compare, Alloc> &x)
   {
-    //交换底层的红黑树
-    _M_t = __x._M_t;
+    t = x.t;
     return *this;
   }
 
   // accessors:
 
-  //所有操作都是基于底层的红黑树
-
-  key_compare key_comp() const { return _M_t.key_comp(); }
-  value_compare value_comp() const { return _M_t.key_comp(); }
-  allocator_type get_allocator() const { return _M_t.get_allocator(); }
-
-  iterator begin() const { return _M_t.begin(); }
-  iterator end() const { return _M_t.end(); }
-  reverse_iterator rbegin() const { return _M_t.rbegin(); }
-  reverse_iterator rend() const { return _M_t.rend(); }
-  bool empty() const { return _M_t.empty(); }
-  size_type size() const { return _M_t.size(); }
-  size_type max_size() const { return _M_t.max_size(); }
-  void swap(set<_Key, _Compare, _Alloc> &__x) { _M_t.swap(__x._M_t); }
+  key_compare key_comp() const { return t.key_comp(); }
+  value_compare value_comp() const { return t.key_comp(); }
+  iterator begin() const { return t.begin(); }
+  iterator end() const { return t.end(); }
+  reverse_iterator rbegin() const { return t.rbegin(); }
+  reverse_iterator rend() const { return t.rend(); }
+  bool empty() const { return t.empty(); }
+  size_type size() const { return t.size(); }
+  size_type max_size() const { return t.max_size(); }
+  void swap(set<Key, Compare, Alloc> &x) { t.swap(x.t); }
 
   // insert/erase
-  pair<iterator, bool> insert(const value_type &__x)
+  typedef pair<iterator, bool> pair_iterator_bool;
+  pair<iterator, bool> insert(const value_type &x)
   {
-    pair<typename _Rep_type::iterator, bool> __p = _M_t.insert_unique(__x);
-    return pair<iterator, bool>(__p.first, __p.second);
+    pair<typename rep_type::iterator, bool> p = t.insert_unique(x);
+    return pair<iterator, bool>(p.first, p.second);
   }
-  iterator insert(iterator __position, const value_type &__x)
+  iterator insert(iterator position, const value_type &x)
   {
-    typedef typename _Rep_type::iterator _Rep_iterator;
-    return _M_t.insert_unique((_Rep_iterator &)__position, __x);
+    typedef typename rep_type::iterator rep_iterator;
+    return t.insert_unique((rep_iterator &)position, x);
   }
 #ifdef __STL_MEMBER_TEMPLATES
-  template <class _InputIterator>
-  void insert(_InputIterator __first, _InputIterator __last)
+  template <class InputIterator>
+  void insert(InputIterator first, InputIterator last)
   {
-    _M_t.insert_unique(__first, __last);
+    t.insert_unique(first, last);
   }
 #else
-  void insert(const_iterator __first, const_iterator __last)
+  void insert(const_iterator first, const_iterator last)
   {
-    _M_t.insert_unique(__first, __last);
+    t.insert_unique(first, last);
   }
-  void insert(const value_type *__first, const value_type *__last)
+  void insert(const value_type *first, const value_type *last)
   {
-    _M_t.insert_unique(__first, __last);
+    t.insert_unique(first, last);
   }
 #endif /* __STL_MEMBER_TEMPLATES */
-  void erase(iterator __position)
+  void erase(iterator position)
   {
-    typedef typename _Rep_type::iterator _Rep_iterator;
-    _M_t.erase((_Rep_iterator &)__position);
+    typedef typename rep_type::iterator rep_iterator;
+    t.erase((rep_iterator &)position);
   }
-  size_type erase(const key_type &__x)
+  size_type erase(const key_type &x)
   {
-    return _M_t.erase(__x);
+    return t.erase(x);
   }
-  void erase(iterator __first, iterator __last)
+  void erase(iterator first, iterator last)
   {
-    typedef typename _Rep_type::iterator _Rep_iterator;
-    _M_t.erase((_Rep_iterator &)__first, (_Rep_iterator &)__last);
+    typedef typename rep_type::iterator rep_iterator;
+    t.erase((rep_iterator &)first, (rep_iterator &)last);
   }
-  void clear() { _M_t.clear(); }
+  void clear() { t.clear(); }
 
   // set operations:
 
-  iterator find(const key_type &__x) const { return _M_t.find(__x); }
-  size_type count(const key_type &__x) const
+  iterator find(const key_type &x) const { return t.find(x); }
+  size_type count(const key_type &x) const { return t.count(x); }
+  iterator lower_bound(const key_type &x) const
   {
-    return _M_t.find(__x) == _M_t.end() ? 0 : 1;
+    return t.lower_bound(x);
   }
-  iterator lower_bound(const key_type &__x) const
+  iterator upper_bound(const key_type &x) const
   {
-    return _M_t.lower_bound(__x);
+    return t.upper_bound(x);
   }
-  iterator upper_bound(const key_type &__x) const
+  pair<iterator, iterator> equal_range(const key_type &x) const
   {
-    return _M_t.upper_bound(__x);
+    return t.equal_range(x);
   }
-  pair<iterator, iterator> equal_range(const key_type &__x) const
-  {
-    return _M_t.equal_range(__x);
-  }
-
-#ifdef __STL_TEMPLATE_FRIENDS
-  template <class _K1, class _C1, class _A1>
-  friend bool operator==(const set<_K1, _C1, _A1> &, const set<_K1, _C1, _A1> &);
-  template <class _K1, class _C1, class _A1>
-  friend bool operator<(const set<_K1, _C1, _A1> &, const set<_K1, _C1, _A1> &);
-#else  /* __STL_TEMPLATE_FRIENDS */
-  friend bool __STD_QUALIFIER
-  operator== __STL_NULL_TMPL_ARGS(const set &, const set &);
-  friend bool __STD_QUALIFIER
-  operator<__STL_NULL_TMPL_ARGS(const set &, const set &);
-#endif /* __STL_TEMPLATE_FRIENDS */
+  friend bool operator== __STL_NULL_TMPL_ARGS(const set &, const set &);
+  friend bool operator<__STL_NULL_TMPL_ARGS(const set &, const set &);
 };
 
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator==(const set<_Key, _Compare, _Alloc> &__x,
-                       const set<_Key, _Compare, _Alloc> &__y)
+template <class Key, class Compare, class Alloc>
+inline bool operator==(const set<Key, Compare, Alloc> &x,
+                       const set<Key, Compare, Alloc> &y)
 {
-  return __x._M_t == __y._M_t;
+  return x.t == y.t;
 }
 
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator<(const set<_Key, _Compare, _Alloc> &__x,
-                      const set<_Key, _Compare, _Alloc> &__y)
+template <class Key, class Compare, class Alloc>
+inline bool operator<(const set<Key, Compare, Alloc> &x,
+                      const set<Key, Compare, Alloc> &y)
 {
-  return __x._M_t < __y._M_t;
+  return x.t < y.t;
 }
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
 
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator!=(const set<_Key, _Compare, _Alloc> &__x,
-                       const set<_Key, _Compare, _Alloc> &__y)
+template <class Key, class Compare, class Alloc>
+inline void swap(set<Key, Compare, Alloc> &x,
+                 set<Key, Compare, Alloc> &y)
 {
-  return !(__x == __y);
-}
-
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator>(const set<_Key, _Compare, _Alloc> &__x,
-                      const set<_Key, _Compare, _Alloc> &__y)
-{
-  return __y < __x;
-}
-
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator<=(const set<_Key, _Compare, _Alloc> &__x,
-                       const set<_Key, _Compare, _Alloc> &__y)
-{
-  return !(__y < __x);
-}
-
-template <class _Key, class _Compare, class _Alloc>
-inline bool operator>=(const set<_Key, _Compare, _Alloc> &__x,
-                       const set<_Key, _Compare, _Alloc> &__y)
-{
-  return !(__x < __y);
-}
-
-template <class _Key, class _Compare, class _Alloc>
-inline void swap(set<_Key, _Compare, _Alloc> &__x,
-                 set<_Key, _Compare, _Alloc> &__y)
-{
-  __x.swap(__y);
+  x.swap(y);
 }
 
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
 #pragma reset woff 1174
-#pragma reset woff 1375
 #endif
 
 __STL_END_NAMESPACE
