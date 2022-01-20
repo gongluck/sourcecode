@@ -33,6 +33,7 @@
 
 __STL_BEGIN_NAMESPACE
 
+//队列
 #ifndef __STL_LIMITED_DEFAULT_TEMPLATES
 template <class T, class Sequence = deque<T>>
 #else
@@ -50,7 +51,7 @@ public:
   typedef typename Sequence::const_reference const_reference;
 
 protected:
-  Sequence c;
+  Sequence c; //底层容器 符合尾增头删
 
 public:
   bool empty() const { return c.empty(); }
@@ -91,8 +92,8 @@ public:
   typedef typename Sequence::const_reference const_reference;
 
 protected:
-  Sequence c;   //底层容器
-  Compare comp; //比较方式
+  Sequence c;   //底层容器 默认vector
+  Compare comp; //比较方法 默认less
 
 public:
   priority_queue() : c() {}
@@ -112,7 +113,7 @@ public:
   priority_queue(const value_type *first, const value_type *last,
                  const Compare &x) : c(first, last), comp(x)
   {
-    //生成堆
+    //构建堆
     make_heap(c.begin(), c.end(), comp);
   }
   priority_queue(const value_type *first, const value_type *last)
@@ -129,9 +130,9 @@ public:
   {
     __STL_TRY
     {
-      //尾部添加元素
+      //添加元素到底层容器
       c.push_back(x);
-      //将尾部元素添加入堆
+      //将最后的元素添加到堆
       push_heap(c.begin(), c.end(), comp);
     }
     __STL_UNWIND(c.clear());
@@ -140,9 +141,9 @@ public:
   {
     __STL_TRY
     {
-      //将头部元素出堆，实际是放到底层容器的最后，并重新调整了堆
+      //将堆顶元素移出，实际是移动到底层容器的末尾并调整堆
       pop_heap(c.begin(), c.end(), comp);
-      //弹出最后的元素
+      //从底层容器中移除最后元素
       c.pop_back();
     }
     __STL_UNWIND(c.clear());
