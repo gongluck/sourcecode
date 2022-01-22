@@ -19,6 +19,9 @@
 #ifndef __SGI_STL_INTERNAL_SLIST_H
 #define __SGI_STL_INTERNAL_SLIST_H
 
+#define __STL_CLASS_PARTIAL_SPECIALIZATION
+#define __STL_MEMBER_TEMPLATES
+
 __STL_BEGIN_NAMESPACE
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)

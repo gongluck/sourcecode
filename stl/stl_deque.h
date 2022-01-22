@@ -31,6 +31,9 @@
 #ifndef __SGI_STL_INTERNAL_DEQUE_H
 #define __SGI_STL_INTERNAL_DEQUE_H
 
+#define __STL_CLASS_PARTIAL_SPECIALIZATION
+#define __STL_MEMBER_TEMPLATES
+
 /* Class invariants:
  *  For any nonsingular iterator i:
  *    i.node is the address of an element in the map array.  The

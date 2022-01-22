@@ -31,6 +31,9 @@
 #ifndef __SGI_STL_INTERNAL_VECTOR_H
 #define __SGI_STL_INTERNAL_VECTOR_H
 
+#define __STL_CLASS_PARTIAL_SPECIALIZATION
+#define __STL_MEMBER_TEMPLATES
+
 __STL_BEGIN_NAMESPACE
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
@@ -182,8 +185,9 @@ public:
   iterator insert(iterator position, const T &x)
   {
     size_type n = position - begin();
-    if (finish != end_of_storage && position == end())
+    if (finish != end_of_storage && position == end()) //尾部插入
     {
+      //尾部原地构造
       construct(finish, x);
       ++finish;
     }

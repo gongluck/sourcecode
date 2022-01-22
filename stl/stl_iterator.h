@@ -31,6 +31,8 @@
 #ifndef __SGI_STL_INTERNAL_ITERATOR_H
 #define __SGI_STL_INTERNAL_ITERATOR_H
 
+#define __STL_CLASS_PARTIAL_SPECIALIZATION
+
 __STL_BEGIN_NAMESPACE
 
 //迭代器类型定义
@@ -63,6 +65,7 @@ struct input_iterator
 struct output_iterator
 {
   typedef output_iterator_tag iterator_category;
+  //输出迭代器下面的类型都是void
   typedef void value_type;
   typedef void difference_type;
   typedef void pointer;
@@ -114,6 +117,7 @@ struct iterator
 
 #ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
 
+//萃取机
 template <class Iterator>
 struct iterator_traits
 {
@@ -201,6 +205,7 @@ iterator_category(const random_access_iterator<T, Distance> &)
   return random_access_iterator_tag();
 }
 
+// T*属于可随机访问迭代器
 template <class T>
 inline random_access_iterator_tag iterator_category(const T *)
 {
