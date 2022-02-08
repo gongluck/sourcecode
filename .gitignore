@@ -20,3 +20,4 @@ gcc-11.2.0
 .vscode
 tass-sgi-stl-2.91.57-source/
 stl/.vs/
+redis-3.0.0/
