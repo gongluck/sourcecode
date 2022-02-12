@@ -705,25 +705,33 @@ dictIterator *dictGetSafeIterator(dict *d)
     return i;
 }
 
+//遍历迭代器
 dictEntry *dictNext(dictIterator *iter)
 {
     while (1)
     {
+        //第一次遍历或者当前哈希表遍历到结束
         if (iter->entry == NULL)
         {
+            //获取指向的哈希表
             dictht *ht = &iter->d->ht[iter->table];
+            //第一次遍历
             if (iter->index == -1 && iter->table == 0)
             {
                 if (iter->safe)
-                    iter->d->iterators++;
+                    iter->d->iterators++; //安全迭代器，更新迭代器计数
                 else
-                    iter->fingerprint = dictFingerprint(iter->d);
+                    iter->fingerprint = dictFingerprint(iter->d); //计算指纹
             }
+            //更新索引
             iter->index++;
+            //索引溢出，当前哈希表遍历完
             if (iter->index >= (long)ht->size)
             {
+                //rehash中代表应该遍历ht[1]
                 if (dictIsRehashing(iter->d) && iter->table == 0)
                 {
+                    //准备遍历另外一个哈希表
                     iter->table++;
                     iter->index = 0;
                     ht = &iter->d->ht[1];
@@ -733,13 +741,15 @@ dictEntry *dictNext(dictIterator *iter)
                     break;
                 }
             }
+            //指向节点
             iter->entry = ht->table[iter->index];
         }
-        else
+        else //非第一次遍历或者当前哈希表遍历到结束
         {
+            //指向下一个节点
             iter->entry = iter->nextEntry;
         }
-        if (iter->entry)
+        if (iter->entry) //当前节点有效
         {
             /* We need to save the 'next' here, the iterator user
              * may delete the entry we are returning. */
@@ -750,18 +760,20 @@ dictEntry *dictNext(dictIterator *iter)
     return NULL;
 }
 
+//释放迭代器
 void dictReleaseIterator(dictIterator *iter)
 {
     if (!(iter->index == -1 && iter->table == 0))
     {
         if (iter->safe)
-            iter->d->iterators--;
+            iter->d->iterators--; //递减安全迭代器的计数
         else
-            assert(iter->fingerprint == dictFingerprint(iter->d));
+            assert(iter->fingerprint == dictFingerprint(iter->d)); //验证指纹
     }
     zfree(iter);
 }
 
+//随机返回节点
 /* Return a random entry from the hash table. Useful to
  * implement randomized algorithms */
 dictEntry *dictGetRandomKey(dict *d)
@@ -772,12 +784,15 @@ dictEntry *dictGetRandomKey(dict *d)
 
     if (dictSize(d) == 0)
         return NULL;
+    //渐进哈希
     if (dictIsRehashing(d))
         _dictRehashStep(d);
+    //rehash中
     if (dictIsRehashing(d))
     {
         do
         {
+            //ht[0]中的[0, rehashidx]是没有元素的
             /* We are sure there are no elements in indexes from 0
              * to rehashidx-1 */
             h = d->rehashidx + (random() % (d->ht[0].size +
@@ -790,6 +805,7 @@ dictEntry *dictGetRandomKey(dict *d)
     {
         do
         {
+            //计算随机索引
             h = random() & d->ht[0].sizemask;
             he = d->ht[0].table[h];
         } while (he == NULL);
@@ -801,11 +817,13 @@ dictEntry *dictGetRandomKey(dict *d)
      * select a random index. */
     listlen = 0;
     orighe = he;
+    //遍历当前桶的链表长度
     while (he)
     {
         he = he->next;
         listlen++;
     }
+    //随机一个链表索引
     listele = random() % listlen;
     he = orighe;
     while (listele--)
@@ -813,6 +831,7 @@ dictEntry *dictGetRandomKey(dict *d)
     return he;
 }
 
+//随机返回一些节点
 /* This function samples the dictionary to return a few keys from random
  * locations.
  *
@@ -846,6 +865,7 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
         count = dictSize(d);
     maxsteps = count * 10;
 
+    //尝试进行一些rehash
     /* Try to do a rehashing work proportional to 'count'. */
     for (j = 0; j < count; j++)
     {
@@ -860,6 +880,7 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
     if (tables > 1 && maxsizemask < d->ht[1].sizemask)
         maxsizemask = d->ht[1].sizemask;
 
+    //计算随机索引
     /* Pick a random point inside the larger table. */
     unsigned int i = random() & maxsizemask;
     unsigned int emptylen = 0; /* Continuous empty entries so far. */
@@ -870,18 +891,19 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
             /* Invariant of the dict.c rehashing: up to the indexes already
              * visited in ht[0] during the rehashing, there are no populated
              * buckets, so we can skip ht[0] for indexes between 0 and idx-1. */
-            if (tables == 2 && j == 0 && i < (unsigned int)d->rehashidx)
+            if (tables == 2 && j == 0 && i < (unsigned int)d->rehashidx) //取ht[1]的情况
             {
                 /* Moreover, if we are currently out of range in the second
                  * table, there will be no elements in both tables up to
                  * the current rehashing index, so we jump if possible.
                  * (this happens when going from big to small table). */
-                if (i >= d->ht[1].size)
+                if (i >= d->ht[1].size) //防止溢出
                     i = d->rehashidx;
                 continue;
             }
-            if (i >= d->ht[j].size)
-                continue; /* Out of range for this table. */
+            if (i >= d->ht[j].size) //溢出
+                continue;           /* Out of range for this table. */
+            //获取随机索引指向的桶
             dictEntry *he = d->ht[j].table[i];
 
             /* Count contiguous empty buckets, and jump to other
@@ -891,6 +913,7 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
                 emptylen++;
                 if (emptylen >= 5 && emptylen > count)
                 {
+                    //重新计算一次随机索引
                     i = random() & maxsizemask;
                     emptylen = 0;
                 }
@@ -902,7 +925,7 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
                 {
                     /* Collect all the elements of the buckets found non
                      * empty while iterating. */
-                    *des = he;
+                    *des = he; //添加到结果数组
                     des++;
                     he = he->next;
                     stored++;
@@ -911,11 +934,13 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
                 }
             }
         }
+        //遍历下一个桶
         i = (i + 1) & maxsizemask;
     }
     return stored;
 }
 
+//按位反转
 /* Function to reverse bits. Algorithm from:
  * http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel */
 static unsigned long rev(unsigned long v)
@@ -930,6 +955,7 @@ static unsigned long rev(unsigned long v)
     return v;
 }
 
+//遍历
 /* dictScan() is used to iterate over the elements of a dictionary.
  *
  * Iterating works the following way:
@@ -1031,6 +1057,7 @@ unsigned long dictScan(dict *d,
         t0 = &(d->ht[0]);
         m0 = t0->sizemask;
 
+        //遍历该索引的桶
         /* Emit entries at cursor */
         de = t0->table[v & m0];
         while (de)
@@ -1054,6 +1081,7 @@ unsigned long dictScan(dict *d,
         m0 = t0->sizemask;
         m1 = t1->sizemask;
 
+        //遍历该索引的桶
         /* Emit entries at cursor */
         de = t0->table[v & m0];
         while (de)
@@ -1066,6 +1094,7 @@ unsigned long dictScan(dict *d,
          * of the index pointed to by the cursor in the smaller table */
         do
         {
+            //遍历另外一个哈希表中的对应桶
             /* Emit entries at cursor */
             de = t1->table[v & m1];
             while (de)
@@ -1074,16 +1103,17 @@ unsigned long dictScan(dict *d,
                 de = de->next;
             }
 
+            //考虑由ht[0]的v桶在rehash过程中移动到ht[1]的节点
             /* Increment bits not covered by the smaller mask */
             v = (((v | m0) + 1) & ~m0) | (v & m0);
 
             /* Continue while bits covered by mask difference is non-zero */
-        } while (v & (m0 ^ m1));
+        } while (v & (m0 ^ m1)); //v溢出
     }
 
     /* Set unmasked bits so incrementing the reversed cursor
      * operates on the masked bits of the smaller table */
-    v |= ~m0;
+    v |= ~m0; //去除溢出的高位
 
     /* Increment the reverse cursor */
     v = rev(v);
