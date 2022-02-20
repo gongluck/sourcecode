@@ -409,13 +409,15 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_LRU_BITS 24
 #define REDIS_LRU_CLOCK_MAX ((1 << REDIS_LRU_BITS) - 1) /* Max value of obj->lru */
 #define REDIS_LRU_CLOCK_RESOLUTION 1000                 /* LRU clock resolution in ms */
+
+// redis对象
 typedef struct redisObject
 {
-    unsigned type : 4;
-    unsigned encoding : 4;
+    unsigned type : 4;             //类型
+    unsigned encoding : 4;         //编码
     unsigned lru : REDIS_LRU_BITS; /* lru time (relative to server.lruclock) */
-    int refcount;
-    void *ptr;
+    int refcount;                  //引用计数
+    void *ptr;                     //实体对象
 } robj;
 
 /* Macro used to obtain the current LRU clock.
@@ -488,13 +490,13 @@ typedef struct blockingState
 {
     /* Generic fields. */
     mstime_t timeout; /* Blocking operation timeout. If UNIX current time
-                             * is > timeout then the operation timed out. */
+                       * is > timeout then the operation timed out. */
 
     /* REDIS_BLOCK_LIST */
     dict *keys;   /* The keys we are waiting to terminate a blocking
-                             * operation such as BLPOP. Otherwise NULL. */
+                   * operation such as BLPOP. Otherwise NULL. */
     robj *target; /* The key that should receive the element,
-                             * for BRPOPLPUSH. */
+                   * for BRPOPLPUSH. */
 
     /* REDIS_BLOCK_WAIT */
     int numreplicas;      /* Number of replicas we are waiting for ACK. */
