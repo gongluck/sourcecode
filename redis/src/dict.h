@@ -87,7 +87,7 @@ typedef struct dict
     dictType *type; //操作方法集合
     void *privdata; //私有数据
     dictht ht[2];   //两个哈希表
-    //rehash进行中的ht[0].table数组索引
+    // rehash进行中的ht[0].table数组索引
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
     //迭代器
     int iterators; /* number of iterators currently running */

@@ -71,7 +71,7 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* -------------------------- hash functions -------------------------------- */
 
-//32位整数key哈希计算，不明觉厉
+// 32位整数key哈希计算，不明觉厉
 /* Thomas Wang's 32 bit Mix Function */
 unsigned int dictIntHashFunction(unsigned int key)
 {
@@ -208,7 +208,7 @@ int _dictInit(dict *d, dictType *type,
     return DICT_OK;
 }
 
-//fix字典大小
+// fix字典大小
 /* Resize the table to the minimal size that contains all the elements,
  * but with the invariant of a USED/BUCKETS ratio near to <= 1 */
 int dictResize(dict *d)
@@ -312,7 +312,7 @@ int dictRehash(dict *d, int n)
             //准备处理下一个节点
             de = nextde;
         }
-        //0号哈希表的rehashidx桶处理完复位
+        // 0号哈希表的rehashidx桶处理完复位
         d->ht[0].table[d->rehashidx] = NULL;
         d->rehashidx++;
     }
@@ -336,7 +336,7 @@ int dictRehash(dict *d, int n)
     return 1;
 }
 
-//获取毫秒世界
+//获取毫秒时间
 long long timeInMilliseconds(void)
 {
     struct timeval tv;
@@ -423,7 +423,7 @@ dictEntry *dictAddRaw(dict *d, void *key)
         return NULL;
 
     /* Allocate the memory and store the new entry */
-    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0]; //rehash中则往ht[1]插入
+    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0]; // rehash中则往ht[1]插入
     entry = zmalloc(sizeof(*entry));
     //头插法插入元素
     entry->next = ht->table[index];
@@ -436,7 +436,7 @@ dictEntry *dictAddRaw(dict *d, void *key)
     return entry;
 }
 
-//插入键值对
+//插入或修改键值对
 /* Add an element, discarding the old if the key already exists.
  * Return 1 if the key was added from scratch, 0 if there was already an
  * element with such key and dictReplace() just performed a value update
@@ -454,7 +454,7 @@ int dictReplace(dict *d, void *key, void *val)
     //元素存在，查找它
     /* It already exists, get the entry */
     entry = dictFind(d, key);
-    //dictSetVal和dictFreeVal可能会有内存申请释放操作，所以下面会有设置新值后要删除旧值的操作
+    // dictSetVal和dictFreeVal可能会有内存申请释放操作，所以下面会有设置新值后要删除旧值的操作
     /* Set the new value and free the old one. Note that it is important
      * to do that in this order, as the value may just be exactly the same
      * as the previous one. In this context, think to reference counting,
@@ -728,7 +728,7 @@ dictEntry *dictNext(dictIterator *iter)
             //索引溢出，当前哈希表遍历完
             if (iter->index >= (long)ht->size)
             {
-                //rehash中代表应该遍历ht[1]
+                // rehash中代表应该遍历ht[1]
                 if (dictIsRehashing(iter->d) && iter->table == 0)
                 {
                     //准备遍历另外一个哈希表
@@ -787,12 +787,12 @@ dictEntry *dictGetRandomKey(dict *d)
     //渐进哈希
     if (dictIsRehashing(d))
         _dictRehashStep(d);
-    //rehash中
+    // rehash中
     if (dictIsRehashing(d))
     {
         do
         {
-            //ht[0]中的[0, rehashidx]是没有元素的
+            // ht[0]中的[0, rehashidx]是没有元素的
             /* We are sure there are no elements in indexes from 0
              * to rehashidx-1 */
             h = d->rehashidx + (random() % (d->ht[0].size +
@@ -1108,7 +1108,7 @@ unsigned long dictScan(dict *d,
             v = (((v | m0) + 1) & ~m0) | (v & m0);
 
             /* Continue while bits covered by mask difference is non-zero */
-        } while (v & (m0 ^ m1)); //v溢出
+        } while (v & (m0 ^ m1)); // v溢出
     }
 
     /* Set unmasked bits so incrementing the reversed cursor
@@ -1129,7 +1129,7 @@ unsigned long dictScan(dict *d,
 /* Expand the hash table if needed */
 static int _dictExpandIfNeeded(dict *d)
 {
-    //rehash中，返回成功
+    // rehash中，返回成功
     /* Incremental rehashing already in progress. Return. */
     if (dictIsRehashing(d))
         return DICT_OK;
