@@ -35,9 +35,9 @@
 //整数集合
 typedef struct intset
 {
-    uint32_t encoding; //编码
-    uint32_t length;   //元素个数
-    int8_t contents[]; //元素数组
+  uint32_t encoding; //编码(小端字节序)
+  uint32_t length;   //元素个数(小端字节序)
+  int8_t contents[]; //元素数组
 } intset;
 
 intset *intsetNew(void);

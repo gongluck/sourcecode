@@ -43,6 +43,8 @@ uint16_t intrev16(uint16_t v);
 uint32_t intrev32(uint32_t v);
 uint64_t intrev64(uint64_t v);
 
+// memory reverse if BIG_ENDIAN
+//如果是大端字节序，就翻转字节
 /* variants of the function doing the actual convertion only if the target
  * host is big endian */
 #if (BYTE_ORDER == LITTLE_ENDIAN)
