@@ -217,39 +217,44 @@ robj *dupStringObject(robj *o)
   }
 }
 
+//创建链表列表对象
 robj *createListObject(void)
 {
   list *l = listCreate();
-  robj *o = createObject(REDIS_LIST, l);
-  listSetFreeMethod(l, decrRefCountVoid);
+  robj *o = createObject(REDIS_LIST /*列表对象*/, l);
+  listSetFreeMethod(l, decrRefCountVoid); //设置链表对象的释放函数
   o->encoding = REDIS_ENCODING_LINKEDLIST;
   return o;
 }
 
+//创建压缩列表对象
 robj *createZiplistObject(void)
 {
   unsigned char *zl = ziplistNew();
-  robj *o = createObject(REDIS_LIST, zl);
+  robj *o = createObject(REDIS_LIST, /*列表对象*/ zl);
   o->encoding = REDIS_ENCODING_ZIPLIST;
   return o;
 }
 
+//创建字典集合对象
 robj *createSetObject(void)
 {
-  dict *d = dictCreate(&setDictType, NULL);
-  robj *o = createObject(REDIS_SET, d);
+  dict *d = dictCreate(&setDictType /*字典集合对象使用的自定义函数操作*/, NULL);
+  robj *o = createObject(REDIS_SET /*集合对象*/, d);
   o->encoding = REDIS_ENCODING_HT;
   return o;
 }
 
+//创建整数集合对象
 robj *createIntsetObject(void)
 {
   intset *is = intsetNew();
-  robj *o = createObject(REDIS_SET, is);
+  robj *o = createObject(REDIS_SET /*集合对象*/, is);
   o->encoding = REDIS_ENCODING_INTSET;
   return o;
 }
 
+//创建哈希对象
 robj *createHashObject(void)
 {
   unsigned char *zl = ziplistNew();
@@ -258,18 +263,20 @@ robj *createHashObject(void)
   return o;
 }
 
+//创建有序集合对象
 robj *createZsetObject(void)
 {
   zset *zs = zmalloc(sizeof(*zs));
   robj *o;
 
-  zs->dict = dictCreate(&zsetDictType, NULL);
+  zs->dict = dictCreate(&zsetDictType /*跳表有序集合对象使用的自定义函数操作*/, NULL);
   zs->zsl = zslCreate();
   o = createObject(REDIS_ZSET, zs);
   o->encoding = REDIS_ENCODING_SKIPLIST;
   return o;
 }
 
+//创建压缩列表有序集合对象
 robj *createZsetZiplistObject(void)
 {
   unsigned char *zl = ziplistNew();
@@ -278,14 +285,17 @@ robj *createZsetZiplistObject(void)
   return o;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void freeStringObject(robj *o)
 {
-  if (o->encoding == REDIS_ENCODING_RAW)
+  if (o->encoding == REDIS_ENCODING_RAW) // REDIS_ENCODING_RAW类型字符串，sds和obj分配在不同的内存中，所以需要单独销毁sds部分内存
   {
     sdsfree(o->ptr);
   }
 }
 
+//判断编码类型销毁列表对象
 void freeListObject(robj *o)
 {
   switch (o->encoding)
@@ -351,18 +361,20 @@ void freeHashObject(robj *o)
   }
 }
 
+//增加对象引用计数
 void incrRefCount(robj *o)
 {
   o->refcount++;
 }
 
+//减少对象引用计数或者判断类型销毁对象
 void decrRefCount(robj *o)
 {
   if (o->refcount <= 0)
     redisPanic("decrRefCount against refcount <= 0");
-  if (o->refcount == 1)
+  if (o->refcount == 1) //即将销毁对象
   {
-    switch (o->type)
+    switch (o->type) //判断类型销毁对象
     {
     case REDIS_STRING:
       freeStringObject(o);
@@ -391,6 +403,7 @@ void decrRefCount(robj *o)
   }
 }
 
+//减少引用计数
 /* This variant of decrRefCount() gets its argument as void, and is useful
  * as free method in data structures that expect a 'void free_object(void*)'
  * prototype for the free method. */
@@ -399,6 +412,7 @@ void decrRefCountVoid(void *o)
   decrRefCount(o);
 }
 
+//重置引用计数
 /* This function set the ref count to zero without freeing the object.
  * It is useful in order to pass a new object to functions incrementing
  * the ref count of the received object. Example:

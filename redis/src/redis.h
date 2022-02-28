@@ -178,7 +178,7 @@ typedef long long mstime_t; /* millisecond time type. */
 
 /* Object types */
 #define REDIS_STRING 0 //字符串对象
-#define REDIS_LIST 1
+#define REDIS_LIST 1   //列表对象
 #define REDIS_SET 2
 #define REDIS_ZSET 3
 #define REDIS_HASH 4
@@ -186,15 +186,15 @@ typedef long long mstime_t; /* millisecond time type. */
 /* Objects encoding. Some kind of objects like Strings and Hashes can be
  * internally represented in multiple ways. The 'encoding' field of the object
  * is set to one of this fields for this object. */
-#define REDIS_ENCODING_RAW 0 /* Raw representation */              //简单动态字符串
-#define REDIS_ENCODING_INT 1 /* Encoded as integer */              //保存整数型的字符串
-#define REDIS_ENCODING_HT 2                                        /* Encoded as hash table */
-#define REDIS_ENCODING_ZIPMAP 3                                    /* Encoded as zipmap */
-#define REDIS_ENCODING_LINKEDLIST 4                                /* Encoded as regular linked list */
-#define REDIS_ENCODING_ZIPLIST 5                                   /* Encoded as ziplist */
-#define REDIS_ENCODING_INTSET 6                                    /* Encoded as intset */
-#define REDIS_ENCODING_SKIPLIST 7                                  /* Encoded as skiplist */
-#define REDIS_ENCODING_EMBSTR 8 /* Embedded sds string encoding */ // embstr编码的简单动态字符串
+#define REDIS_ENCODING_RAW 0 /* Raw representation */                    //简单动态字符串
+#define REDIS_ENCODING_INT 1 /* Encoded as integer */                    //保存整数型的字符串
+#define REDIS_ENCODING_HT 2 /* Encoded as hash table */                  //字典实现的对象
+#define REDIS_ENCODING_ZIPMAP 3                                          /* Encoded as zipmap */
+#define REDIS_ENCODING_LINKEDLIST 4 /* Encoded as regular linked list */ //链表实现对象
+#define REDIS_ENCODING_ZIPLIST 5 /* Encoded as ziplist */                //压缩列表实现的对象
+#define REDIS_ENCODING_INTSET 6 /* Encoded as intset */                  //整数集合实现的对象
+#define REDIS_ENCODING_SKIPLIST 7 /* Encoded as skiplist */              //跳表实现的对象
+#define REDIS_ENCODING_EMBSTR 8 /* Embedded sds string encoding */       // embstr编码的简单动态字符串
 
 /* Defines related to the dump file format. To store 32 bits lengths for short
  * keys requires a lot of space, so we check the most significant 2 bits of
@@ -615,10 +615,11 @@ typedef struct zskiplist
   int level;                           //最大层数
 } zskiplist;
 
+//有序集合
 typedef struct zset
 {
-  dict *dict;
-  zskiplist *zsl;
+  dict *dict;     //字典
+  zskiplist *zsl; //跳表
 } zset;
 
 typedef struct clientBufferLimitsConfig
