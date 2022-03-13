@@ -179,9 +179,9 @@ typedef long long mstime_t; /* millisecond time type. */
 /* Object types */
 #define REDIS_STRING 0 //字符串对象
 #define REDIS_LIST 1   //列表对象
-#define REDIS_SET 2
-#define REDIS_ZSET 3
-#define REDIS_HASH 4
+#define REDIS_SET 2    //集合对象
+#define REDIS_ZSET 3   //有序集合对象
+#define REDIS_HASH 4   //哈希对象
 
 /* Objects encoding. Some kind of objects like Strings and Hashes can be
  * internally represented in multiple ways. The 'encoding' field of the object
