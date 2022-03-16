@@ -58,6 +58,7 @@ namespace webrtc {
 rtc::scoped_refptr<PeerConnectionFactoryInterface>
 CreateModularPeerConnectionFactory(
     PeerConnectionFactoryDependencies dependencies) {
+  //在signaling_thread上创建PeerConnectionFactory
   // The PeerConnectionFactory must be created on the signaling thread.
   if (dependencies.signaling_thread &&
       !dependencies.signaling_thread->IsCurrent()) {
@@ -68,7 +69,7 @@ CreateModularPeerConnectionFactory(
                   std::move(dependencies));
             });
   }
-
+  //在signaling_thread(本线程)上创建PeerConnectionFactory
   auto pc_factory = PeerConnectionFactory::Create(std::move(dependencies));
   if (!pc_factory) {
     return nullptr;
@@ -76,6 +77,7 @@ CreateModularPeerConnectionFactory(
   // Verify that the invocation and the initialization ended up agreeing on the
   // thread.
   RTC_DCHECK_RUN_ON(pc_factory->signaling_thread());
+  //创建代理对象
   return PeerConnectionFactoryProxy::Create(
       pc_factory->signaling_thread(), pc_factory->worker_thread(), pc_factory);
 }
@@ -218,6 +220,7 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
     dependencies.allocator = std::make_unique<cricket::BasicPortAllocator>(
         context_->default_network_manager(), packet_socket_factory,
         configuration.turn_customizer);
+    //设置candidate时使用的UDP端口范围
     dependencies.allocator->SetPortRange(
         configuration.port_allocator_config.min_port,
         configuration.port_allocator_config.max_port);

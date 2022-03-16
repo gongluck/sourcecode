@@ -97,6 +97,7 @@ class ScopedTrace {
 };
 }  // namespace proxy_internal
 
+//将函数调用和返回值绑定一起
 template <typename R>
 class ReturnType {
  public:
@@ -122,9 +123,11 @@ class ReturnType<void> {
   void moved_result() {}
 };
 
+//封装线程调用
 template <typename C, typename R, typename... Args>
 class MethodCall : public QueuedTask {
  public:
+  // Method为参数列表为Args...返回值为R的类C的成员函数类型
   typedef R (C::*Method)(Args...);
   MethodCall(C* c, Method m, Args&&... args)
       : c_(c),
@@ -133,8 +136,10 @@ class MethodCall : public QueuedTask {
 
   R Marshal(const rtc::Location& posted_from, rtc::Thread* t) {
     if (t->IsCurrent()) {
+      //阻塞在对应线程中调用
       Invoke(std::index_sequence_for<Args...>());
     } else {
+      //阻塞在当前线程等待异步结果
       t->PostTask(std::unique_ptr<QueuedTask>(this));
       event_.Wait(rtc::Event::kForever);
     }
@@ -201,30 +206,37 @@ class ConstMethodCall : public QueuedTask {
 #define PROXY_STRINGIZE_IMPL(x) #x
 #define PROXY_STRINGIZE(x) PROXY_STRINGIZE_IMPL(x)
 
+//声明模板类c##ProxyWithInternal<c##Interface>
 // Helper macros to reduce code duplication.
-#define PROXY_MAP_BOILERPLATE(c)                          \
-  template <class INTERNAL_CLASS>                         \
-  class c##ProxyWithInternal;                             \
-  typedef c##ProxyWithInternal<c##Interface> c##Proxy;    \
-  template <class INTERNAL_CLASS>                         \
-  class c##ProxyWithInternal : public c##Interface {      \
-   protected:                                             \
-    static constexpr char proxy_name_[] = #c "Proxy";     \
-    typedef c##Interface C;                               \
-                                                          \
-   public:                                                \
-    const INTERNAL_CLASS* internal() const { return c_; } \
+#define PROXY_MAP_BOILERPLATE(c)                                \
+  /*类模板c##ProxyWithInternal*/                             \
+  template <class INTERNAL_CLASS>                               \
+  class c##ProxyWithInternal;                                   \
+  /*模板类c##ProxyWithInternal<c##Interface>等同c##Proxy*/ \
+  typedef c##ProxyWithInternal<c##Interface> c##Proxy;          \
+  /*开始声明类模板c##ProxyWithInternal*/                 \
+  template <class INTERNAL_CLASS> /*继承于c##Interface*/     \
+  class c##ProxyWithInternal : public c##Interface {            \
+   protected:                                                   \
+    static constexpr char proxy_name_[] = #c "Proxy";           \
+    typedef c##Interface C;                                     \
+                                                                \
+   public:                                                      \
+    /*封装c##Interface*/                                      \
+    const INTERNAL_CLASS* internal() const { return c_; }       \
     INTERNAL_CLASS* internal() { return c_; }
 
+//模板宏结束
 // clang-format off
 // clang-format would put the semicolon alone,
 // leading to a presubmit error (cpplint.py)
 #define END_PROXY_MAP(c)          \
   };                              \
   template <class INTERNAL_CLASS> \
-  constexpr char c##ProxyWithInternal<INTERNAL_CLASS>::proxy_name_[];
+  constexpr char c##ProxyWithInternal<INTERNAL_CLASS>::proxy_name_[];//静态变量proxy_name_类外定义
 // clang-format on
 
+//绑定一个线程
 #define PRIMARY_PROXY_MAP_BOILERPLATE(c)                               \
  protected:                                                            \
   c##ProxyWithInternal(rtc::Thread* primary_thread, INTERNAL_CLASS* c) \
@@ -233,6 +245,7 @@ class ConstMethodCall : public QueuedTask {
  private:                                                              \
   mutable rtc::Thread* primary_thread_;
 
+//绑定两个线程
 #define SECONDARY_PROXY_MAP_BOILERPLATE(c)                               \
  protected:                                                              \
   c##ProxyWithInternal(rtc::Thread* primary_thread,                      \
@@ -245,6 +258,7 @@ class ConstMethodCall : public QueuedTask {
   mutable rtc::Thread* primary_thread_;                                  \
   mutable rtc::Thread* secondary_thread_;
 
+//通过RefCountInterface销毁
 // Note that the destructor is protected so that the proxy can only be
 // destroyed via RefCountInterface.
 #define REFCOUNTED_PROXY_MAP_BOILERPLATE(c)            \
@@ -259,6 +273,7 @@ class ConstMethodCall : public QueuedTask {
   void DestroyInternal() { c_ = nullptr; }             \
   rtc::scoped_refptr<INTERNAL_CLASS> c_;
 
+//通过代理类销毁
 // Note: This doesn't use a unique_ptr, because it intends to handle a corner
 // case where an object's deletion triggers a callback that calls back into
 // this proxy object. If relying on a unique_ptr to delete the object, its
@@ -276,9 +291,13 @@ class ConstMethodCall : public QueuedTask {
   void DestroyInternal() { delete c_; }                \
   INTERNAL_CLASS* c_;
 
+//代理类开始 只绑定一个线程
 #define BEGIN_PRIMARY_PROXY_MAP(c)                                         \
+  /*封装c##Interface*/                                                   \
   PROXY_MAP_BOILERPLATE(c)                                                 \
+  /*绑定一个线程*/                                                   \
   PRIMARY_PROXY_MAP_BOILERPLATE(c)                                         \
+  /*通过RefCountInterface销毁*/                                        \
   REFCOUNTED_PROXY_MAP_BOILERPLATE(c)                                      \
  public:                                                                   \
   static rtc::scoped_refptr<c##ProxyWithInternal> Create(                  \
@@ -286,9 +305,13 @@ class ConstMethodCall : public QueuedTask {
     return rtc::make_ref_counted<c##ProxyWithInternal>(primary_thread, c); \
   }
 
+//代理类开始 绑定两个线程
 #define BEGIN_PROXY_MAP(c)                                                   \
+  /*封装c##Interface*/                                                     \
   PROXY_MAP_BOILERPLATE(c)                                                   \
+  /*绑定两个线程*/                                                     \
   SECONDARY_PROXY_MAP_BOILERPLATE(c)                                         \
+  /*通过RefCountInterface销毁*/                                          \
   REFCOUNTED_PROXY_MAP_BOILERPLATE(c)                                        \
  public:                                                                     \
   static rtc::scoped_refptr<c##ProxyWithInternal> Create(                    \
@@ -299,8 +322,11 @@ class ConstMethodCall : public QueuedTask {
   }
 
 #define BEGIN_OWNED_PROXY_MAP(c)                                   \
+  /*封装c##Interface*/                                           \
   PROXY_MAP_BOILERPLATE(c)                                         \
+  /*绑定两个线程*/                                           \
   SECONDARY_PROXY_MAP_BOILERPLATE(c)                               \
+  /*通过代理类销毁*/                                        \
   OWNED_PROXY_MAP_BOILERPLATE(c)                                   \
  public:                                                           \
   static std::unique_ptr<c##Interface> Create(                     \
@@ -310,12 +336,14 @@ class ConstMethodCall : public QueuedTask {
         primary_thread, secondary_thread, c.release()));           \
   }
 
+//使用第一个线程销毁
 #define PROXY_PRIMARY_THREAD_DESTRUCTOR()                            \
  private:                                                            \
   rtc::Thread* destructor_thread() const { return primary_thread_; } \
                                                                      \
  public:  // NOLINTNEXTLINE
 
+//使用第二个线程销毁
 #define PROXY_SECONDARY_THREAD_DESTRUCTOR()                            \
  private:                                                              \
   rtc::Thread* destructor_thread() const { return secondary_thread_; } \

@@ -255,7 +255,7 @@ ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
     rtc::scoped_refptr<AudioDeviceModule> audio_device_module,
     rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory,
     rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory,
-    const JavaParamRef<jobject>& jencoder_factory,
+    const JavaParamRef<jobject>& jencoder_factory,  //视频编码器构造工厂
     const JavaParamRef<jobject>& jdecoder_factory,
     rtc::scoped_refptr<AudioProcessing> audio_processor,
     std::unique_ptr<FecControllerFactoryInterface> fec_controller_factory,
@@ -271,15 +271,18 @@ ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
   // think about ramifications of auto-wrapping there.
   rtc::ThreadManager::Instance()->WrapCurrentThread();
 
+  //创建network_thread
   auto socket_server = std::make_unique<rtc::PhysicalSocketServer>();
   auto network_thread = std::make_unique<rtc::Thread>(socket_server.get());
   network_thread->SetName("network_thread", nullptr);
   RTC_CHECK(network_thread->Start()) << "Failed to start thread";
 
+  //创建work_thread
   std::unique_ptr<rtc::Thread> worker_thread = rtc::Thread::Create();
   worker_thread->SetName("worker_thread", nullptr);
   RTC_CHECK(worker_thread->Start()) << "Failed to start thread";
 
+  //创建signaling_thread
   std::unique_ptr<rtc::Thread> signaling_thread = rtc::Thread::Create();
   signaling_thread->SetName("signaling_thread", NULL);
   RTC_CHECK(signaling_thread->Start()) << "Failed to start thread";
@@ -314,13 +317,14 @@ ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
   media_dependencies.audio_encoder_factory = std::move(audio_encoder_factory);
   media_dependencies.audio_decoder_factory = std::move(audio_decoder_factory);
   media_dependencies.audio_processing = std::move(audio_processor);
-  media_dependencies.video_encoder_factory =
+  media_dependencies.video_encoder_factory =  //视频编码器构造工厂
       absl::WrapUnique(CreateVideoEncoderFactory(jni, jencoder_factory));
   media_dependencies.video_decoder_factory =
       absl::WrapUnique(CreateVideoDecoderFactory(jni, jdecoder_factory));
-  dependencies.media_engine =
+  dependencies.media_engine =  //视频编码器构造工厂已经关联到媒体引擎中
       cricket::CreateMediaEngine(std::move(media_dependencies));
 
+  //通过依赖创建peerconnection构造工厂
   rtc::scoped_refptr<PeerConnectionFactoryInterface> factory =
       CreateModularPeerConnectionFactory(std::move(dependencies));
 
@@ -344,7 +348,7 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
     jlong native_audio_device_module,
     jlong native_audio_encoder_factory,
     jlong native_audio_decoder_factory,
-    const JavaParamRef<jobject>& jencoder_factory,
+    const JavaParamRef<jobject>& jencoder_factory,  //视频编码器构造工厂
     const JavaParamRef<jobject>& jdecoder_factory,
     jlong native_audio_processor,
     jlong native_fec_controller_factory,
@@ -369,8 +373,7 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
       TakeOwnershipOfUniquePtr<NetEqFactory>(native_neteq_factory));
 }
 
-static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*,
-                                                  jlong j_p) {
+static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*, jlong j_p) {
   delete reinterpret_cast<OwnedFactoryAndThreads*>(j_p);
   field_trial::InitFieldTrialsFromString(nullptr);
   GetStaticObjects().field_trials_init_string = nullptr;
@@ -465,6 +468,7 @@ static jlong JNI_PeerConnectionFactory_CreatePeerConnection(
 
   std::unique_ptr<MediaConstraints> constraints;
   if (!j_constraints.is_null()) {
+    //将依赖参数j_constraints解析到配置结构体rtc_config
     constraints = JavaToNativeMediaConstraints(jni, j_constraints);
     CopyConstraintsIntoRtcConfiguration(constraints.get(), &rtc_config);
   }
