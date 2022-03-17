@@ -18,6 +18,7 @@ import android.view.View;
  * Static helper functions for renderer implementations.
  */
 public class RendererCommon {
+
   /** Interface for reporting rendering events. */
   public static interface RendererEvents {
     /**
@@ -28,7 +29,11 @@ public class RendererCommon {
     /**
      * Callback fired when rendered frame resolution or rotation has changed.
      */
-    public void onFrameResolutionChanged(int videoWidth, int videoHeight, int rotation);
+    public void onFrameResolutionChanged(
+      int videoWidth,
+      int videoHeight,
+      int rotation
+    );
   }
 
   /**
@@ -43,12 +48,36 @@ public class RendererCommon {
      * implied by the current EGL context of the calling thread and requires no explicit argument.
      * The coordinates specify the viewport location on the surface target.
      */
-    void drawOes(int oesTextureId, float[] texMatrix, int frameWidth, int frameHeight,
-        int viewportX, int viewportY, int viewportWidth, int viewportHeight);
-    void drawRgb(int textureId, float[] texMatrix, int frameWidth, int frameHeight, int viewportX,
-        int viewportY, int viewportWidth, int viewportHeight);
-    void drawYuv(int[] yuvTextures, float[] texMatrix, int frameWidth, int frameHeight,
-        int viewportX, int viewportY, int viewportWidth, int viewportHeight);
+    void drawOes(
+      int oesTextureId,
+      float[] texMatrix,
+      int frameWidth,
+      int frameHeight,
+      int viewportX,
+      int viewportY,
+      int viewportWidth,
+      int viewportHeight
+    );
+    void drawRgb(
+      int textureId,
+      float[] texMatrix,
+      int frameWidth,
+      int frameHeight,
+      int viewportX,
+      int viewportY,
+      int viewportWidth,
+      int viewportHeight
+    );
+    void drawYuv(
+      int[] yuvTextures,
+      float[] texMatrix,
+      int frameWidth,
+      int frameHeight,
+      int viewportX,
+      int viewportY,
+      int viewportWidth,
+      int viewportHeight
+    );
 
     /**
      * Release all GL resources. This needs to be done manually, otherwise resources may leak.
@@ -61,48 +90,71 @@ public class RendererCommon {
    * aspect ratio.
    */
   public static class VideoLayoutMeasure {
+
     // The scaling type determines how the video will fill the allowed layout area in measure(). It
     // can be specified separately for the case when video has matched orientation with layout size
     // and when there is an orientation mismatch.
-    private float visibleFractionMatchOrientation =
-        convertScalingTypeToVisibleFraction(ScalingType.SCALE_ASPECT_BALANCED);
-    private float visibleFractionMismatchOrientation =
-        convertScalingTypeToVisibleFraction(ScalingType.SCALE_ASPECT_BALANCED);
+    private float visibleFractionMatchOrientation = convertScalingTypeToVisibleFraction(
+      ScalingType.SCALE_ASPECT_BALANCED
+    );
+    private float visibleFractionMismatchOrientation = convertScalingTypeToVisibleFraction(
+      ScalingType.SCALE_ASPECT_BALANCED
+    );
 
     public void setScalingType(ScalingType scalingType) {
-      setScalingType(/* scalingTypeMatchOrientation= */ scalingType,
-          /* scalingTypeMismatchOrientation= */ scalingType);
+      setScalingType(
+        /* scalingTypeMatchOrientation= */scalingType,
+        /* scalingTypeMismatchOrientation= */scalingType
+      );
     }
 
     public void setScalingType(
-        ScalingType scalingTypeMatchOrientation, ScalingType scalingTypeMismatchOrientation) {
+      ScalingType scalingTypeMatchOrientation,
+      ScalingType scalingTypeMismatchOrientation
+    ) {
       this.visibleFractionMatchOrientation =
-          convertScalingTypeToVisibleFraction(scalingTypeMatchOrientation);
+        convertScalingTypeToVisibleFraction(scalingTypeMatchOrientation);
       this.visibleFractionMismatchOrientation =
-          convertScalingTypeToVisibleFraction(scalingTypeMismatchOrientation);
+        convertScalingTypeToVisibleFraction(scalingTypeMismatchOrientation);
     }
 
     public void setVisibleFraction(
-        float visibleFractionMatchOrientation, float visibleFractionMismatchOrientation) {
+      float visibleFractionMatchOrientation,
+      float visibleFractionMismatchOrientation
+    ) {
       this.visibleFractionMatchOrientation = visibleFractionMatchOrientation;
-      this.visibleFractionMismatchOrientation = visibleFractionMismatchOrientation;
+      this.visibleFractionMismatchOrientation =
+        visibleFractionMismatchOrientation;
     }
 
-    public Point measure(int widthSpec, int heightSpec, int frameWidth, int frameHeight) {
+    public Point measure(
+      int widthSpec,
+      int heightSpec,
+      int frameWidth,
+      int frameHeight
+    ) {
       // Calculate max allowed layout size.
       final int maxWidth = View.getDefaultSize(Integer.MAX_VALUE, widthSpec);
       final int maxHeight = View.getDefaultSize(Integer.MAX_VALUE, heightSpec);
-      if (frameWidth == 0 || frameHeight == 0 || maxWidth == 0 || maxHeight == 0) {
+      if (
+        frameWidth == 0 || frameHeight == 0 || maxWidth == 0 || maxHeight == 0
+      ) {
         return new Point(maxWidth, maxHeight);
       }
       // Calculate desired display size based on scaling type, video aspect ratio,
       // and maximum layout size.
       final float frameAspect = frameWidth / (float) frameHeight;
       final float displayAspect = maxWidth / (float) maxHeight;
-      final float visibleFraction = (frameAspect > 1.0f) == (displayAspect > 1.0f)
-          ? visibleFractionMatchOrientation
-          : visibleFractionMismatchOrientation;
-      final Point layoutSize = getDisplaySize(visibleFraction, frameAspect, maxWidth, maxHeight);
+      final float visibleFraction = (frameAspect > 1.0f) ==
+        (displayAspect > 1.0f)
+        ? visibleFractionMatchOrientation
+        : visibleFractionMismatchOrientation;
+      final Point layoutSize = getDisplaySize(
+        visibleFraction,
+        frameAspect,
+        maxWidth,
+        maxHeight
+      );
 
       // If the measure specification is forcing a specific size - yield.
       if (View.MeasureSpec.getMode(widthSpec) == View.MeasureSpec.EXACTLY) {
@@ -124,7 +176,12 @@ public class RendererCommon {
   // SCALE_ASPECT_BALANCED - Compromise between FIT and FILL. Video frame will fill as much as
   // possible of the view while maintaining aspect ratio, under the constraint that at least
   // `BALANCED_VISIBLE_FRACTION` of the frame content will be shown.
-  public static enum ScalingType { SCALE_ASPECT_FIT, SCALE_ASPECT_FILL, SCALE_ASPECT_BALANCED }
+  public static enum ScalingType {
+    SCALE_ASPECT_FIT,
+    SCALE_ASPECT_FILL,
+    SCALE_ASPECT_BALANCED,
+  }
+
   // The minimum fraction of the frame content that will be shown for `SCALE_ASPECT_BALANCED`.
   // This limits excessive cropping when adjusting display size.
   private static float BALANCED_VISIBLE_FRACTION = 0.5625f;
@@ -134,7 +191,10 @@ public class RendererCommon {
    * for video vs display aspect ratio.
    */
   public static float[] getLayoutMatrix(
-      boolean mirror, float videoAspectRatio, float displayAspectRatio) {
+    boolean mirror,
+    float videoAspectRatio,
+    float displayAspectRatio
+  ) {
     float scaleX = 1;
     float scaleY = 1;
     // Scale X or Y dimension so that video and display size have same aspect ratio.
@@ -155,12 +215,20 @@ public class RendererCommon {
   }
 
   /** Converts a float[16] matrix array to android.graphics.Matrix. */
-  public static android.graphics.Matrix convertMatrixToAndroidGraphicsMatrix(float[] matrix4x4) {
+  public static android.graphics.Matrix convertMatrixToAndroidGraphicsMatrix(
+    float[] matrix4x4
+  ) {
     // clang-format off
     float[] values = {
-        matrix4x4[0 * 4 + 0], matrix4x4[1 * 4 + 0], matrix4x4[3 * 4 + 0],
-        matrix4x4[0 * 4 + 1], matrix4x4[1 * 4 + 1], matrix4x4[3 * 4 + 1],
-        matrix4x4[0 * 4 + 3], matrix4x4[1 * 4 + 3], matrix4x4[3 * 4 + 3],
+      matrix4x4[0 * 4 + 0],
+      matrix4x4[1 * 4 + 0],
+      matrix4x4[3 * 4 + 0],
+      matrix4x4[0 * 4 + 1],
+      matrix4x4[1 * 4 + 1],
+      matrix4x4[3 * 4 + 1],
+      matrix4x4[0 * 4 + 3],
+      matrix4x4[1 * 4 + 3],
+      matrix4x4[3 * 4 + 3],
     };
     // clang-format on
 
@@ -170,7 +238,9 @@ public class RendererCommon {
   }
 
   /** Converts android.graphics.Matrix to a float[16] matrix array. */
-  public static float[] convertMatrixFromAndroidGraphicsMatrix(android.graphics.Matrix matrix) {
+  public static float[] convertMatrixFromAndroidGraphicsMatrix(
+    android.graphics.Matrix matrix
+  ) {
     float[] values = new float[9];
     matrix.getValues(values);
 
@@ -190,10 +260,22 @@ public class RendererCommon {
     //  w1 w2 0 w3]
     // clang-format off
     float[] matrix4x4 = {
-        values[0 * 3 + 0],  values[1 * 3 + 0], 0,  values[2 * 3 + 0],
-        values[0 * 3 + 1],  values[1 * 3 + 1], 0,  values[2 * 3 + 1],
-        0,                  0,                 1,  0,
-        values[0 * 3 + 2],  values[1 * 3 + 2], 0,  values[2 * 3 + 2],
+      values[0 * 3 + 0],
+      values[1 * 3 + 0],
+      0,
+      values[2 * 3 + 0],
+      values[0 * 3 + 1],
+      values[1 * 3 + 1],
+      0,
+      values[2 * 3 + 1],
+      0,
+      0,
+      1,
+      0,
+      values[0 * 3 + 2],
+      values[1 * 3 + 2],
+      0,
+      values[2 * 3 + 2],
     };
     // clang-format on
     return matrix4x4;
@@ -203,9 +285,17 @@ public class RendererCommon {
    * Calculate display size based on scaling type, video aspect ratio, and maximum display size.
    */
   public static Point getDisplaySize(
-      ScalingType scalingType, float videoAspectRatio, int maxDisplayWidth, int maxDisplayHeight) {
-    return getDisplaySize(convertScalingTypeToVisibleFraction(scalingType), videoAspectRatio,
-        maxDisplayWidth, maxDisplayHeight);
+    ScalingType scalingType,
+    float videoAspectRatio,
+    int maxDisplayWidth,
+    int maxDisplayHeight
+  ) {
+    return getDisplaySize(
+      convertScalingTypeToVisibleFraction(scalingType),
+      videoAspectRatio,
+      maxDisplayWidth,
+      maxDisplayHeight
+    );
   }
 
   /**
@@ -226,7 +316,9 @@ public class RendererCommon {
    * Each scaling type has a one-to-one correspondence to a numeric minimum fraction of the video
    * that must remain visible.
    */
-  private static float convertScalingTypeToVisibleFraction(ScalingType scalingType) {
+  private static float convertScalingTypeToVisibleFraction(
+    ScalingType scalingType
+  ) {
     switch (scalingType) {
       case SCALE_ASPECT_FIT:
         return 1.0f;
@@ -244,16 +336,24 @@ public class RendererCommon {
    * video aspect ratio, and maximum display size.
    */
   public static Point getDisplaySize(
-      float minVisibleFraction, float videoAspectRatio, int maxDisplayWidth, int maxDisplayHeight) {
+    float minVisibleFraction,
+    float videoAspectRatio,
+    int maxDisplayWidth,
+    int maxDisplayHeight
+  ) {
     // If there is no constraint on the amount of cropping, fill the allowed display area.
     if (minVisibleFraction == 0 || videoAspectRatio == 0) {
       return new Point(maxDisplayWidth, maxDisplayHeight);
     }
     // Each dimension is constrained on max display size and how much we are allowed to crop.
     final int width = Math.min(
-        maxDisplayWidth, Math.round(maxDisplayHeight / minVisibleFraction * videoAspectRatio));
+      maxDisplayWidth,
+      Math.round(maxDisplayHeight / minVisibleFraction * videoAspectRatio)
+    );
     final int height = Math.min(
-        maxDisplayHeight, Math.round(maxDisplayWidth / minVisibleFraction / videoAspectRatio));
+      maxDisplayHeight,
+      Math.round(maxDisplayWidth / minVisibleFraction / videoAspectRatio)
+    );
     return new Point(width, height);
   }
 }
