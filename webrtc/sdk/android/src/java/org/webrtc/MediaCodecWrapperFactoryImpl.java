@@ -25,7 +25,9 @@ import java.nio.ByteBuffer;
  * {@link android.media.MediaCodec} objects.
  */
 class MediaCodecWrapperFactoryImpl implements MediaCodecWrapperFactory {
+
   private static class MediaCodecWrapperImpl implements MediaCodecWrapper {
+
     private final MediaCodec mediaCodec;
 
     public MediaCodecWrapperImpl(MediaCodec mediaCodec) {
@@ -33,7 +35,12 @@ class MediaCodecWrapperFactoryImpl implements MediaCodecWrapperFactory {
     }
 
     @Override
-    public void configure(MediaFormat format, Surface surface, MediaCrypto crypto, int flags) {
+    public void configure(
+      MediaFormat format,
+      Surface surface,
+      MediaCrypto crypto,
+      int flags
+    ) {
       mediaCodec.configure(format, surface, crypto, flags);
     }
 
@@ -64,8 +71,19 @@ class MediaCodecWrapperFactoryImpl implements MediaCodecWrapperFactory {
 
     @Override
     public void queueInputBuffer(
-        int index, int offset, int size, long presentationTimeUs, int flags) {
-      mediaCodec.queueInputBuffer(index, offset, size, presentationTimeUs, flags);
+      int index,
+      int offset,
+      int size,
+      long presentationTimeUs,
+      int flags
+    ) {
+      mediaCodec.queueInputBuffer(
+        index,
+        offset,
+        size,
+        presentationTimeUs,
+        flags
+      );
     }
 
     @Override
