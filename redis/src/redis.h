@@ -458,14 +458,14 @@ struct evictionPoolEntry
  * database. The database number is the 'id' field in the structure. */
 typedef struct redisDb
 {
-  dict *dict;                              /* The keyspace for this DB */
-  dict *expires;                           /* Timeout of keys with a timeout set */
-  dict *blocking_keys;                     /* Keys with clients waiting for data (BLPOP) */
-  dict *ready_keys;                        /* Blocked keys that received a PUSH */
-  dict *watched_keys;                      /* WATCHED keys for MULTI/EXEC CAS */
-  struct evictionPoolEntry *eviction_pool; /* Eviction pool of keys */
-  int id;                                  /* Database ID */
-  long long avg_ttl;                       /* Average TTL, just for stats */
+  dict *dict; /* The keyspace for this DB */              //保存所有键值对
+  dict *expires; /* Timeout of keys with a timeout set */ //过期字典
+  dict *blocking_keys;                                    /* Keys with clients waiting for data (BLPOP) */
+  dict *ready_keys;                                       /* Blocked keys that received a PUSH */
+  dict *watched_keys;                                     /* WATCHED keys for MULTI/EXEC CAS */
+  struct evictionPoolEntry *eviction_pool;                /* Eviction pool of keys */
+  int id;                                                 /* Database ID */
+  long long avg_ttl;                                      /* Average TTL, just for stats */
 } redisDb;
 
 /* Client MULTI/EXEC state */
@@ -520,13 +520,14 @@ typedef struct readyList
   robj *key;
 } readyList;
 
+// Redis客户端结构
 /* With multiplexing we need to take per-client state.
  * Clients are taken in a linked list. */
 typedef struct redisClient
 {
   uint64_t id; /* Client incremental unique ID. */
   int fd;
-  redisDb *db;
+  redisDb *db; //当前客户端使用的数据库
   int dictid;
   robj *name; /* As set by CLIENT SETNAME */
   sds querybuf;
@@ -669,13 +670,14 @@ struct clusterState;
 #undef hz
 #endif
 
+// Redis服务器结构
 struct redisServer
 {
   /* General */
-  pid_t pid;        /* Main process pid. */
-  char *configfile; /* Absolute config file path, or NULL */
-  int hz;           /* serverCron() calls frequency in hertz */
-  redisDb *db;
+  pid_t pid;           /* Main process pid. */
+  char *configfile;    /* Absolute config file path, or NULL */
+  int hz;              /* serverCron() calls frequency in hertz */
+  redisDb *db;         //数据库数组
   dict *commands;      /* Command table */
   dict *orig_commands; /* Command table before command renaming. */
   aeEventLoop *el;
@@ -750,13 +752,13 @@ struct redisServer
     int idx;
   } inst_metric[REDIS_METRIC_COUNT];
   /* Configuration */
-  int verbosity;                  /* Loglevel in redis.conf */
-  int maxidletime;                /* Client timeout in seconds */
-  int tcpkeepalive;               /* Set SO_KEEPALIVE if non-zero. */
-  int active_expire_enabled;      /* Can be disabled for testing purposes. */
-  size_t client_max_querybuf_len; /* Limit for client query buffer length */
-  int dbnum;                      /* Total number of configured DBs */
-  int daemonize;                  /* True if running as a daemon */
+  int verbosity;                                  /* Loglevel in redis.conf */
+  int maxidletime;                                /* Client timeout in seconds */
+  int tcpkeepalive;                               /* Set SO_KEEPALIVE if non-zero. */
+  int active_expire_enabled;                      /* Can be disabled for testing purposes. */
+  size_t client_max_querybuf_len;                 /* Limit for client query buffer length */
+  int dbnum; /* Total number of configured DBs */ //数据库数量
+  int daemonize;                                  /* True if running as a daemon */
   clientBufferLimitsConfig client_obuf_limits[REDIS_CLIENT_TYPE_COUNT];
   /* AOF persistence */
   int aof_state;                     /* REDIS_AOF_(ON|OFF|WAIT_REWRITE) */

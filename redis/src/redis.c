@@ -780,6 +780,7 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now)
   }
 }
 
+//定期删除策略
 /* Try to expire a few timed out keys. The algorithm used is adaptive and
  * will use few CPU cycles if there are few expiring keys, otherwise
  * it will get more aggressive to avoid that too much memory is used by
