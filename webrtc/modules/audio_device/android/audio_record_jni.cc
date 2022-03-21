@@ -96,6 +96,7 @@ AudioRecordJni::AudioRecordJni(AudioManager* audio_manager)
   RTC_LOG(LS_INFO) << "ctor";
   RTC_DCHECK(audio_parameters_.is_valid());
   RTC_CHECK(j_environment_);
+  //音频采集模块相关native接口映射
   JNINativeMethod native_methods[] = {
       {"nativeCacheDirectBufferAddress", "(Ljava/nio/ByteBuffer;J)V",
        reinterpret_cast<void*>(
@@ -139,8 +140,9 @@ int32_t AudioRecordJni::InitRecording() {
   RTC_DCHECK(!initialized_);
   RTC_DCHECK(!recording_);
   ScopedHistogramTimer timer("WebRTC.Audio.InitRecordingDurationMs");
-  int frames_per_buffer = j_audio_record_->InitRecording(
-      audio_parameters_.sample_rate(), audio_parameters_.channels());
+  int frames_per_buffer =
+      j_audio_record_->InitRecording(  //调用java层的初始化方法
+          audio_parameters_.sample_rate(), audio_parameters_.channels());
   if (frames_per_buffer < 0) {
     direct_buffer_address_ = nullptr;
     RTC_LOG(LS_ERROR) << "InitRecording failed";
@@ -148,7 +150,8 @@ int32_t AudioRecordJni::InitRecording() {
   }
   frames_per_buffer_ = static_cast<size_t>(frames_per_buffer);
   RTC_LOG(LS_INFO) << "frames_per_buffer: " << frames_per_buffer_;
-  const size_t bytes_per_frame = audio_parameters_.channels() * sizeof(int16_t);
+  const size_t bytes_per_frame =
+      audio_parameters_.channels() * sizeof(int16_t) /*固定两字节的格式!?*/;
   RTC_CHECK_EQ(direct_buffer_capacity_in_bytes_,
                frames_per_buffer_ * bytes_per_frame);
   RTC_CHECK_EQ(frames_per_buffer_, audio_parameters_.frames_per_10ms_buffer());
@@ -166,7 +169,7 @@ int32_t AudioRecordJni::StartRecording() {
     return 0;
   }
   ScopedHistogramTimer timer("WebRTC.Audio.StartRecordingDurationMs");
-  if (!j_audio_record_->StartRecording()) {
+  if (!j_audio_record_->StartRecording()) {  //调用java层的开始采集方法
     RTC_LOG(LS_ERROR) << "StartRecording failed";
     return -1;
   }
@@ -180,7 +183,7 @@ int32_t AudioRecordJni::StopRecording() {
   if (!initialized_ || !recording_) {
     return 0;
   }
-  if (!j_audio_record_->StopRecording()) {
+  if (!j_audio_record_->StopRecording()) {  //调用java层的停止采集方法
     RTC_LOG(LS_ERROR) << "StopRecording failed";
     return -1;
   }
@@ -243,12 +246,14 @@ void AudioRecordJni::OnCacheDirectBufferAddress(JNIEnv* env,
   RTC_LOG(LS_INFO) << "OnCacheDirectBufferAddress";
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!direct_buffer_address_);
+  //缓存byteBuffer的访问地址
   direct_buffer_address_ = env->GetDirectBufferAddress(byte_buffer);
   jlong capacity = env->GetDirectBufferCapacity(byte_buffer);
   RTC_LOG(LS_INFO) << "direct buffer capacity: " << capacity;
   direct_buffer_capacity_in_bytes_ = static_cast<size_t>(capacity);
 }
 
+// java层通知native层有音频数据采集成功
 JNI_FUNCTION_ALIGN
 void JNICALL AudioRecordJni::DataIsRecorded(JNIEnv* env,
                                             jobject obj,
@@ -267,6 +272,7 @@ void AudioRecordJni::OnDataIsRecorded(int length) {
     RTC_LOG(LS_ERROR) << "AttachAudioBuffer has not been called";
     return;
   }
+  //填充缓冲区
   audio_device_buffer_->SetRecordedBuffer(direct_buffer_address_,
                                           frames_per_buffer_);
   // We provide one (combined) fixed delay estimate for the APM and use the

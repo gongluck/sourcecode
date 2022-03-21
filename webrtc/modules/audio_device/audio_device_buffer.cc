@@ -227,10 +227,13 @@ void AudioDeviceBuffer::SetVQEData(int play_delay_ms, int rec_delay_ms) {
   rec_delay_ms_ = rec_delay_ms;
 }
 
-int32_t AudioDeviceBuffer::SetRecordedBuffer(const void* audio_buffer,
-                                             size_t samples_per_channel) {
+//填充缓冲区
+int32_t AudioDeviceBuffer::SetRecordedBuffer(
+    const void* audio_buffer,
+    size_t samples_per_channel /*480*/) {
   // Copy the complete input buffer to the local buffer.
   const size_t old_size = rec_buffer_.size();
+  //填充数据
   rec_buffer_.SetData(static_cast<const int16_t*>(audio_buffer),
                       rec_channels_ * samples_per_channel);
   // Keep track of the size of the recording buffer. Only updated when the
@@ -242,23 +245,26 @@ int32_t AudioDeviceBuffer::SetRecordedBuffer(const void* audio_buffer,
   // Derive a new level value twice per second and check if it is non-zero.
   int16_t max_abs = 0;
   RTC_DCHECK_LT(rec_stat_count_, 50);
-  if (++rec_stat_count_ >= 50) {
+  if (++rec_stat_count_ >= 50) {  // 50*10ms 一次
     // Returns the largest absolute value in a signed 16-bit vector.
-    max_abs = WebRtcSpl_MaxAbsValueW16(rec_buffer_.data(), rec_buffer_.size());
-    rec_stat_count_ = 0;
+    max_abs = WebRtcSpl_MaxAbsValueW16(  //计算每个原始的绝对值的最大值
+        rec_buffer_.data(), rec_buffer_.size());
+    rec_stat_count_ = 0;  //还原计数
     // Set `only_silence_recorded_` to false as soon as at least one detection
     // of a non-zero audio packet is found. It can only be restored to true
     // again by restarting the call.
     if (max_abs > 0) {
-      only_silence_recorded_ = false;
+      only_silence_recorded_ = false;  //关闭静音标记
     }
   }
+  //更新统计
   // Update recording stats which is used as base for periodic logging of the
   // audio input state.
   UpdateRecStats(max_abs, samples_per_channel);
   return 0;
 }
 
+//处理采集音频数据
 int32_t AudioDeviceBuffer::DeliverRecordedData() {
   if (!audio_transport_cb_) {
     RTC_LOG(LS_WARNING) << "Invalid audio transport";
@@ -477,6 +483,7 @@ void AudioDeviceBuffer::ResetPlayStats() {
   stats_.ResetPlayStats();
 }
 
+//更新统计
 void AudioDeviceBuffer::UpdateRecStats(int16_t max_abs,
                                        size_t samples_per_channel) {
   MutexLock lock(&lock_);

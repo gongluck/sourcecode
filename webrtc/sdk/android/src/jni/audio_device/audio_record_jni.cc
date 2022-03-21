@@ -235,14 +235,16 @@ void AudioRecordJni::CacheDirectBufferAddress(
   RTC_LOG(LS_INFO) << "OnCacheDirectBufferAddress";
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!direct_buffer_address_);
+  //缓存byteBuffer的访问地址
   direct_buffer_address_ = env->GetDirectBufferAddress(byte_buffer.obj());
   jlong capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
   RTC_LOG(LS_INFO) << "direct buffer capacity: " << capacity;
   direct_buffer_capacity_in_bytes_ = static_cast<size_t>(capacity);
 }
 
-// This method is called on a high-priority thread from Java. The name of
-// the thread is 'AudioRecordThread'.
+// java层通知native层有音频数据采集成功
+//  This method is called on a high-priority thread from Java. The name of
+//  the thread is 'AudioRecordThread'.
 void AudioRecordJni::DataIsRecorded(JNIEnv* env,
                                     const JavaParamRef<jobject>& j_caller,
                                     int length) {
@@ -251,12 +253,14 @@ void AudioRecordJni::DataIsRecorded(JNIEnv* env,
     RTC_LOG(LS_ERROR) << "AttachAudioBuffer has not been called";
     return;
   }
+  //填充缓冲区
   audio_device_buffer_->SetRecordedBuffer(direct_buffer_address_,
                                           frames_per_buffer_);
   // We provide one (combined) fixed delay estimate for the APM and use the
   // `playDelayMs` parameter only. Components like the AEC only sees the sum
   // of `playDelayMs` and `recDelayMs`, hence the distributions does not matter.
   audio_device_buffer_->SetVQEData(total_delay_ms_, 0);
+  //消费处理音频采集数据
   if (audio_device_buffer_->DeliverRecordedData() == -1) {
     RTC_LOG(LS_INFO) << "AudioDeviceBuffer::DeliverRecordedData failed";
   }

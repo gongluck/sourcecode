@@ -85,6 +85,7 @@ class WebRtcAudioRecord {
   private final int audioSource;
   private final int audioFormat;
 
+  //缓存byteBuffer的访问地址
   private long nativeAudioRecord;
 
   private final WebRtcAudioEffects effects = new WebRtcAudioEffects();
@@ -155,16 +156,17 @@ class WebRtcAudioRecord {
         int bytesRead = audioRecord.read(byteBuffer, byteBuffer.capacity());
         if (bytesRead == byteBuffer.capacity()) {
           if (microphoneMute) { //麦克风静音
-            byteBuffer.clear();
-            byteBuffer.put(emptyBytes);
+            byteBuffer.clear(); //==rewind
+            byteBuffer.put(emptyBytes); //==memcpy
           }
           // It's possible we've been shut down during the read, and stopRecording() tried and
           // failed to join this thread. To be a bit safer, try to avoid calling any native methods
           // in case they've been unregistered after stopRecording() returned.
           if (keepAlive) {
-            nativeDataIsRecorded(nativeAudioRecord, bytesRead);
+            //通知native层有采集数据并编码
+            nativeDataIsRecorded(nativeAudioRecord, bytesRead); //AudioRecordJni::DataIsRecorded
           }
-          //回调音频数据
+          //回调音频数据准备好消息
           if (audioSamplesReadyCallback != null) {
             // Copy the entire byte buffer array. The start of the byteBuffer is not necessarily
             // at index 0.
@@ -208,6 +210,11 @@ class WebRtcAudioRecord {
       Logging.d(TAG, "stopThread");
       keepAlive = false;
     }
+  }
+
+  public void pushData(ByteBuffer buf) {
+    int bytesRead = buf.capacity();
+    nativeDataIsRecorded(nativeAudioRecord, bytesRead);
   }
 
   @CalledByNative
@@ -311,6 +318,7 @@ class WebRtcAudioRecord {
     return effects.setNS(enable);
   }
 
+  //初始化音频采集模块
   @CalledByNative
   private int initRecording(int sampleRate, int channels) {
     Logging.d(
@@ -341,13 +349,14 @@ class WebRtcAudioRecord {
     // Rather than passing the ByteBuffer with every callback (requiring
     // the potentially expensive GetDirectBufferAddress) we simply have the
     // the native class cache the address to the memory once.
-    nativeCacheDirectBufferAddress(nativeAudioRecord, byteBuffer); //缓存byteBuffer的访问地址
+    nativeCacheDirectBufferAddress(nativeAudioRecord, byteBuffer); //调用AudioRecordJni::CacheDirectBufferAddress缓存byteBuffer的访问地址
 
     // Get the minimum buffer size required for the successful creation of
     // an AudioRecord object, in byte units.
     // Note that this size doesn't guarantee a smooth recording under load.
     final int channelConfig = channelCountToConfiguration(channels); //根据通道数返回config
-    int minBufferSize = AudioRecord.getMinBufferSize(
+    //计算缓冲区大小
+    int minBufferSize = AudioRecord.getMinBufferSize( //AudioRecord的参考值
       sampleRate,
       channelConfig,
       audioFormat
@@ -371,6 +380,7 @@ class WebRtcAudioRecord {
       byteBuffer.capacity()
     );
     Logging.d(TAG, "bufferSizeInBytes: " + bufferSizeInBytes);
+    //创建AudioRecord
     try {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         // Use the AudioRecord.Builder class on Android M (23) and above.
@@ -458,6 +468,7 @@ class WebRtcAudioRecord {
     }
   }
 
+  //开始采集音频
   @CalledByNative
   private boolean startRecording() {
     Logging.d(TAG, "startRecording");
@@ -487,6 +498,7 @@ class WebRtcAudioRecord {
     return true;
   }
 
+  //停止录音
   @CalledByNative
   private boolean stopRecording() {
     Logging.d(TAG, "stopRecording");
@@ -501,7 +513,7 @@ class WebRtcAudioRecord {
     //停止读取线程
     audioThread.stopThread();
     if (
-      !ThreadUtils.joinUninterruptibly(
+      !ThreadUtils.joinUninterruptibly( //等待线程退出
         audioThread,
         AUDIO_RECORD_THREAD_JOIN_TIMEOUT_MS
       )
@@ -666,6 +678,7 @@ class WebRtcAudioRecord {
   private void releaseAudioResources() {
     Logging.d(TAG, "releaseAudioResources");
     if (audioRecord != null) {
+      //销毁AudioRecord
       audioRecord.release();
       audioRecord = null;
     }

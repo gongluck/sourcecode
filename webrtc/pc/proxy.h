@@ -155,11 +155,13 @@ class MethodCall : public QueuedTask {
 
   template <size_t... Is>
   void Invoke(std::index_sequence<Is...>) {
+    //借助ReturnType<R>封装函数调用和返回值
     r_.Invoke(c_, m_, std::move(std::get<Is>(args_))...);
   }
 
-  C* c_;
-  Method m_;
+  /*C是c##Interface的类型别名*/
+  C* c_;      // c的实例
+  Method m_;  //函数
   ReturnType<R> r_;
   std::tuple<Args&&...> args_;
   rtc::Event event_;
@@ -364,11 +366,12 @@ class ConstMethodCall : public QueuedTask {
 
 #endif  // if defined(RTC_DISABLE_PROXY_TRACE_EVENTS)
 
-#define PROXY_METHOD0(r, method)                         \
-  r method() override {                                  \
-    TRACE_BOILERPLATE(method);                           \
-    MethodCall<C, r> call(c_, &C::method);               \
-    return call.Marshal(RTC_FROM_HERE, primary_thread_); \
+#define PROXY_METHOD0(r, method)                                             \
+  r method() override {                                                      \
+    TRACE_BOILERPLATE(method);                                               \
+    MethodCall<C, r> call(                                                   \
+        c_, &C::method); /*C是c##Interface的类型别名 c_是c的实例*/ \
+    return call.Marshal(RTC_FROM_HERE, primary_thread_);                     \
   }
 
 #define PROXY_CONSTMETHOD0(r, method)                    \
