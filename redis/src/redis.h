@@ -413,11 +413,11 @@ typedef long long mstime_t; /* millisecond time type. */
 // redis对象
 typedef struct redisObject
 {
-  unsigned type : 4;             //类型
-  unsigned encoding : 4;         //编码
-  unsigned lru : REDIS_LRU_BITS; /* lru time (relative to server.lruclock) */
-  int refcount;                  //引用计数
-  void *ptr;                     //实体对象
+  unsigned type : 4;                                                          //类型
+  unsigned encoding : 4;                                                      //编码
+  unsigned lru : REDIS_LRU_BITS; /* lru time (relative to server.lruclock) */ //对象空转时长
+  int refcount;                                                               //引用计数
+  void *ptr;                                                                  //实体对象
 } robj;
 
 /* Macro used to obtain the current LRU clock.
@@ -526,56 +526,56 @@ typedef struct readyList
 typedef struct redisClient
 {
   uint64_t id; /* Client incremental unique ID. */
-  int fd;
+  int fd;      //套接字描述符 -1为伪客户端(AOF和LUA)
   redisDb *db; //当前客户端使用的数据库
   int dictid;
-  robj *name; /* As set by CLIENT SETNAME */
-  sds querybuf;
-  size_t querybuf_peak; /* Recent (100ms or more) peak of querybuf size */
-  int argc;
-  robj **argv;
-  struct redisCommand *cmd, *lastcmd;
+  robj *name; /* As set by CLIENT SETNAME */ //客户端名
+  sds querybuf;                              //客户端请求输入缓冲区
+  size_t querybuf_peak;                      /* Recent (100ms or more) peak of querybuf size */
+  int argc;                                  //命令参数个数
+  robj **argv;                               //命令参数
+  struct redisCommand *cmd /*命令实现函数*/, *lastcmd;
   int reqtype;
-  int multibulklen; /* number of multi bulk arguments left to read */
-  long bulklen;     /* length of bulk argument in multi bulk request */
-  list *reply;
-  unsigned long reply_bytes; /* Tot bytes of objects in reply list */
-  int sentlen;               /* Amount of bytes already sent in the current
-                             buffer or object being sent. */
-  time_t ctime;              /* Client creation time */
-  time_t lastinteraction;    /* time of the last interaction, used for timeout */
-  time_t obuf_soft_limit_reached_time;
-  int flags;                             /* REDIS_SLAVE | REDIS_MONITOR | REDIS_MULTI ... */
-  int authenticated;                     /* when requirepass is non-NULL */
-  int replstate;                         /* replication state if this is a slave */
-  int repl_put_online_on_ack;            /* Install slave write handler on ACK. */
-  int repldbfd;                          /* replication DB file descriptor */
-  off_t repldboff;                       /* replication DB file offset */
-  off_t repldbsize;                      /* replication DB file size */
-  sds replpreamble;                      /* replication DB preamble. */
-  long long reploff;                     /* replication offset if this is our master */
-  long long repl_ack_off;                /* replication ack offset, if this is a slave */
-  long long repl_ack_time;               /* replication ack time, if this is a slave */
-  char replrunid[REDIS_RUN_ID_SIZE + 1]; /* master run id if this is a master */
-  int slave_listening_port;              /* As configured with: SLAVECONF listening-port */
-  multiState mstate;                     /* MULTI/EXEC state */
-  int btype;                             /* Type of blocking op if REDIS_BLOCKED. */
-  blockingState bpop;                    /* blocking state */
-  long long woff;                        /* Last write global replication offset. */
-  list *watched_keys;                    /* Keys WATCHED for MULTI/EXEC CAS */
-  dict *pubsub_channels;                 /* channels a client is interested in (SUBSCRIBE) */
-  list *pubsub_patterns;                 /* patterns a client is interested in (SUBSCRIBE) */
-  sds peerid;                            /* Cached peer ID. */
+  int multibulklen;                                                            /* number of multi bulk arguments left to read */
+  long bulklen;                                                                /* length of bulk argument in multi bulk request */
+  list *reply;                                                                 //可变长度的输出缓冲区链表
+  unsigned long reply_bytes;                                                   /* Tot bytes of objects in reply list */
+  int sentlen;                                                                 /* Amount of bytes already sent in the current
+                                                                               buffer or object being sent. */
+  time_t ctime; /* Client creation time */                                     //客户端创建的时间
+  time_t lastinteraction; /* time of the last interaction, used for timeout */ //最后一次互动时间
+  time_t obuf_soft_limit_reached_time;                                         //输出缓冲区第一次到达软性限制的时间
+  int flags; /* REDIS_SLAVE | REDIS_MONITOR | REDIS_MULTI ... */               //客户端状态标识
+  int authenticated; /* when requirepass is non-NULL */                        //是否已经通过了身份认证
+  int replstate;                                                               /* replication state if this is a slave */
+  int repl_put_online_on_ack;                                                  /* Install slave write handler on ACK. */
+  int repldbfd;                                                                /* replication DB file descriptor */
+  off_t repldboff;                                                             /* replication DB file offset */
+  off_t repldbsize;                                                            /* replication DB file size */
+  sds replpreamble;                                                            /* replication DB preamble. */
+  long long reploff;                                                           /* replication offset if this is our master */
+  long long repl_ack_off;                                                      /* replication ack offset, if this is a slave */
+  long long repl_ack_time;                                                     /* replication ack time, if this is a slave */
+  char replrunid[REDIS_RUN_ID_SIZE + 1];                                       /* master run id if this is a master */
+  int slave_listening_port;                                                    /* As configured with: SLAVECONF listening-port */
+  multiState mstate;                                                           /* MULTI/EXEC state */
+  int btype;                                                                   /* Type of blocking op if REDIS_BLOCKED. */
+  blockingState bpop;                                                          /* blocking state */
+  long long woff;                                                              /* Last write global replication offset. */
+  list *watched_keys;                                                          /* Keys WATCHED for MULTI/EXEC CAS */
+  dict *pubsub_channels;                                                       /* channels a client is interested in (SUBSCRIBE) */
+  list *pubsub_patterns;                                                       /* patterns a client is interested in (SUBSCRIBE) */
+  sds peerid;                                                                  /* Cached peer ID. */
 
   /* Response buffer */
-  int bufpos;
-  char buf[REDIS_REPLY_CHUNK_BYTES];
+  int bufpos;                        //固定大小输出缓冲区的索引
+  char buf[REDIS_REPLY_CHUNK_BYTES]; //固定大小的输出缓冲区
 } redisClient;
 
 struct saveparam
 {
-  time_t seconds;
-  int changes;
+  time_t seconds; //秒数
+  int changes;    //修改数
 };
 
 struct sharedObjectsStruct
@@ -681,36 +681,36 @@ struct redisServer
   dict *commands;      /* Command table */
   dict *orig_commands; /* Command table before command renaming. */
   aeEventLoop *el;
-  unsigned lruclock : REDIS_LRU_BITS; /* Clock for LRU eviction */
-  int shutdown_asap;                  /* SHUTDOWN needed ASAP */
-  int activerehashing;                /* Incremental rehash in serverCron() */
-  char *requirepass;                  /* Pass for AUTH command, or NULL */
-  char *pidfile;                      /* PID file path */
-  int arch_bits;                      /* 32 or 64 depending on sizeof(long) */
-  int cronloops;                      /* Number of times the cron function run */
-  char runid[REDIS_RUN_ID_SIZE + 1];  /* ID always different at every exec. */
-  int sentinel_mode;                  /* True if this instance is a Sentinel. */
+  unsigned lruclock : REDIS_LRU_BITS; /* Clock for LRU eviction */ //隔段时间更新的LRU时长 用于计算对象空转时长是否过长
+  int shutdown_asap;                                               /* SHUTDOWN needed ASAP */
+  int activerehashing;                                             /* Incremental rehash in serverCron() */
+  char *requirepass;                                               /* Pass for AUTH command, or NULL */
+  char *pidfile;                                                   /* PID file path */
+  int arch_bits;                                                   /* 32 or 64 depending on sizeof(long) */
+  int cronloops;                                                   /* Number of times the cron function run */
+  char runid[REDIS_RUN_ID_SIZE + 1];                               /* ID always different at every exec. */
+  int sentinel_mode;                                               /* True if this instance is a Sentinel. */
   /* Networking */
-  int port;                           /* TCP listening port */
-  int tcp_backlog;                    /* TCP listen() backlog */
-  char *bindaddr[REDIS_BINDADDR_MAX]; /* Addresses we should bind to */
-  int bindaddr_count;                 /* Number of addresses in server.bindaddr[] */
-  char *unixsocket;                   /* UNIX socket path */
-  mode_t unixsocketperm;              /* UNIX socket permission */
-  int ipfd[REDIS_BINDADDR_MAX];       /* TCP socket file descriptors */
-  int ipfd_count;                     /* Used slots in ipfd[] */
-  int sofd;                           /* Unix socket file descriptor */
-  int cfd[REDIS_BINDADDR_MAX];        /* Cluster bus listening socket */
-  int cfd_count;                      /* Used slots in cfd[] */
-  list *clients;                      /* List of active clients */
-  list *clients_to_close;             /* Clients to close asynchronously */
-  list *slaves, *monitors;            /* List of slaves and MONITORs */
-  redisClient *current_client;        /* Current client, only used on crash report */
-  int clients_paused;                 /* True if clients are currently paused */
-  mstime_t clients_pause_end_time;    /* Time when we undo clients_paused */
-  char neterr[ANET_ERR_LEN];          /* Error buffer for anet.c */
-  dict *migrate_cached_sockets;       /* MIGRATE cached sockets */
-  uint64_t next_client_id;            /* Next client unique ID. Incremental. */
+  int port;                                   /* TCP listening port */
+  int tcp_backlog;                            /* TCP listen() backlog */
+  char *bindaddr[REDIS_BINDADDR_MAX];         /* Addresses we should bind to */
+  int bindaddr_count;                         /* Number of addresses in server.bindaddr[] */
+  char *unixsocket;                           /* UNIX socket path */
+  mode_t unixsocketperm;                      /* UNIX socket permission */
+  int ipfd[REDIS_BINDADDR_MAX];               /* TCP socket file descriptors */
+  int ipfd_count;                             /* Used slots in ipfd[] */
+  int sofd;                                   /* Unix socket file descriptor */
+  int cfd[REDIS_BINDADDR_MAX];                /* Cluster bus listening socket */
+  int cfd_count;                              /* Used slots in cfd[] */
+  list *clients; /* List of active clients */ //客户端列表
+  list *clients_to_close;                     /* Clients to close asynchronously */
+  list *slaves, *monitors;                    /* List of slaves and MONITORs */
+  redisClient *current_client;                /* Current client, only used on crash report */
+  int clients_paused;                         /* True if clients are currently paused */
+  mstime_t clients_pause_end_time;            /* Time when we undo clients_paused */
+  char neterr[ANET_ERR_LEN];                  /* Error buffer for anet.c */
+  dict *migrate_cached_sockets;               /* MIGRATE cached sockets */
+  uint64_t next_client_id;                    /* Next client unique ID. Incremental. */
   /* RDB / AOF loading information */
   int loading; /* We are loading data from disk if true */
   off_t loading_total_bytes;
@@ -721,27 +721,27 @@ struct redisServer
   struct redisCommand *delCommand, *multiCommand, *lpushCommand, *lpopCommand,
       *rpopCommand;
   /* Fields used only for stats */
-  time_t stat_starttime;             /* Server start time */
-  long long stat_numcommands;        /* Number of processed commands */
-  long long stat_numconnections;     /* Number of connections received */
-  long long stat_expiredkeys;        /* Number of expired keys */
-  long long stat_evictedkeys;        /* Number of evicted keys (maxmemory) */
-  long long stat_keyspace_hits;      /* Number of successful lookups of keys */
-  long long stat_keyspace_misses;    /* Number of failed lookups of keys */
-  size_t stat_peak_memory;           /* Max used memory record */
-  long long stat_fork_time;          /* Time needed to perform latest fork() */
-  double stat_fork_rate;             /* Fork rate in GB/sec. */
-  long long stat_rejected_conn;      /* Clients rejected because of maxclients */
-  long long stat_sync_full;          /* Number of full resyncs with slaves. */
-  long long stat_sync_partial_ok;    /* Number of accepted PSYNC requests. */
-  long long stat_sync_partial_err;   /* Number of unaccepted PSYNC requests. */
-  list *slowlog;                     /* SLOWLOG list of commands */
-  long long slowlog_entry_id;        /* SLOWLOG current entry ID */
-  long long slowlog_log_slower_than; /* SLOWLOG time limit (to get logged) */
-  unsigned long slowlog_max_len;     /* SLOWLOG max number of items logged */
-  size_t resident_set_size;          /* RSS sampled in serverCron(). */
-  long long stat_net_input_bytes;    /* Bytes read from network. */
-  long long stat_net_output_bytes;   /* Bytes written to network. */
+  time_t stat_starttime;                                /* Server start time */
+  long long stat_numcommands;                           /* Number of processed commands */
+  long long stat_numconnections;                        /* Number of connections received */
+  long long stat_expiredkeys;                           /* Number of expired keys */
+  long long stat_evictedkeys;                           /* Number of evicted keys (maxmemory) */
+  long long stat_keyspace_hits;                         /* Number of successful lookups of keys */
+  long long stat_keyspace_misses;                       /* Number of failed lookups of keys */
+  size_t stat_peak_memory; /* Max used memory record */ //已用内存峰值
+  long long stat_fork_time;                             /* Time needed to perform latest fork() */
+  double stat_fork_rate;                                /* Fork rate in GB/sec. */
+  long long stat_rejected_conn;                         /* Clients rejected because of maxclients */
+  long long stat_sync_full;                             /* Number of full resyncs with slaves. */
+  long long stat_sync_partial_ok;                       /* Number of accepted PSYNC requests. */
+  long long stat_sync_partial_err;                      /* Number of unaccepted PSYNC requests. */
+  list *slowlog;                                        /* SLOWLOG list of commands */
+  long long slowlog_entry_id;                           /* SLOWLOG current entry ID */
+  long long slowlog_log_slower_than;                    /* SLOWLOG time limit (to get logged) */
+  unsigned long slowlog_max_len;                        /* SLOWLOG max number of items logged */
+  size_t resident_set_size;                             /* RSS sampled in serverCron(). */
+  long long stat_net_input_bytes;                       /* Bytes read from network. */
+  long long stat_net_output_bytes;                      /* Bytes written to network. */
   /* The following two are used to track instantaneous metrics, like
    * number of operations per second, network traffic. */
   struct
@@ -761,30 +761,30 @@ struct redisServer
   int daemonize;                                  /* True if running as a daemon */
   clientBufferLimitsConfig client_obuf_limits[REDIS_CLIENT_TYPE_COUNT];
   /* AOF persistence */
-  int aof_state;                     /* REDIS_AOF_(ON|OFF|WAIT_REWRITE) */
-  int aof_fsync;                     /* Kind of fsync() policy */
-  char *aof_filename;                /* Name of the AOF file */
-  int aof_no_fsync_on_rewrite;       /* Don't fsync if a rewrite is in prog. */
-  int aof_rewrite_perc;              /* Rewrite AOF if % growth is > M and... */
-  off_t aof_rewrite_min_size;        /* the AOF file is at least N bytes. */
-  off_t aof_rewrite_base_size;       /* AOF size on latest startup or rewrite. */
-  off_t aof_current_size;            /* AOF current size. */
-  int aof_rewrite_scheduled;         /* Rewrite once BGSAVE terminates. */
-  pid_t aof_child_pid;               /* PID if rewriting process */
-  list *aof_rewrite_buf_blocks;      /* Hold changes during an AOF rewrite. */
-  sds aof_buf;                       /* AOF buffer, written before entering the event loop */
-  int aof_fd;                        /* File descriptor of currently selected AOF file */
-  int aof_selected_db;               /* Currently selected DB in AOF */
-  time_t aof_flush_postponed_start;  /* UNIX time of postponed AOF flush */
-  time_t aof_last_fsync;             /* UNIX time of last fsync() */
-  time_t aof_rewrite_time_last;      /* Time used by last AOF rewrite run. */
-  time_t aof_rewrite_time_start;     /* Current AOF rewrite start time. */
-  int aof_lastbgrewrite_status;      /* REDIS_OK or REDIS_ERR */
-  unsigned long aof_delayed_fsync;   /* delayed AOF fsync() counter */
-  int aof_rewrite_incremental_fsync; /* fsync incrementally while rewriting? */
-  int aof_last_write_status;         /* REDIS_OK or REDIS_ERR */
-  int aof_last_write_errno;          /* Valid if aof_last_write_status is ERR */
-  int aof_load_truncated;            /* Don't stop on unexpected AOF EOF. */
+  int aof_state;                                                        /* REDIS_AOF_(ON|OFF|WAIT_REWRITE) */
+  int aof_fsync;                                                        /* Kind of fsync() policy */
+  char *aof_filename;                                                   /* Name of the AOF file */
+  int aof_no_fsync_on_rewrite;                                          /* Don't fsync if a rewrite is in prog. */
+  int aof_rewrite_perc;                                                 /* Rewrite AOF if % growth is > M and... */
+  off_t aof_rewrite_min_size;                                           /* the AOF file is at least N bytes. */
+  off_t aof_rewrite_base_size;                                          /* AOF size on latest startup or rewrite. */
+  off_t aof_current_size;                                               /* AOF current size. */
+  int aof_rewrite_scheduled;                                            /* Rewrite once BGSAVE terminates. */
+  pid_t aof_child_pid;                                                  /* PID if rewriting process */
+  list *aof_rewrite_buf_blocks;                                         /* Hold changes during an AOF rewrite. */
+  sds aof_buf; /* AOF buffer, written before entering the event loop */ // AOF缓冲区
+  int aof_fd;                                                           /* File descriptor of currently selected AOF file */
+  int aof_selected_db;                                                  /* Currently selected DB in AOF */
+  time_t aof_flush_postponed_start;                                     /* UNIX time of postponed AOF flush */
+  time_t aof_last_fsync;                                                /* UNIX time of last fsync() */
+  time_t aof_rewrite_time_last;                                         /* Time used by last AOF rewrite run. */
+  time_t aof_rewrite_time_start;                                        /* Current AOF rewrite start time. */
+  int aof_lastbgrewrite_status;                                         /* REDIS_OK or REDIS_ERR */
+  unsigned long aof_delayed_fsync;                                      /* delayed AOF fsync() counter */
+  int aof_rewrite_incremental_fsync;                                    /* fsync incrementally while rewriting? */
+  int aof_last_write_status;                                            /* REDIS_OK or REDIS_ERR */
+  int aof_last_write_errno;                                             /* Valid if aof_last_write_status is ERR */
+  int aof_load_truncated;                                               /* Don't stop on unexpected AOF EOF. */
   /* AOF pipes used to communicate between parent and child during rewrite. */
   int aof_pipe_write_data_to_child;
   int aof_pipe_read_data_from_parent;
@@ -796,23 +796,23 @@ struct redisServer
                                     to child process. */
   sds aof_child_diff;        /* AOF diff accumulator child side. */
   /* RDB persistence */
-  long long dirty;                     /* Changes to DB from the last save */
-  long long dirty_before_bgsave;       /* Used to restore dirty on failed BGSAVE */
-  pid_t rdb_child_pid;                 /* PID of RDB saving child */
-  struct saveparam *saveparams;        /* Save points array for RDB */
-  int saveparamslen;                   /* Number of saving points */
-  char *rdb_filename;                  /* Name of RDB file */
-  int rdb_compression;                 /* Use compression in RDB? */
-  int rdb_checksum;                    /* Use RDB checksum? */
-  time_t lastsave;                     /* Unix time of last successful save */
-  time_t lastbgsave_try;               /* Unix time of last attempted bgsave */
-  time_t rdb_save_time_last;           /* Time used by last RDB save run. */
-  time_t rdb_save_time_start;          /* Current RDB save start time. */
-  int rdb_child_type;                  /* Type of save by active child. */
-  int lastbgsave_status;               /* REDIS_OK or REDIS_ERR */
-  int stop_writes_on_bgsave_err;       /* Don't allow writes if can't BGSAVE */
-  int rdb_pipe_write_result_to_parent; /* RDB pipes used to return the state */
-  int rdb_pipe_read_result_from_child; /* of each slave in diskless SYNC. */
+  long long dirty; /* Changes to DB from the last save */       //修改计数器
+  long long dirty_before_bgsave;                                /* Used to restore dirty on failed BGSAVE */
+  pid_t rdb_child_pid;                                          /* PID of RDB saving child */
+  struct saveparam *saveparams; /* Save points array for RDB */ //自动备份rdb文件的条件
+  int saveparamslen;                                            /* Number of saving points */
+  char *rdb_filename;                                           /* Name of RDB file */
+  int rdb_compression;                                          /* Use compression in RDB? */
+  int rdb_checksum;                                             /* Use RDB checksum? */
+  time_t lastsave; /* Unix time of last successful save */      //上一次保存rdb的时间
+  time_t lastbgsave_try;                                        /* Unix time of last attempted bgsave */
+  time_t rdb_save_time_last;                                    /* Time used by last RDB save run. */
+  time_t rdb_save_time_start;                                   /* Current RDB save start time. */
+  int rdb_child_type;                                           /* Type of save by active child. */
+  int lastbgsave_status;                                        /* REDIS_OK or REDIS_ERR */
+  int stop_writes_on_bgsave_err;                                /* Don't allow writes if can't BGSAVE */
+  int rdb_pipe_write_result_to_parent;                          /* RDB pipes used to return the state */
+  int rdb_pipe_read_result_from_child;                          /* of each slave in diskless SYNC. */
   /* Propagation of commands in AOF / replication */
   redisOpArray also_propagate; /* Additional command to propagate. */
   /* Logging */
@@ -893,8 +893,8 @@ struct redisServer
   size_t zset_max_ziplist_entries;
   size_t zset_max_ziplist_value;
   size_t hll_sparse_max_bytes;
-  time_t unixtime;  /* Unix time sampled every cron cycle. */
-  long long mstime; /* Like 'unixtime' but with milliseconds resolution. */
+  time_t unixtime; /* Unix time sampled every cron cycle. */                //秒级时间戳
+  long long mstime; /* Like 'unixtime' but with milliseconds resolution. */ //毫秒级时间戳
   /* Pubsub */
   dict *pubsub_channels;      /* Map channels to list of subscribed clients */
   list *pubsub_patterns;      /* A list of pubsub_patterns */
@@ -910,19 +910,19 @@ struct redisServer
   int cluster_require_full_coverage; /* If true, put the cluster down if
                                         there is at least an uncovered slot. */
   /* Scripting */
-  lua_State *lua;          /* The Lua interpreter. We use just one for all clients */
-  redisClient *lua_client; /* The "fake client" to query Redis from Lua */
-  redisClient *lua_caller; /* The client running EVAL right now, or NULL */
-  dict *lua_scripts;       /* A dictionary of SHA1 -> Lua scripts */
-  mstime_t lua_time_limit; /* Script timeout in milliseconds */
-  mstime_t lua_time_start; /* Start time of script, milliseconds time */
-  int lua_write_dirty;     /* True if a write command was called during the
-                           execution of the current script. */
-  int lua_random_dirty;    /* True if a random command was called during the
-                           execution of the current script. */
-  int lua_timedout;        /* True if we reached the time limit for script
-                           execution. */
-  int lua_kill;            /* Kill the script if true. */
+  lua_State *lua;                                                          /* The Lua interpreter. We use just one for all clients */
+  redisClient *lua_client; /* The "fake client" to query Redis from Lua */ // LUA脚本的伪客户端
+  redisClient *lua_caller;                                                 /* The client running EVAL right now, or NULL */
+  dict *lua_scripts;                                                       /* A dictionary of SHA1 -> Lua scripts */
+  mstime_t lua_time_limit;                                                 /* Script timeout in milliseconds */
+  mstime_t lua_time_start;                                                 /* Start time of script, milliseconds time */
+  int lua_write_dirty;                                                     /* True if a write command was called during the
+                                                                           execution of the current script. */
+  int lua_random_dirty;                                                    /* True if a random command was called during the
+                                                                           execution of the current script. */
+  int lua_timedout;                                                        /* True if we reached the time limit for script
+                                                                           execution. */
+  int lua_kill;                                                            /* Kill the script if true. */
   /* Latency monitor */
   long long latency_monitor_threshold;
   dict *latency_events;
@@ -944,11 +944,11 @@ typedef void redisCommandProc(redisClient *c);
 typedef int *redisGetKeysProc(struct redisCommand *cmd, robj **argv, int argc, int *numkeys);
 struct redisCommand
 {
-  char *name;
-  redisCommandProc *proc;
-  int arity;
-  char *sflags; /* Flags as string representation, one char per flag. */
-  int flags;    /* The actual flags, obtained from the 'sflags' field. */
+  char *name;                                                            //命令名字
+  redisCommandProc *proc;                                                //命令函数指针
+  int arity;                                                             //命令参数个数
+  char *sflags; /* Flags as string representation, one char per flag. */ //字符串形式的标识
+  int flags; /* The actual flags, obtained from the 'sflags' field. */   //命令标识
   /* Use a function to determine keys arguments in a command line.
    * Used for Redis Cluster redirect. */
   redisGetKeysProc *getkeys_proc;
@@ -956,7 +956,7 @@ struct redisCommand
   int firstkey; /* The first argument that's a key (0 = no keys) */
   int lastkey;  /* The last argument that's a key */
   int keystep;  /* The step between first and last key */
-  long long microseconds, calls;
+  long long microseconds /*服务器调用这个命令的总时长*/, calls /*服务器调用这个命令的次数*/;
 };
 
 struct redisFunctionSym
