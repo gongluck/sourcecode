@@ -633,6 +633,7 @@ void GetAudioParameters(JNIEnv* env,
   RTC_CHECK(output_parameters->is_valid());
 }
 
+//创建ADM
 rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleFromInputAndOutput(
     AudioDeviceModule::AudioLayer audio_layer,
     bool is_stereo_playout_supported,

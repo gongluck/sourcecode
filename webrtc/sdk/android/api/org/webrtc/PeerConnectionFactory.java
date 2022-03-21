@@ -208,7 +208,7 @@ public class PeerConnectionFactory {
     private Options options;
 
     @Nullable
-    private AudioDeviceModule audioDeviceModule;
+    private AudioDeviceModule audioDeviceModule; //audio device module
 
     private AudioEncoderFactoryFactory audioEncoderFactoryFactory = new BuiltinAudioEncoderFactoryFactory();
     private AudioDecoderFactoryFactory audioDecoderFactoryFactory = new BuiltinAudioDecoderFactoryFactory();
