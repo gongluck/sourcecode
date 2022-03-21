@@ -130,7 +130,7 @@ class WebRtcAudioTrack {
         // Get 10ms of PCM data from the native WebRTC client. Audio data is
         // written into the common ByteBuffer using the address that was
         // cached at construction.
-        nativeGetPlayoutData(nativeAudioTrack, sizeInBytes); //读取待播放数据
+        nativeGetPlayoutData(nativeAudioTrack, sizeInBytes); //调用AudioTrackJni::GetPlayoutData获取待播放缓冲区来填充
         // Write data until all data has been written to the audio sink.
         // Upon return, the buffer position will have been advanced to reflect
         // the amount of data that was successfully written to the AudioTrack.
@@ -157,6 +157,7 @@ class WebRtcAudioTrack {
           }
         }
         if (useLowLatency) {
+          //使用低延时
           bufferManager.maybeAdjustBufferSize(audioTrack);
         }
         // The byte buffer must be rewinded since byteBuffer.position() is
@@ -234,6 +235,7 @@ class WebRtcAudioTrack {
     this.nativeAudioTrack = nativeAudioTrack;
   }
 
+  //播放初始化
   @CalledByNative
   private int initPlayout(
     int sampleRate,
@@ -264,14 +266,15 @@ class WebRtcAudioTrack {
     // Rather than passing the ByteBuffer with every callback (requiring
     // the potentially expensive GetDirectBufferAddress) we simply have the
     // the native class cache the address to the memory once.
-    nativeCacheDirectBufferAddress(nativeAudioTrack, byteBuffer); //缓存byteBuffer的访问地址
+    nativeCacheDirectBufferAddress(nativeAudioTrack, byteBuffer); //调用AudioTrackJni::CacheDirectBufferAddress缓存byteBuffer的访问地址
 
     // Get the minimum buffer size required for the successful creation of an
     // AudioTrack object to be created in the MODE_STREAM mode.
     // Note that this size doesn't guarantee a smooth playback under load.
     final int channelConfig = channelCountToConfiguration(channels); //根据通道数返回config
+    //计算缓冲区大小
     final int minBufferSizeInBytes = (int) (
-      AudioTrack.getMinBufferSize(
+      AudioTrack.getMinBufferSize( //使用AudioTrack获得参考值
         sampleRate,
         channelConfig,
         AudioFormat.ENCODING_PCM_16BIT
@@ -367,6 +370,7 @@ class WebRtcAudioTrack {
     return minBufferSizeInBytes;
   }
 
+  //开始播放
   @CalledByNative
   private boolean startPlayout() {
     threadChecker.checkIsOnValidThread();
@@ -404,6 +408,7 @@ class WebRtcAudioTrack {
     return true;
   }
 
+  //停止播放
   @CalledByNative
   private boolean stopPlayout() {
     threadChecker.checkIsOnValidThread();
@@ -725,6 +730,7 @@ class WebRtcAudioTrack {
   private void releaseAudioResources() {
     Logging.d(TAG, "releaseAudioResources");
     if (audioTrack != null) {
+      //销毁AudioTrack
       audioTrack.release();
       audioTrack = null;
     }

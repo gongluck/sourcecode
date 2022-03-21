@@ -228,6 +228,7 @@ void AudioTrackJni::AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) {
   audio_device_buffer_->SetPlayoutChannels(channels);
 }
 
+//缓存byteBuffer的访问地址
 void AudioTrackJni::CacheDirectBufferAddress(
     JNIEnv* env,
     const JavaParamRef<jobject>& byte_buffer) {
@@ -243,10 +244,10 @@ void AudioTrackJni::CacheDirectBufferAddress(
   RTC_LOG(LS_INFO) << "frames_per_buffer: " << frames_per_buffer_;
 }
 
+//获取待播放缓冲区来填充
 // This method is called on a high-priority thread from Java. The name of
 // the thread is 'AudioRecordTrack'.
-void AudioTrackJni::GetPlayoutData(JNIEnv* env,
-                                   size_t length) {
+void AudioTrackJni::GetPlayoutData(JNIEnv* env, size_t length) {
   RTC_DCHECK(thread_checker_java_.IsCurrent());
   const size_t bytes_per_frame = audio_parameters_.channels() * sizeof(int16_t);
   RTC_DCHECK_EQ(frames_per_buffer_, length / bytes_per_frame);
@@ -254,6 +255,7 @@ void AudioTrackJni::GetPlayoutData(JNIEnv* env,
     RTC_LOG(LS_ERROR) << "AttachAudioBuffer has not been called";
     return;
   }
+  //获取待播放缓冲区来填充
   // Pull decoded data (in 16-bit PCM format) from jitter buffer.
   int samples = audio_device_buffer_->RequestPlayoutData(frames_per_buffer_);
   if (samples <= 0) {
@@ -261,6 +263,7 @@ void AudioTrackJni::GetPlayoutData(JNIEnv* env,
     return;
   }
   RTC_DCHECK_EQ(samples, frames_per_buffer_);
+  //拷贝解码数据到预先分配的缓冲区中
   // Copy decoded data into common byte buffer to ensure that it can be
   // written to the Java based audio track.
   samples = audio_device_buffer_->GetPlayoutData(direct_buffer_address_);
