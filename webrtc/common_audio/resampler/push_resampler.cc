@@ -64,6 +64,7 @@ PushResampler<T>::PushResampler()
 template <typename T>
 PushResampler<T>::~PushResampler() {}
 
+//初始化重采样器
 template <typename T>
 int PushResampler<T>::InitializeIfNeeded(int src_sample_rate_hz,
                                          int dst_sample_rate_hz,
@@ -81,10 +82,13 @@ int PushResampler<T>::InitializeIfNeeded(int src_sample_rate_hz,
     return -1;
   }
 
+  //输入输出采样率
   src_sample_rate_hz_ = src_sample_rate_hz;
   dst_sample_rate_hz_ = dst_sample_rate_hz;
+  //声道数
   num_channels_ = num_channels;
 
+  // 10ms单声道数据长度
   const size_t src_size_10ms_mono =
       static_cast<size_t>(src_sample_rate_hz / 100);
   const size_t dst_size_10ms_mono =
@@ -104,6 +108,7 @@ int PushResampler<T>::InitializeIfNeeded(int src_sample_rate_hz,
   return 0;
 }
 
+//重采样
 template <typename T>
 int PushResampler<T>::Resample(const T* src,
                                size_t src_length,
@@ -112,6 +117,7 @@ int PushResampler<T>::Resample(const T* src,
   CheckExpectedBufferSizes(src_length, dst_capacity, num_channels_,
                            src_sample_rate_hz_, dst_sample_rate_hz_);
 
+  //采样率相等
   if (src_sample_rate_hz_ == dst_sample_rate_hz_) {
     // The old resampler provides this memcpy facility in the case of matching
     // sample rates, so reproduce it here for the sinc resampler.
@@ -119,6 +125,7 @@ int PushResampler<T>::Resample(const T* src,
     return static_cast<int>(src_length);
   }
 
+  //单声道数据长度
   const size_t src_length_mono = src_length / num_channels_;
   const size_t dst_capacity_mono = dst_capacity / num_channels_;
 
@@ -126,12 +133,13 @@ int PushResampler<T>::Resample(const T* src,
     channel_data_array_[ch] = channel_resamplers_[ch].source.data();
   }
 
+  //交错数据拷贝到非交错缓冲区
   Deinterleave(src, src_length_mono, num_channels_, channel_data_array_.data());
 
   size_t dst_length_mono = 0;
 
   for (auto& resampler : channel_resamplers_) {
-    dst_length_mono = resampler.resampler->Resample(
+    dst_length_mono = resampler.resampler->Resample(  //重采样
         resampler.source.data(), src_length_mono, resampler.destination.data(),
         dst_capacity_mono);
   }
@@ -140,6 +148,7 @@ int PushResampler<T>::Resample(const T* src,
     channel_data_array_[ch] = channel_resamplers_[ch].destination.data();
   }
 
+  //非交错数据拷贝到交错缓冲区
   Interleave(channel_data_array_.data(), dst_length_mono, num_channels_, dst);
   return static_cast<int>(dst_length_mono * num_channels_);
 }

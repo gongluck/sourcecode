@@ -21,14 +21,16 @@ ACMResampler::ACMResampler() {}
 
 ACMResampler::~ACMResampler() {}
 
+//重采样
 int ACMResampler::Resample10Msec(const int16_t* in_audio,
                                  int in_freq_hz,
                                  int out_freq_hz,
                                  size_t num_audio_channels,
                                  size_t out_capacity_samples,
                                  int16_t* out_audio) {
+  // 10ms输入音频长度
   size_t in_length = in_freq_hz * num_audio_channels / 100;
-  if (in_freq_hz == out_freq_hz) {
+  if (in_freq_hz == out_freq_hz) {  //采样率相同
     if (out_capacity_samples < in_length) {
       RTC_DCHECK_NOTREACHED();
       return -1;
@@ -37,6 +39,7 @@ int ACMResampler::Resample10Msec(const int16_t* in_audio,
     return static_cast<int>(in_length / num_audio_channels);
   }
 
+  //初始化重采样器
   if (resampler_.InitializeIfNeeded(in_freq_hz, out_freq_hz,
                                     num_audio_channels) != 0) {
     RTC_LOG(LS_ERROR) << "InitializeIfNeeded(" << in_freq_hz << ", "
@@ -45,7 +48,7 @@ int ACMResampler::Resample10Msec(const int16_t* in_audio,
     return -1;
   }
 
-  int out_length =
+  int out_length =  //重采样
       resampler_.Resample(in_audio, in_length, out_audio, out_capacity_samples);
   if (out_length == -1) {
     RTC_LOG(LS_ERROR) << "Resample(" << in_audio << ", " << in_length << ", "

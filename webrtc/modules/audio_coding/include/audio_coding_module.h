@@ -116,6 +116,7 @@ class AudioCodingModule {
   virtual int32_t RegisterTransportCallback(
       AudioPacketizationCallback* transport) = 0;
 
+  //添加10ms音频数据并编码
   ///////////////////////////////////////////////////////////////////////////
   // int32_t Add10MsData()
   // Add 10MS of raw (PCM) audio data and encode it. If the sampling
@@ -193,6 +194,7 @@ class AudioCodingModule {
                                  const size_t payload_len_bytes,
                                  const RTPHeader& rtp_header) = 0;
 
+  //播放10ms音频
   ///////////////////////////////////////////////////////////////////////////
   // int32_t PlayoutData10Ms(
   // Get 10 milliseconds of raw audio data for playout, at the given sampling

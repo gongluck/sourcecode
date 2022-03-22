@@ -267,6 +267,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
       if (executor == null) {
         executor = WebRtcAudioRecord.newDefaultScheduler();
       }
+      //音频输入AudioRecord
       final WebRtcAudioRecord audioInput = new WebRtcAudioRecord(
         context,
         executor,
@@ -279,6 +280,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
         useHardwareAcousticEchoCanceler,
         useHardwareNoiseSuppressor
       );
+      //音频输出AudioTrack
       final WebRtcAudioTrack audioOutput = new WebRtcAudioTrack(
         context,
         audioManager,

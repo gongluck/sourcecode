@@ -106,6 +106,7 @@ void CopyAudioIfNeeded(const T* const* src,
   }
 }
 
+//交错数据拷贝到非交错缓冲区
 // Deinterleave audio from `interleaved` to the channel buffers pointed to
 // by `deinterleaved`. There must be sufficient space allocated in the
 // `deinterleaved` buffers (`num_channel` buffers with `samples_per_channel`
@@ -125,6 +126,7 @@ void Deinterleave(const T* interleaved,
   }
 }
 
+//非交错数据拷贝到交错缓冲区
 // Interleave audio from the channel buffers pointed to by `deinterleaved` to
 // `interleaved`. There must be sufficient space allocated in `interleaved`
 // (`samples_per_channel` * `num_channels`).

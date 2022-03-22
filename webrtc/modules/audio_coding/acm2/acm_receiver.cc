@@ -148,6 +148,7 @@ int AcmReceiver::GetAudio(int desired_freq_hz,
   RTC_DCHECK(muted);
 
   int current_sample_rate_hz = 0;
+  //获取10ms音频数据
   if (neteq_->GetAudio(audio_frame, muted, &current_sample_rate_hz) !=
       NetEq::kOK) {
     RTC_LOG(LS_ERROR) << "AcmReceiver::GetAudio - NetEq Failed.";
@@ -165,6 +166,7 @@ int AcmReceiver::GetAudio(int desired_freq_hz,
   if (need_resampling && !resampled_last_output_frame_) {
     // Prime the resampler with the last frame.
     int16_t temp_output[AudioFrame::kMaxDataSizeSamples];
+    //重采样
     int samples_per_channel_int = resampler_.Resample10Msec(
         last_audio_buffer_.get(), current_sample_rate_hz, desired_freq_hz,
         audio_frame->num_channels_, AudioFrame::kMaxDataSizeSamples,

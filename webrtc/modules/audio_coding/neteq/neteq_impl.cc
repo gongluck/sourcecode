@@ -1466,6 +1466,7 @@ int NetEqImpl::DecodeLoop(PacketList* packet_list,
   RTC_DCHECK(last_decoded_timestamps_.empty());
   RTC_DCHECK(last_decoded_packet_infos_.empty());
 
+  //持续解码
   // Do decoding.
   while (!packet_list->empty() && !decoder_database_->IsComfortNoise(
                                       packet_list->front().payload_type)) {
@@ -1480,6 +1481,7 @@ int NetEqImpl::DecodeLoop(PacketList* packet_list,
                operation == Operation::kMerge ||
                operation == Operation::kPreemptiveExpand);
 
+    //解码
     auto opt_result = packet_list->front().frame->Decode(
         rtc::ArrayView<int16_t>(&decoded_buffer_[*decoded_length],
                                 decoded_buffer_length_ - *decoded_length));

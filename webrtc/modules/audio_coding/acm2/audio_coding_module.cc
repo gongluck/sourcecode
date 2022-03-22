@@ -260,6 +260,7 @@ int32_t AudioCodingModuleImpl::Encode(
 
   // Clear the buffer before reuse - encoded data will get appended.
   encode_buffer_.Clear();
+  //编码音频
   encoded_info = encoder_stack_->Encode(
       rtp_timestamp,
       rtc::ArrayView<const int16_t>(
@@ -268,7 +269,8 @@ int32_t AudioCodingModuleImpl::Encode(
       &encode_buffer_);
 
   bitrate_logger_.MaybeLog(encoder_stack_->GetTargetBitrate() / 1000);
-  if (encode_buffer_.size() == 0 && !encoded_info.send_even_if_empty) {
+  if (encode_buffer_.size() == 0 &&
+      !encoded_info.send_even_if_empty) {  //跳过空包
     // Not enough data.
     return 0;
   }
@@ -276,7 +278,7 @@ int32_t AudioCodingModuleImpl::Encode(
 
   // Log codec type to histogram once every 500 packets.
   if (encoded_info.encoded_bytes == 0) {
-    ++number_of_consecutive_empty_packets_;
+    ++number_of_consecutive_empty_packets_;  //空包数
   } else {
     size_t codec_type = static_cast<size_t>(encoded_info.encoder_type);
     codec_histogram_bins_log_[codec_type] +=
@@ -301,6 +303,7 @@ int32_t AudioCodingModuleImpl::Encode(
   {
     MutexLock lock(&callback_mutex_);
     if (packetization_callback_) {
+      //发送数据
       packetization_callback_->SendData(
           frame_type, encoded_info.payload_type, encoded_info.encoded_timestamp,
           encode_buffer_.data(), encode_buffer_.size(),
@@ -330,17 +333,21 @@ int AudioCodingModuleImpl::RegisterTransportCallback(
   return 0;
 }
 
+//添加10ms毫秒音频并编码
 // Add 10MS of raw (PCM) audio data to the encoder.
 int AudioCodingModuleImpl::Add10MsData(const AudioFrame& audio_frame) {
   MutexLock lock(&acm_mutex_);
+  //添加10ms毫秒音频
   int r = Add10MsDataInternal(audio_frame, &input_data_);
   // TODO(bugs.webrtc.org/10739): add dcheck that
   // `audio_frame.absolute_capture_timestamp_ms()` always has a value.
   return r < 0
              ? r
+             //编码音频
              : Encode(input_data_, audio_frame.absolute_capture_timestamp_ms());
 }
 
+//添加10ms毫秒音频
 int AudioCodingModuleImpl::Add10MsDataInternal(const AudioFrame& audio_frame,
                                                InputData* input_data) {
   if (audio_frame.samples_per_channel_ == 0) {
@@ -376,6 +383,7 @@ int AudioCodingModuleImpl::Add10MsDataInternal(const AudioFrame& audio_frame,
   }
 
   const AudioFrame* ptr_frame;
+  //添加音频并做声道和采样率调整
   // Perform a resampling, also down-mix if it is required and can be
   // performed before resampling (a down mix prior to resampling will take
   // place if both primary and secondary encoders are mono and input is in
@@ -395,6 +403,7 @@ int AudioCodingModuleImpl::Add10MsDataInternal(const AudioFrame& audio_frame,
   input_data->audio_channel = current_num_channels;
 
   if (!same_num_channels) {
+    //混音
     // Remixes the input frame to the output data and in the process resize the
     // output data if needed.
     ReMixFrame(*ptr_frame, current_num_channels, &input_data->buffer);
@@ -412,6 +421,7 @@ int AudioCodingModuleImpl::Add10MsDataInternal(const AudioFrame& audio_frame,
   return 0;
 }
 
+//重采样
 // Perform a resampling and down-mix if required. We down-mix only if
 // encoder is mono and input is stereo. In case of dual-streaming, both
 // encoders has to be mono for down-mix to take place.
@@ -427,10 +437,10 @@ int AudioCodingModuleImpl::PreprocessToAddData(const AudioFrame& in_frame,
   // are both mono and input is stereo.
   // TODO(henrik.lundin): This condition should probably be
   //   in_frame.num_channels_ > encoder_stack_->NumChannels()
-  const bool down_mix =
+  const bool down_mix =  //只对双声道转换成单声道
       in_frame.num_channels_ == 2 && encoder_stack_->NumChannels() == 1;
 
-  if (!first_10ms_data_) {
+  if (!first_10ms_data_) {  //首帧统计
     expected_in_ts_ = in_frame.timestamp_;
     expected_codec_ts_ = in_frame.timestamp_;
     first_10ms_data_ = true;
@@ -445,7 +455,7 @@ int AudioCodingModuleImpl::PreprocessToAddData(const AudioFrame& in_frame,
     expected_in_ts_ = in_frame.timestamp_;
   }
 
-  if (!down_mix && !resample) {
+  if (!down_mix && !resample) {  //不对输入音频做处理
     // No pre-processing is required.
     if (expected_in_ts_ == expected_codec_ts_) {
       // If we've never resampled, we can use the input frame as-is
@@ -475,10 +485,11 @@ int AudioCodingModuleImpl::PreprocessToAddData(const AudioFrame& in_frame,
         resample ? audio.data() : preprocess_frame_.mutable_data();
     RTC_DCHECK_GE(audio.size(), preprocess_frame_.samples_per_channel_);
     RTC_DCHECK_GE(audio.size(), in_frame.samples_per_channel_);
+    //音频数据声道下调
     DownMixFrame(in_frame,
                  rtc::ArrayView<int16_t>(
                      dest_ptr_audio, preprocess_frame_.samples_per_channel_));
-    preprocess_frame_.num_channels_ = 1;
+    preprocess_frame_.num_channels_ = 1;  //单声道
 
     // Set the input of the resampler to the down-mixed signal.
     src_ptr_audio = audio.data();
@@ -490,10 +501,11 @@ int AudioCodingModuleImpl::PreprocessToAddData(const AudioFrame& in_frame,
   preprocess_frame_.timestamp_ = expected_codec_ts_;
   preprocess_frame_.sample_rate_hz_ = in_frame.sample_rate_hz_;
   // If it is required, we have to do a resampling.
-  if (resample) {
+  if (resample) {  //重采样
     // The result of the resampler is written to output frame.
     int16_t* dest_ptr_audio = preprocess_frame_.mutable_data();
 
+    //重采样
     int samples_per_channel = resampler_.Resample10Msec(
         src_ptr_audio, in_frame.sample_rate_hz_, encoder_stack_->SampleRateHz(),
         preprocess_frame_.num_channels_, AudioFrame::kMaxDataSizeSamples,
@@ -565,6 +577,7 @@ int AudioCodingModuleImpl::IncomingPacket(const uint8_t* incoming_payload,
       rtc::ArrayView<const uint8_t>(incoming_payload, payload_length));
 }
 
+//播放10ms音频
 // Get 10 milliseconds of raw audio data to play out.
 // Automatic resample to the requested frequency.
 int AudioCodingModuleImpl::PlayoutData10Ms(int desired_freq_hz,
