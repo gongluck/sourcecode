@@ -484,6 +484,11 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
     audioInput.setMicrophoneMute(mute);
   }
 
+  //gongluck begin add get audioInput object
+  public WebRtcAudioRecord getAudioInput() {
+    return audioInput;
+  } //gongluck end add get audioInput object
+
   /**
    * Start to prefer a specific {@link AudioDeviceInfo} device for recording. Typically this should
    * only be used if a client gives an explicit option for choosing a physical device to record

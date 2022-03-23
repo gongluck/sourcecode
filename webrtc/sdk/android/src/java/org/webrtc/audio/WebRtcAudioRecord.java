@@ -43,7 +43,7 @@ import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordStartErrorCode;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioRecordStateCallback;
 import org.webrtc.audio.JavaAudioDeviceModule.SamplesReadyCallback;
 
-class WebRtcAudioRecord {
+public class WebRtcAudioRecord {
 
   private static final String TAG = "WebRtcAudioRecordExternal";
 
@@ -207,15 +207,18 @@ class WebRtcAudioRecord {
     // Stops the inner thread loop and also calls AudioRecord.stop().
     // Does not block the calling thread.
     public void stopThread() {
-      Logging.d(TAG, "stopThread");
+      //Logging.d(TAG, "stopThread");
       keepAlive = false;
     }
   }
 
-  public void pushData(ByteBuffer buf) {
-    int bytesRead = buf.capacity();
+  //gongluck begin add push user audio data
+  public void pushData(byte[] buf) {
+    int bytesRead = buf.length;
+    byteBuffer.position(0);
+    byteBuffer.put(buf, 0, bytesRead);
     nativeDataIsRecorded(nativeAudioRecord, bytesRead);
-  }
+  } //gongluck end add push user audio data
 
   @CalledByNative
   WebRtcAudioRecord(Context context, AudioManager audioManager) {
@@ -497,6 +500,12 @@ class WebRtcAudioRecord {
     scheduleLogRecordingConfigurationsTask(audioRecord);
     return true;
   }
+
+  //gongluck begin add stop record thread
+  //配合pushData使用
+  public void stopThread() {
+    audioThread.stopThread();
+  } //gongluck end add stop record thread
 
   //停止录音
   @CalledByNative
