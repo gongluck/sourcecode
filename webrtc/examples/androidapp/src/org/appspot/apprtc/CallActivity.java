@@ -508,12 +508,13 @@ public class CallActivity
   private void startScreenCapture() {
     MediaProjectionManager mediaProjectionManager = (MediaProjectionManager) getApplication()
       .getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-    startActivityForResult(
+    startActivityForResult( //获取录屏权限
       mediaProjectionManager.createScreenCaptureIntent(),
       CAPTURE_PERMISSION_REQUEST_CODE
     );
   }
 
+  //权限获取结果回调
   @Override
   public void onActivityResult(int requestCode, int resultCode, Intent data) {
     if (requestCode != CAPTURE_PERMISSION_REQUEST_CODE) return;
