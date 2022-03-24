@@ -207,7 +207,7 @@ LogMessage::~LogMessage() {
   for (LogSink* entry = streams_; entry != nullptr; entry = entry->next_) {
     if (severity_ >= entry->min_severity_) {
 #if defined(WEBRTC_ANDROID)
-      entry->OnLogMessage(str, severity_, tag_);
+      entry->OnLogMessage(str, severity_, tag_);  //调用JNILogSink::OnLogMessage
 #else
       entry->OnLogMessage(str, severity_);
 #endif
@@ -271,11 +271,12 @@ int LogMessage::GetLogToStream(LogSink* stream) {
   return sev;
 }
 
+//设置webrtc日志的观察者 类静态方法
 void LogMessage::AddLogToStream(LogSink* stream, LoggingSeverity min_sev) {
   webrtc::MutexLock lock(&GetLoggingLock());
   stream->min_severity_ = min_sev;
   stream->next_ = streams_;
-  streams_ = stream;
+  streams_ = stream;  // streams_也是静态成员
   streams_empty_.store(false, std::memory_order_relaxed);
   UpdateMinLogSeverity();
 }

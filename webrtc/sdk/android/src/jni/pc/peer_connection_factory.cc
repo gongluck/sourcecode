@@ -532,7 +532,7 @@ static void JNI_PeerConnectionFactory_InjectLoggable(
     rtc::LogMessage::RemoveLogToStream(jni_log_sink.get());
   }
   jni_log_sink = std::make_unique<JNILogSink>(jni, j_logging);
-  rtc::LogMessage::AddLogToStream(
+  rtc::LogMessage::AddLogToStream(  //设置webrtc日志的观察者
       jni_log_sink.get(), static_cast<rtc::LoggingSeverity>(nativeSeverity));
   rtc::LogMessage::LogToDebug(rtc::LS_NONE);
 }

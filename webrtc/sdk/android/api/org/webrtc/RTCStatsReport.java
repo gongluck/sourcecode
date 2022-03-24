@@ -17,9 +17,10 @@ import java.util.Map;
  * getStats contains multiple RTCStats objects; one for each underlying object
  * (codec, stream, transport, etc.) that was inspected to produce the stats.
  */
-public class RTCStatsReport {
-  private final long timestampUs;
-  private final Map<String, RTCStats> stats;
+public class RTCStatsReport { //RTC统计报告
+
+  private final long timestampUs; //时间戳
+  private final Map<String, RTCStats> stats; //统计信息
 
   public RTCStatsReport(long timestampUs, Map<String, RTCStats> stats) {
     this.timestampUs = timestampUs;
@@ -40,7 +41,10 @@ public class RTCStatsReport {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("{ timestampUs: ").append(timestampUs).append(", stats: [\n");
+    builder
+      .append("{ timestampUs: ")
+      .append(timestampUs)
+      .append(", stats: [\n");
     boolean first = true;
     for (RTCStats stat : stats.values()) {
       if (!first) {

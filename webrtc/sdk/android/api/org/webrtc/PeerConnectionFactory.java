@@ -389,7 +389,7 @@ public class PeerConnectionFactory {
     }
     if (options.loggable != null) {
       Logging.injectLoggable(options.loggable, options.loggableSeverity);
-      nativeInjectLoggable(
+      nativeInjectLoggable( //调用JNI_PeerConnectionFactory_InjectLoggable设置webrtc日志的观察者
         new JNILogging(options.loggable),
         options.loggableSeverity.ordinal()
       );

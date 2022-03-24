@@ -1349,11 +1349,13 @@ public class PeerConnection {
     );
   }
 
+  //获取RTC状态统计信息
   /**
    * Gets stats using the new stats collection API, see webrtc/api/stats/. These
    * will replace old stats collection API when the new API has matured enough.
    */
   public void getStats(RTCStatsCollectorCallback callback) {
+    //调用JNI_PeerConnection_NewGetStats
     nativeNewGetStats(callback);
   }
 

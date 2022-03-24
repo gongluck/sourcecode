@@ -20,13 +20,19 @@ import java.util.Map;
  * multiple RTCStats objects; one for each underlying object (codec, stream,
  * transport, etc.) that was inspected to produce the stats.
  */
-public class RTCStats {
-  private final long timestampUs;
-  private final String type;
-  private final String id;
-  private final Map<String, Object> members;
+public class RTCStats { //RTC统计信息
 
-  public RTCStats(long timestampUs, String type, String id, Map<String, Object> members) {
+  private final long timestampUs; //时间戳
+  private final String type; //统计类型
+  private final String id; //统计标识
+  private final Map<String, Object> members; //具体各项状态
+
+  public RTCStats(
+    long timestampUs,
+    String type,
+    String id,
+    Map<String, Object> members
+  ) {
     this.timestampUs = timestampUs;
     this.type = type;
     this.id = id;
@@ -71,12 +77,13 @@ public class RTCStats {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("{ timestampUs: ")
-        .append(timestampUs)
-        .append(", type: ")
-        .append(type)
-        .append(", id: ")
-        .append(id);
+    builder
+      .append("{ timestampUs: ")
+      .append(timestampUs)
+      .append(", type: ")
+      .append(type)
+      .append(", id: ")
+      .append(id);
     boolean first = true;
     for (Map.Entry<String, Object> entry : members.entrySet()) {
       builder.append(", ").append(entry.getKey()).append(": ");
@@ -108,7 +115,12 @@ public class RTCStats {
   // TODO(bugs.webrtc.org/8557) Use ctor directly with full Map type.
   @SuppressWarnings("unchecked")
   @CalledByNative
-  static RTCStats create(long timestampUs, String type, String id, Map members) {
+  static RTCStats create(
+    long timestampUs,
+    String type,
+    String id,
+    Map members
+  ) {
     return new RTCStats(timestampUs, type, id, members);
   }
 }
