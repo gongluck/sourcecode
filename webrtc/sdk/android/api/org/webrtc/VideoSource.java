@@ -16,9 +16,14 @@ import androidx.annotation.Nullable;
  * Java wrapper of native AndroidVideoTrackSource.
  */
 public class VideoSource extends MediaSource {
+
   /** Simple aspect ratio clas for use in constraining output format. */
   public static class AspectRatio {
-    public static final AspectRatio UNDEFINED = new AspectRatio(/* width= */ 0, /* height= */ 0);
+
+    public static final AspectRatio UNDEFINED = new AspectRatio(
+      /* width= */0,
+      /* height= */0
+    );
 
     public final int width;
     public final int height;
@@ -31,7 +36,10 @@ public class VideoSource extends MediaSource {
 
   private final NativeAndroidVideoTrackSource nativeAndroidVideoTrackSource;
   private final Object videoProcessorLock = new Object();
-  @Nullable private VideoProcessor videoProcessor;
+
+  @Nullable
+  private VideoProcessor videoProcessor;
+
   private boolean isCapturerRunning;
 
   private final CapturerObserver capturerObserver = new CapturerObserver() {
@@ -48,7 +56,7 @@ public class VideoSource extends MediaSource {
 
     @Override
     public void onCapturerStopped() {
-      nativeAndroidVideoTrackSource.setState(/* isLive= */ false);
+      nativeAndroidVideoTrackSource.setState(/* isLive= */false);
       synchronized (videoProcessorLock) {
         isCapturerRunning = false;
         if (videoProcessor != null) {
@@ -57,18 +65,23 @@ public class VideoSource extends MediaSource {
       }
     }
 
+    //帧回调
     @Override
     public void onFrameCaptured(VideoFrame frame) {
-      final VideoProcessor.FrameAdaptationParameters parameters =
-          nativeAndroidVideoTrackSource.adaptFrame(frame);
+      final VideoProcessor.FrameAdaptationParameters parameters = nativeAndroidVideoTrackSource.adaptFrame(
+        frame
+      );
       synchronized (videoProcessorLock) {
-        if (videoProcessor != null) {
+        if (videoProcessor != null) { //传递帧到图像处理器
           videoProcessor.onFrameCaptured(frame, parameters);
           return;
         }
       }
 
-      VideoFrame adaptedFrame = VideoProcessor.applyFrameAdaptationParameters(frame, parameters);
+      VideoFrame adaptedFrame = VideoProcessor.applyFrameAdaptationParameters(
+        frame,
+        parameters
+      );
       if (adaptedFrame != null) {
         nativeAndroidVideoTrackSource.onFrameCaptured(adaptedFrame);
         adaptedFrame.release();
@@ -78,7 +91,8 @@ public class VideoSource extends MediaSource {
 
   public VideoSource(long nativeSource) {
     super(nativeSource);
-    this.nativeAndroidVideoTrackSource = new NativeAndroidVideoTrackSource(nativeSource);
+    this.nativeAndroidVideoTrackSource =
+      new NativeAndroidVideoTrackSource(nativeSource);
   }
 
   /**
@@ -99,19 +113,36 @@ public class VideoSource extends MediaSource {
    * video to be cropped to portrait video.
    */
   public void adaptOutputFormat(
-      int landscapeWidth, int landscapeHeight, int portraitWidth, int portraitHeight, int fps) {
-    adaptOutputFormat(new AspectRatio(landscapeWidth, landscapeHeight),
-        /* maxLandscapePixelCount= */ landscapeWidth * landscapeHeight,
-        new AspectRatio(portraitWidth, portraitHeight),
-        /* maxPortraitPixelCount= */ portraitWidth * portraitHeight, fps);
+    int landscapeWidth,
+    int landscapeHeight,
+    int portraitWidth,
+    int portraitHeight,
+    int fps
+  ) {
+    adaptOutputFormat(
+      new AspectRatio(landscapeWidth, landscapeHeight),
+      /* maxLandscapePixelCount= */landscapeWidth * landscapeHeight,
+      new AspectRatio(portraitWidth, portraitHeight),
+      /* maxPortraitPixelCount= */portraitWidth * portraitHeight,
+      fps
+    );
   }
 
   /** Same as above, with even more control as each constraint is optional. */
-  public void adaptOutputFormat(AspectRatio targetLandscapeAspectRatio,
-      @Nullable Integer maxLandscapePixelCount, AspectRatio targetPortraitAspectRatio,
-      @Nullable Integer maxPortraitPixelCount, @Nullable Integer maxFps) {
-    nativeAndroidVideoTrackSource.adaptOutputFormat(targetLandscapeAspectRatio,
-        maxLandscapePixelCount, targetPortraitAspectRatio, maxPortraitPixelCount, maxFps);
+  public void adaptOutputFormat(
+    AspectRatio targetLandscapeAspectRatio,
+    @Nullable Integer maxLandscapePixelCount,
+    AspectRatio targetPortraitAspectRatio,
+    @Nullable Integer maxPortraitPixelCount,
+    @Nullable Integer maxFps
+  ) {
+    nativeAndroidVideoTrackSource.adaptOutputFormat(
+      targetLandscapeAspectRatio,
+      maxLandscapePixelCount,
+      targetPortraitAspectRatio,
+      maxPortraitPixelCount,
+      maxFps
+    );
   }
 
   public void setIsScreencast(boolean isScreencast) {
@@ -125,10 +156,10 @@ public class VideoSource extends MediaSource {
    * are passed to this object. The video processor is allowed to deliver the processed frames
    * back on any thread.
    */
-  public void setVideoProcessor(@Nullable VideoProcessor newVideoProcessor) {
+  public void setVideoProcessor(@Nullable VideoProcessor newVideoProcessor) { //设置图像处理器
     synchronized (videoProcessorLock) {
       if (videoProcessor != null) {
-        videoProcessor.setSink(/* sink= */ null);
+        videoProcessor.setSink(/* sink= */null);
         if (isCapturerRunning) {
           videoProcessor.onCapturerStopped();
         }
@@ -136,10 +167,13 @@ public class VideoSource extends MediaSource {
       videoProcessor = newVideoProcessor;
       if (newVideoProcessor != null) {
         newVideoProcessor.setSink(
-            (frame)
-                -> runWithReference(() -> nativeAndroidVideoTrackSource.onFrameCaptured(frame)));
+          frame ->
+            runWithReference(
+              () -> nativeAndroidVideoTrackSource.onFrameCaptured(frame)
+            )
+        );
         if (isCapturerRunning) {
-          newVideoProcessor.onCapturerStarted(/* success= */ true);
+          newVideoProcessor.onCapturerStarted(/* success= */true);
         }
       }
     }
@@ -156,7 +190,7 @@ public class VideoSource extends MediaSource {
 
   @Override
   public void dispose() {
-    setVideoProcessor(/* newVideoProcessor= */ null);
+    setVideoProcessor(/* newVideoProcessor= */null);
     super.dispose();
   }
 }
