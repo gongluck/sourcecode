@@ -557,7 +557,7 @@ typedef struct redisClient
   long long repl_ack_off;                                                      /* replication ack offset, if this is a slave */
   long long repl_ack_time;                                                     /* replication ack time, if this is a slave */
   char replrunid[REDIS_RUN_ID_SIZE + 1];                                       /* master run id if this is a master */
-  int slave_listening_port;                                                    /* As configured with: SLAVECONF listening-port */
+  int slave_listening_port; /* As configured with: SLAVECONF listening-port */ //从服务器监听端口
   multiState mstate;                                                           /* MULTI/EXEC state */
   int btype;                                                                   /* Type of blocking op if REDIS_BLOCKED. */
   blockingState bpop;                                                          /* blocking state */
@@ -840,28 +840,28 @@ struct redisServer
   int repl_diskless_sync;         /* Send RDB to slaves sockets directly. */
   int repl_diskless_sync_delay;   /* Delay to start a diskless repl BGSAVE. */
   /* Replication (slave) */
-  char *masterauth;                              /* AUTH with this password with master */
-  char *masterhost;                              /* Hostname of master */
-  int masterport;                                /* Port of master */
-  int repl_timeout;                              /* Timeout after N seconds of master idle */
-  redisClient *master;                           /* Client that is master for this slave */
-  redisClient *cached_master;                    /* Cached master to be reused for PSYNC. */
-  int repl_syncio_timeout;                       /* Timeout for synchronous I/O calls */
-  int repl_state;                                /* Replication status if the instance is a slave */
-  off_t repl_transfer_size;                      /* Size of RDB to read from master during sync. */
-  off_t repl_transfer_read;                      /* Amount of RDB read from master during sync. */
-  off_t repl_transfer_last_fsync_off;            /* Offset when we fsync-ed last time. */
-  int repl_transfer_s;                           /* Slave -> Master SYNC socket */
-  int repl_transfer_fd;                          /* Slave -> Master SYNC temp file descriptor */
-  char *repl_transfer_tmpfile;                   /* Slave-> master SYNC temp file name */
-  time_t repl_transfer_lastio;                   /* Unix time of the latest read, for timeout */
-  int repl_serve_stale_data;                     /* Serve stale data when link is down? */
-  int repl_slave_ro;                             /* Slave is read only? */
-  time_t repl_down_since;                        /* Unix time at which link with master went down */
-  int repl_disable_tcp_nodelay;                  /* Disable TCP_NODELAY after SYNC? */
-  int slave_priority;                            /* Reported in INFO and used by Sentinel. */
-  char repl_master_runid[REDIS_RUN_ID_SIZE + 1]; /* Master run id for PSYNC. */
-  long long repl_master_initial_offset;          /* Master PSYNC offset. */
+  char *masterauth; /* AUTH with this password with master */ //主从认证密码
+  char *masterhost; /* Hostname of master */                  //主服务器地址
+  int masterport; /* Port of master */                        //主服务器端口
+  int repl_timeout;                                           /* Timeout after N seconds of master idle */
+  redisClient *master;                                        /* Client that is master for this slave */
+  redisClient *cached_master;                                 /* Cached master to be reused for PSYNC. */
+  int repl_syncio_timeout;                                    /* Timeout for synchronous I/O calls */
+  int repl_state;                                             /* Replication status if the instance is a slave */
+  off_t repl_transfer_size;                                   /* Size of RDB to read from master during sync. */
+  off_t repl_transfer_read;                                   /* Amount of RDB read from master during sync. */
+  off_t repl_transfer_last_fsync_off;                         /* Offset when we fsync-ed last time. */
+  int repl_transfer_s;                                        /* Slave -> Master SYNC socket */
+  int repl_transfer_fd;                                       /* Slave -> Master SYNC temp file descriptor */
+  char *repl_transfer_tmpfile;                                /* Slave-> master SYNC temp file name */
+  time_t repl_transfer_lastio;                                /* Unix time of the latest read, for timeout */
+  int repl_serve_stale_data;                                  /* Serve stale data when link is down? */
+  int repl_slave_ro;                                          /* Slave is read only? */
+  time_t repl_down_since;                                     /* Unix time at which link with master went down */
+  int repl_disable_tcp_nodelay;                               /* Disable TCP_NODELAY after SYNC? */
+  int slave_priority;                                         /* Reported in INFO and used by Sentinel. */
+  char repl_master_runid[REDIS_RUN_ID_SIZE + 1];              /* Master run id for PSYNC. */
+  long long repl_master_initial_offset;                       /* Master PSYNC offset. */
   /* Replication script cache. */
   dict *repl_scriptcache_dict;        /* SHA1 all slaves are aware of. */
   list *repl_scriptcache_fifo;        /* First in, first out LRU eviction. */
