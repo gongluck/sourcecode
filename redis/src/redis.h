@@ -468,20 +468,22 @@ typedef struct redisDb
   long long avg_ttl;                                      /* Average TTL, just for stats */
 } redisDb;
 
+//事务命令
 /* Client MULTI/EXEC state */
 typedef struct multiCmd
 {
-  robj **argv;
-  int argc;
-  struct redisCommand *cmd;
+  robj **argv;              //命令参数
+  int argc;                 //命令参数个数
+  struct redisCommand *cmd; //命令函数
 } multiCmd;
 
+//事务状态
 typedef struct multiState
 {
-  multiCmd *commands;         /* Array of MULTI commands */
-  int count;                  /* Total number of MULTI commands */
-  int minreplicas;            /* MINREPLICAS for synchronous replication */
-  time_t minreplicas_timeout; /* MINREPLICAS timeout as unixtime. */
+  multiCmd *commands; /* Array of MULTI commands */ //命令队列
+  int count; /* Total number of MULTI commands */   //命令数量
+  int minreplicas;                                  /* MINREPLICAS for synchronous replication */
+  time_t minreplicas_timeout;                       /* MINREPLICAS timeout as unixtime. */
 } multiState;
 
 /* This structure holds the blocking operation state for a client.
@@ -558,11 +560,11 @@ typedef struct redisClient
   long long repl_ack_time;                                                     /* replication ack time, if this is a slave */
   char replrunid[REDIS_RUN_ID_SIZE + 1];                                       /* master run id if this is a master */
   int slave_listening_port; /* As configured with: SLAVECONF listening-port */ //从服务器监听端口
-  multiState mstate;                                                           /* MULTI/EXEC state */
+  multiState mstate; /* MULTI/EXEC state */                                    //事务状态
   int btype;                                                                   /* Type of blocking op if REDIS_BLOCKED. */
   blockingState bpop;                                                          /* blocking state */
   long long woff;                                                              /* Last write global replication offset. */
-  list *watched_keys;                                                          /* Keys WATCHED for MULTI/EXEC CAS */
+  list *watched_keys; /* Keys WATCHED for MULTI/EXEC CAS */                    //正在监视的键
   dict *pubsub_channels;                                                       /* channels a client is interested in (SUBSCRIBE) */
   list *pubsub_patterns;                                                       /* patterns a client is interested in (SUBSCRIBE) */
   sds peerid;                                                                  /* Cached peer ID. */
@@ -896,10 +898,10 @@ struct redisServer
   time_t unixtime; /* Unix time sampled every cron cycle. */                //秒级时间戳
   long long mstime; /* Like 'unixtime' but with milliseconds resolution. */ //毫秒级时间戳
   /* Pubsub */
-  dict *pubsub_channels;      /* Map channels to list of subscribed clients */
-  list *pubsub_patterns;      /* A list of pubsub_patterns */
-  int notify_keyspace_events; /* Events to propagate via Pub/Sub. This is an
-                                 xor of REDIS_NOTIFY... flags. */
+  dict *pubsub_channels; /* Map channels to list of subscribed clients */ //频道订阅字典
+  list *pubsub_patterns; /* A list of pubsub_patterns */                  //模式订阅关系
+  int notify_keyspace_events;                                             /* Events to propagate via Pub/Sub. This is an
+                                                                             xor of REDIS_NOTIFY... flags. */
   /* Cluster */
   int cluster_enabled;               /* Is cluster enabled? */
   mstime_t cluster_node_timeout;     /* Cluster node timeout. */
@@ -934,10 +936,11 @@ struct redisServer
   int watchdog_period;  /* Software watchdog period in ms. 0 = off */
 };
 
+//模式订阅
 typedef struct pubsubPattern
 {
-  redisClient *client;
-  robj *pattern;
+  redisClient *client; //客户端
+  robj *pattern;       //模式匹配字符串
 } pubsubPattern;
 
 typedef void redisCommandProc(redisClient *c);
