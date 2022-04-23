@@ -706,7 +706,7 @@ struct redisServer
   int cfd_count;                              /* Used slots in cfd[] */
   list *clients; /* List of active clients */ //客户端列表
   list *clients_to_close;                     /* Clients to close asynchronously */
-  list *slaves, *monitors;                    /* List of slaves and MONITORs */
+  list *slaves, *monitors /*监视器*/;         /* List of slaves and MONITORs */
   redisClient *current_client;                /* Current client, only used on crash report */
   int clients_paused;                         /* True if clients are currently paused */
   mstime_t clients_pause_end_time;            /* Time when we undo clients_paused */
@@ -723,27 +723,27 @@ struct redisServer
   struct redisCommand *delCommand, *multiCommand, *lpushCommand, *lpopCommand,
       *rpopCommand;
   /* Fields used only for stats */
-  time_t stat_starttime;                                /* Server start time */
-  long long stat_numcommands;                           /* Number of processed commands */
-  long long stat_numconnections;                        /* Number of connections received */
-  long long stat_expiredkeys;                           /* Number of expired keys */
-  long long stat_evictedkeys;                           /* Number of evicted keys (maxmemory) */
-  long long stat_keyspace_hits;                         /* Number of successful lookups of keys */
-  long long stat_keyspace_misses;                       /* Number of failed lookups of keys */
-  size_t stat_peak_memory; /* Max used memory record */ //已用内存峰值
-  long long stat_fork_time;                             /* Time needed to perform latest fork() */
-  double stat_fork_rate;                                /* Fork rate in GB/sec. */
-  long long stat_rejected_conn;                         /* Clients rejected because of maxclients */
-  long long stat_sync_full;                             /* Number of full resyncs with slaves. */
-  long long stat_sync_partial_ok;                       /* Number of accepted PSYNC requests. */
-  long long stat_sync_partial_err;                      /* Number of unaccepted PSYNC requests. */
-  list *slowlog;                                        /* SLOWLOG list of commands */
-  long long slowlog_entry_id;                           /* SLOWLOG current entry ID */
-  long long slowlog_log_slower_than;                    /* SLOWLOG time limit (to get logged) */
-  unsigned long slowlog_max_len;                        /* SLOWLOG max number of items logged */
-  size_t resident_set_size;                             /* RSS sampled in serverCron(). */
-  long long stat_net_input_bytes;                       /* Bytes read from network. */
-  long long stat_net_output_bytes;                      /* Bytes written to network. */
+  time_t stat_starttime;                                                      /* Server start time */
+  long long stat_numcommands;                                                 /* Number of processed commands */
+  long long stat_numconnections;                                              /* Number of connections received */
+  long long stat_expiredkeys;                                                 /* Number of expired keys */
+  long long stat_evictedkeys;                                                 /* Number of evicted keys (maxmemory) */
+  long long stat_keyspace_hits;                                               /* Number of successful lookups of keys */
+  long long stat_keyspace_misses;                                             /* Number of failed lookups of keys */
+  size_t stat_peak_memory; /* Max used memory record */                       //已用内存峰值
+  long long stat_fork_time;                                                   /* Time needed to perform latest fork() */
+  double stat_fork_rate;                                                      /* Fork rate in GB/sec. */
+  long long stat_rejected_conn;                                               /* Clients rejected because of maxclients */
+  long long stat_sync_full;                                                   /* Number of full resyncs with slaves. */
+  long long stat_sync_partial_ok;                                             /* Number of accepted PSYNC requests. */
+  long long stat_sync_partial_err;                                            /* Number of unaccepted PSYNC requests. */
+  list *slowlog; /* SLOWLOG list of commands */                               //慢查询日志列表
+  long long slowlog_entry_id; /* SLOWLOG current entry ID */                  //下一条慢查询日志的标识ID
+  long long slowlog_log_slower_than; /* SLOWLOG time limit (to get logged) */ //慢查询日志最低时长
+  unsigned long slowlog_max_len; /* SLOWLOG max number of items logged */     //最多存储多少条慢查询日志
+  size_t resident_set_size;                                                   /* RSS sampled in serverCron(). */
+  long long stat_net_input_bytes;                                             /* Bytes read from network. */
+  long long stat_net_output_bytes;                                            /* Bytes written to network. */
   /* The following two are used to track instantaneous metrics, like
    * number of operations per second, network traffic. */
   struct
@@ -968,14 +968,15 @@ struct redisFunctionSym
   unsigned long pointer;
 };
 
+//排序对象
 typedef struct _redisSortObject
 {
-  robj *obj;
+  robj *obj; //被排序的对象
   union
   {
-    double score;
-    robj *cmpobj;
-  } u;
+    double score; //排序数字时使用
+    robj *cmpobj; //排序带有BY选项的字符串时使用
+  } u;            //权重
 } redisSortObject;
 
 typedef struct _redisSortOperation
