@@ -32,8 +32,8 @@ begbss:
 .text
 
 SETUPLEN = 4				! nr of setup-sectors
-BOOTSEG  = 0x07c0			! original address of boot-sector
-INITSEG  = 0x9000			! we move boot here - out of the way
+BOOTSEG  = 0x07c0			! original address of boot-sector			引导扇区的基地址
+INITSEG  = 0x9000			! we move boot here - out of the way	实际使用的起点基地址
 SETUPSEG = 0x9020			! setup starts here
 SYSSEG   = 0x1000			! system loaded at 0x10000 (65536).
 ENDSEG   = SYSSEG + SYSSIZE		! where to stop loading
@@ -44,26 +44,28 @@ ROOT_DEV = 0x306
 
 entry start
 start:
-	mov	ax,#BOOTSEG
-	mov	ds,ax
+	mov	ax,#BOOTSEG		! 保存引导扇区的基地址到通用寄存器ax
+	mov	ds,ax					! 通过ax将引导扇区的基地址写到数据段寄存器ds
 	mov	ax,#INITSEG
-	mov	es,ax
-	mov	cx,#256
-	sub	si,si
-	sub	di,di
-	rep
-	movw
-	jmpi	go,INITSEG
-go:	mov	ax,cs
-	mov	ds,ax
-	mov	es,ax
-! put stack at 0x9ff00.
-	mov	ss,ax
-	mov	sp,#0xFF00		! arbitrary value >>512
+	mov	es,ax					! 附加段寄存器es=0x9000
+	mov	cx,#256				! 计数寄存器cx=256
+	sub	si,si					! 源变址寄存器si=si-si=0
+	sub	di,di					! 目的变址寄存器di=di-di=0
+	rep								! 重复执行，直到cx==0
+	movw							! 从[ds:si]复制一个字到[es:di]
+	jmpi	go,INITSEG	! 段间跳转到[INITSEG:go]即[0x9000:go]
+go:	
+	mov	ax,cs					! 将代码段寄存器cs的值复制到ax
+	mov	ds,ax					! 数据段寄存器ds=ax=cs
+	mov	es,ax					! 扩展段寄存器es=ax=cs
+! put stack at 0x9ff00. 栈从0x9ff00向下发展
+	mov	ss,ax					! 栈段寄存器ss=ax=cs
+	mov	sp,#0xFF00		! arbitrary value >>512 栈顶寄存器sp=0xFF00
 
 ! load the setup-sectors directly after the bootblock.
 ! Note that 'es' is already set up.
 
+! 加载setup程序
 load_setup:
 	mov	dx,#0x0000		! drive 0, head 0
 	mov	cx,#0x0002		! sector 2, track 0
