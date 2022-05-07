@@ -81,8 +81,9 @@ void FrameDropper::Fill(size_t framesize_bytes, bool delta_frame) {
   if (!enabled_) {
     return;
   }
+  // B -> kb
   float framesize_kbits = 8.0f * static_cast<float>(framesize_bytes) / 1000.0f;
-  if (!delta_frame) {
+  if (!delta_frame) {  // key frame
     key_frame_ratio_.Apply(1.0, 1.0);
     // Do not spread if we are already doing it (or we risk dropping bits that
     // need accumulation). Given we compute the key frame ratio and spread
@@ -94,13 +95,15 @@ void FrameDropper::Fill(size_t framesize_bytes, bool delta_frame) {
             static_cast<int32_t>(1 / key_frame_ratio_.filtered() + 0.5);
       } else {
         large_frame_accumulation_count_ =
-            static_cast<int32_t>(large_frame_accumulation_spread_ + 0.5);
+            static_cast<int32_t>(large_frame_accumulation_spread_ +
+                                 0.5);  //+0.5保证每个分块不大于最大分块大小
       }
       large_frame_accumulation_chunk_size_ =
           framesize_kbits / large_frame_accumulation_count_;
+      //不统计大帧字节数
       framesize_kbits = 0;
     }
-  } else {
+  } else {  // other frame
     // Identify if it is an unusually large delta frame and spread accumulation
     // if that is the case.
     if (delta_frame_size_avg_kbits_.filtered() != -1 &&

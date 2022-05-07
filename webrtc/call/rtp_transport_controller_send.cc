@@ -582,6 +582,7 @@ void RtpTransportControllerSend::OnTransportFeedback(
                                                              feedback_time);
     if (feedback_msg) {
       if (controller_)
+        //从cc-controller中获取目标码率进行设置
         PostUpdates(controller_->OnTransportPacketsFeedback(*feedback_msg));
 
       // Only update outstanding data in pacer if any packet is first time
@@ -689,7 +690,9 @@ void RtpTransportControllerSend::PostUpdates(NetworkControlUpdate update) {
     pacer()->CreateProbeCluster(probe.target_data_rate, probe.id);
   }
   if (update.target_rate) {
+    // 目标码率更新了，生成目标码率
     control_handler_->SetTargetRate(*update.target_rate);
+    // 更新码率分配
     UpdateControlState();
   }
 }
