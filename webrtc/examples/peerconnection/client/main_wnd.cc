@@ -94,10 +94,15 @@ MainWnd::~MainWnd() {
 
 bool MainWnd::Create() {
   RTC_DCHECK(wnd_ == NULL);
+
+  //注册窗口类
   if (!RegisterWindowClass())
     return false;
 
+  //保存UI线程ID
   ui_thread_id_ = ::GetCurrentThreadId();
+
+  //创建窗口
   wnd_ =
       ::CreateWindowExW(WS_EX_OVERLAPPEDWINDOW, kClassName, L"WebRTC",
                         WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_CLIPCHILDREN,
@@ -107,7 +112,10 @@ bool MainWnd::Create() {
   ::SendMessage(wnd_, WM_SETFONT, reinterpret_cast<WPARAM>(GetDefaultFont()),
                 TRUE);
 
+  //创建子窗口
   CreateChildWindows();
+
+  //切换到连接页面
   SwitchToConnectUI();
 
   return wnd_ != NULL;
@@ -122,6 +130,7 @@ bool MainWnd::Destroy() {
   return ret != FALSE;
 }
 
+//注册观察者
 void MainWnd::RegisterObserver(MainWndCallback* callback) {
   callback_ = callback;
 }
@@ -137,6 +146,7 @@ bool MainWnd::PreTranslateMessage(MSG* msg) {
       HandleTabbing();
       ret = true;
     } else if (msg->wParam == VK_RETURN) {
+      //默认处理
       OnDefaultAction();
       ret = true;
     } else if (msg->wParam == VK_ESCAPE) {
@@ -149,6 +159,7 @@ bool MainWnd::PreTranslateMessage(MSG* msg) {
       }
     }
   } else if (msg->hwnd == NULL && msg->message == UI_THREAD_CALLBACK) {
+    //处理自定义消息
     callback_->UIThreadCallback(static_cast<int>(msg->wParam),
                                 reinterpret_cast<void*>(msg->lParam));
     ret = true;
@@ -156,13 +167,22 @@ bool MainWnd::PreTranslateMessage(MSG* msg) {
   return ret;
 }
 
+//切换到连接页面
 void MainWnd::SwitchToConnectUI() {
   RTC_DCHECK(IsWindow());
+
+  //隐藏对端列表页面
   LayoutPeerListUI(false);
+
+  //状态为准备连接到服务端
   ui_ = CONNECT_TO_SERVER;
+
+  //显示连接页面
   LayoutConnectUI(true);
+
   ::SetFocus(edit1_);
 
+  //自动连接
   if (auto_connect_)
     ::PostMessage(button_, BM_CLICK, 0, 0);
 }
@@ -330,6 +350,7 @@ void MainWnd::OnDestroyed() {
   PostQuitMessage(0);
 }
 
+//默认处理
 void MainWnd::OnDefaultAction() {
   if (!callback_)
     return;
@@ -337,12 +358,14 @@ void MainWnd::OnDefaultAction() {
     std::string server(GetWindowText(edit1_));
     std::string port_str(GetWindowText(edit2_));
     int port = port_str.length() ? atoi(port_str.c_str()) : 0;
+    //登录
     callback_->StartLogin(server, port);
   } else if (ui_ == LIST_PEERS) {
     LRESULT sel = ::SendMessage(listbox_, LB_GETCURSEL, 0, 0);
     if (sel != LB_ERR) {
       LRESULT peer_id = ::SendMessage(listbox_, LB_GETITEMDATA, sel, 0);
       if (peer_id != -1 && callback_) {
+        //连接对端
         callback_->ConnectToPeer(peer_id);
       }
     }
@@ -401,14 +424,17 @@ bool MainWnd::OnMessage(UINT msg, WPARAM wp, LPARAM lp, LRESULT* result) {
 }
 
 // static
+//窗口处理函数
 LRESULT CALLBACK MainWnd::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-  MainWnd* me =
-      reinterpret_cast<MainWnd*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+  MainWnd* me = reinterpret_cast<MainWnd*>(
+      ::GetWindowLongPtr(hwnd, GWLP_USERDATA));  //获取窗口自定义用户数据
   if (!me && WM_CREATE == msg) {
     CREATESTRUCT* cs = reinterpret_cast<CREATESTRUCT*>(lp);
     me = reinterpret_cast<MainWnd*>(cs->lpCreateParams);
     me->wnd_ = hwnd;
-    ::SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me));
+    ::SetWindowLongPtr(
+        hwnd, GWLP_USERDATA,
+        reinterpret_cast<LONG_PTR>(me));  //设置窗口自定义用户数据
   }
 
   LRESULT result = 0;
@@ -416,8 +442,9 @@ LRESULT CALLBACK MainWnd::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     void* prev_nested_msg = me->nested_msg_;
     me->nested_msg_ = &msg;
 
+    //处理消息
     bool handled = me->OnMessage(msg, wp, lp, &result);
-    if (WM_NCDESTROY == msg) {
+    if (WM_NCDESTROY == msg) {  //子窗口完成销毁
       me->destroyed_ = true;
     } else if (!handled) {
       result = ::DefWindowProc(hwnd, msg, wp, lp);
@@ -447,13 +474,15 @@ bool MainWnd::RegisterWindowClass() {
   wcex.hInstance = GetModuleHandle(NULL);
   wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
   wcex.hCursor = ::LoadCursor(NULL, IDC_ARROW);
-  wcex.lpfnWndProc = &WndProc;
-  wcex.lpszClassName = kClassName;
+  wcex.lpfnWndProc = &WndProc;      //窗口处理函数
+  wcex.lpszClassName = kClassName;  //窗口类名称
+  //注册窗口类
   wnd_class_ = ::RegisterClassExW(&wcex);
   RTC_DCHECK(wnd_class_ != 0);
   return wnd_class_ != 0;
 }
 
+//创建子窗口
 void MainWnd::CreateChildWindow(HWND* wnd,
                                 MainWnd::ChildWindowID id,
                                 const wchar_t* class_name,
@@ -464,14 +493,16 @@ void MainWnd::CreateChildWindow(HWND* wnd,
 
   // Child windows are invisible at first, and shown after being resized.
   DWORD style = WS_CHILD | control_style;
-  *wnd = ::CreateWindowExW(ex_style, class_name, L"", style, 100, 100, 100, 100,
-                           wnd_, reinterpret_cast<HMENU>(id),
-                           GetModuleHandle(NULL), NULL);
+  //创建子窗口
+  *wnd = ::CreateWindowExW(
+      ex_style, class_name, L"", style, 100, 100, 100, 100, wnd_ /*父窗口*/,
+      reinterpret_cast<HMENU>(id) /*子窗口ID*/, GetModuleHandle(NULL), NULL);
   RTC_DCHECK(::IsWindow(*wnd) != FALSE);
   ::SendMessage(*wnd, WM_SETFONT, reinterpret_cast<WPARAM>(GetDefaultFont()),
                 TRUE);
 }
 
+//创建子窗口
 void MainWnd::CreateChildWindows() {
   // Create the child windows in tab order.
   CreateChildWindow(&label1_, LABEL1_ID, L"Static", ES_CENTER | ES_READONLY, 0);
@@ -489,6 +520,7 @@ void MainWnd::CreateChildWindows() {
   ::SetWindowTextA(edit2_, port_.c_str());
 }
 
+//连接页面
 void MainWnd::LayoutConnectUI(bool show) {
   struct Windows {
     HWND wnd;
@@ -532,6 +564,7 @@ void MainWnd::LayoutConnectUI(bool show) {
   }
 }
 
+//对端列表页面
 void MainWnd::LayoutPeerListUI(bool show) {
   if (show) {
     RECT rc;

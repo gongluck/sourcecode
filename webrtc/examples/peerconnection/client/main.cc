@@ -70,6 +70,8 @@ WindowsCommandLineArguments::WindowsCommandLineArguments() {
 }
 
 }  // namespace
+
+// windows程序入口
 int PASCAL wWinMain(HINSTANCE instance,
                     HINSTANCE prev_instance,
                     wchar_t* cmd_line,
@@ -98,6 +100,8 @@ int PASCAL wWinMain(HINSTANCE instance,
   }
 
   const std::string server = absl::GetFlag(FLAGS_server);
+
+  //创建窗口
   MainWnd wnd(server.c_str(), absl::GetFlag(FLAGS_port),
               absl::GetFlag(FLAGS_autoconnect), absl::GetFlag(FLAGS_autocall));
   if (!wnd.Create()) {
@@ -107,15 +111,20 @@ int PASCAL wWinMain(HINSTANCE instance,
 
   rtc::InitializeSSL();
   PeerConnectionClient client;
+
+  //控制器
   rtc::scoped_refptr<Conductor> conductor(
       new rtc::RefCountedObject<Conductor>(&client, &wnd));
 
   // Main loop.
   MSG msg;
   BOOL gm;
+  //消息循环
   while ((gm = ::GetMessage(&msg, NULL, 0, 0)) != 0 && gm != -1) {
-    if (!wnd.PreTranslateMessage(&msg)) {
+    if (!wnd.PreTranslateMessage(&msg) /*消息预处理*/) {
+      //转换消息
       ::TranslateMessage(&msg);
+      //分发消息
       ::DispatchMessage(&msg);
     }
   }

@@ -42,6 +42,7 @@ class MainWindow {
  public:
   virtual ~MainWindow() {}
 
+  // UI状态机
   enum UI {
     CONNECT_TO_SERVER,
     LIST_PEERS,
@@ -72,10 +73,12 @@ class MainWindow {
 
 #ifdef WIN32
 
+//窗口类
 class MainWnd : public MainWindow {
  public:
   static const wchar_t kClassName[];
 
+  //自定义消息
   enum WindowMessages {
     UI_THREAD_CALLBACK = WM_APP + 1,
   };
@@ -150,6 +153,7 @@ class MainWnd : public MainWindow {
   };
 
  protected:
+  //子窗口ID
   enum ChildWindowID {
     EDIT_ID = 1,
     BUTTON_ID,
