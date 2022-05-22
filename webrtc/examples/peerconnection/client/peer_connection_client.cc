@@ -101,6 +101,7 @@ void PeerConnectionClient::Connect(const std::string& server,
     resolver_->SignalDone.connect(this, &PeerConnectionClient::OnResolveResult);
     resolver_->Start(server_address_);
   } else {
+    //连接服务器
     DoConnect();
   }
 }
@@ -119,14 +120,18 @@ void PeerConnectionClient::OnResolveResult(
 }
 
 void PeerConnectionClient::DoConnect() {
+  //信令套接字
   control_socket_.reset(CreateClientSocket(server_address_.ipaddr().family()));
+  //获取信息套接字
   hanging_get_.reset(CreateClientSocket(server_address_.ipaddr().family()));
+  //注册套接字回调
   InitSocketSignals();
   char buffer[1024];
   snprintf(buffer, sizeof(buffer), "GET /sign_in?%s HTTP/1.0\r\n\r\n",
            client_name_.c_str());
   onconnect_data_ = buffer;
 
+  //连接信令套接字
   bool ret = ConnectControlSocket();
   if (ret)
     state_ = SIGNING_IN;
@@ -215,15 +220,19 @@ bool PeerConnectionClient::ConnectControlSocket() {
   return true;
 }
 
+//连接成功
 void PeerConnectionClient::OnConnect(rtc::Socket* socket) {
   RTC_DCHECK(!onconnect_data_.empty());
+  //套接字连接成功 发送消息
   size_t sent = socket->Send(onconnect_data_.c_str(), onconnect_data_.length());
   RTC_DCHECK(sent == onconnect_data_.length());
   onconnect_data_.clear();
 }
 
+//连接成功
 void PeerConnectionClient::OnHangingGetConnect(rtc::Socket* socket) {
   char buffer[1024];
+  //发送WAIT请求
   snprintf(buffer, sizeof(buffer), "GET /wait?peer_id=%i HTTP/1.0\r\n\r\n",
            my_id_);
   int len = static_cast<int>(strlen(buffer));
@@ -231,6 +240,7 @@ void PeerConnectionClient::OnHangingGetConnect(rtc::Socket* socket) {
   RTC_DCHECK(sent == len);
 }
 
+//处理对端发送消息
 void PeerConnectionClient::OnMessageFromPeer(int peer_id,
                                              const std::string& message) {
   if (message.length() == (sizeof(kByeMessage) - 1) &&
@@ -241,6 +251,7 @@ void PeerConnectionClient::OnMessageFromPeer(int peer_id,
   }
 }
 
+//获取HTTP头参数
 bool PeerConnectionClient::GetHeaderValue(const std::string& data,
                                           size_t eoh,
                                           const char* header_pattern,
@@ -254,6 +265,7 @@ bool PeerConnectionClient::GetHeaderValue(const std::string& data,
   return false;
 }
 
+//获取HTTP头参数
 bool PeerConnectionClient::GetHeaderValue(const std::string& data,
                                           size_t eoh,
                                           const char* header_pattern,
@@ -271,11 +283,13 @@ bool PeerConnectionClient::GetHeaderValue(const std::string& data,
   return false;
 }
 
+//读取消息
 bool PeerConnectionClient::ReadIntoBuffer(rtc::Socket* socket,
                                           std::string* data,
                                           size_t* content_length) {
   char buffer[0xffff];
   do {
+    //读数据到缓冲区
     int bytes = socket->Recv(buffer, sizeof(buffer), nullptr);
     if (bytes <= 0)
       break;
@@ -283,15 +297,18 @@ bool PeerConnectionClient::ReadIntoBuffer(rtc::Socket* socket,
   } while (true);
 
   bool ret = false;
+  // HTTP头结束标记
   size_t i = data->find("\r\n\r\n");
   if (i != std::string::npos) {
     RTC_LOG(LS_INFO) << "Headers received";
+    //读取Content-Length
     if (GetHeaderValue(*data, i, "\r\nContent-Length: ", content_length)) {
       size_t total_response_size = (i + 4) + *content_length;
       if (data->length() >= total_response_size) {
         ret = true;
         std::string should_close;
         const char kConnection[] = "\r\nConnection: ";
+        //读取Connection
         if (GetHeaderValue(*data, i, kConnection, &should_close) &&
             should_close.compare("close") == 0) {
           socket->Close();
@@ -309,10 +326,13 @@ bool PeerConnectionClient::ReadIntoBuffer(rtc::Socket* socket,
   return ret;
 }
 
+//接收套接字消息
 void PeerConnectionClient::OnRead(rtc::Socket* socket) {
   size_t content_length = 0;
+  //读数据到缓冲区
   if (ReadIntoBuffer(socket, &control_data_, &content_length)) {
     size_t peer_id = 0, eoh = 0;
+    //解析HTTP应答
     bool ok =
         ParseServerResponse(control_data_, content_length, &peer_id, &eoh);
     if (ok) {
@@ -332,10 +352,12 @@ void PeerConnectionClient::OnRead(rtc::Socket* socket) {
             int id = 0;
             std::string name;
             bool connected;
+            //解析节点信息
             if (ParseEntry(control_data_.substr(pos, eol - pos), &name, &id,
                            &connected) &&
                 id != my_id_) {
               peers_[id] = name;
+              //有对端登录成功
               callback_->OnPeerConnected(id, name);
             }
             pos = eol + 1;
@@ -353,19 +375,24 @@ void PeerConnectionClient::OnRead(rtc::Socket* socket) {
 
     control_data_.clear();
 
+    //登录成功
     if (state_ == SIGNING_IN) {
       RTC_DCHECK(hanging_get_->GetState() == rtc::Socket::CS_CLOSED);
       state_ = CONNECTED;
+      //连接获取信息套接字
       hanging_get_->Connect(server_address_);
     }
   }
 }
 
+//接收消息
 void PeerConnectionClient::OnHangingGetRead(rtc::Socket* socket) {
   RTC_LOG(LS_INFO) << __FUNCTION__;
   size_t content_length = 0;
+  //读消息到缓冲区
   if (ReadIntoBuffer(socket, &notification_data_, &content_length)) {
     size_t peer_id = 0, eoh = 0;
+    //解析HTTP
     bool ok =
         ParseServerResponse(notification_data_, content_length, &peer_id, &eoh);
 
@@ -379,6 +406,7 @@ void PeerConnectionClient::OnHangingGetRead(rtc::Socket* socket) {
         int id = 0;
         std::string name;
         bool connected = false;
+        //解析节点信息
         if (ParseEntry(notification_data_.substr(pos), &name, &id,
                        &connected)) {
           if (connected) {
@@ -390,6 +418,7 @@ void PeerConnectionClient::OnHangingGetRead(rtc::Socket* socket) {
           }
         }
       } else {
+        //处理对端发送消息
         OnMessageFromPeer(static_cast<int>(peer_id),
                           notification_data_.substr(pos));
       }
@@ -426,6 +455,7 @@ bool PeerConnectionClient::ParseEntry(const std::string& entry,
   return !name->empty();
 }
 
+//解析STATUS
 int PeerConnectionClient::GetResponseStatus(const std::string& response) {
   int status = -1;
   size_t pos = response.find(' ');
@@ -434,10 +464,12 @@ int PeerConnectionClient::GetResponseStatus(const std::string& response) {
   return status;
 }
 
+//解析HTTP应答
 bool PeerConnectionClient::ParseServerResponse(const std::string& response,
                                                size_t content_length,
                                                size_t* peer_id,
                                                size_t* eoh) {
+  //解析STATUS
   int status = GetResponseStatus(response.c_str());
   if (status != 200) {
     RTC_LOG(LS_ERROR) << "Received error from server";
@@ -453,6 +485,7 @@ bool PeerConnectionClient::ParseServerResponse(const std::string& response,
 
   *peer_id = -1;
 
+  //解析Pragma
   // See comment in peer_channel.cc for why we use the Pragma header.
   GetHeaderValue(response, *eoh, "\r\nPragma: ", peer_id);
 

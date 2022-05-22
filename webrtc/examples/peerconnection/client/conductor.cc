@@ -274,6 +274,7 @@ void Conductor::OnDisconnected() {
     main_wnd_->SwitchToConnectUI();
 }
 
+//检测到已有对端登录
 void Conductor::OnPeerConnected(int id, const std::string& name) {
   RTC_LOG(LS_INFO) << __FUNCTION__;
   // Refresh the list if we're showing it.
@@ -411,10 +412,12 @@ void Conductor::OnServerConnectionFailure() {
 // MainWndCallback implementation.
 //
 
+//登录
 void Conductor::StartLogin(const std::string& server, int port) {
   if (client_->is_connected())
     return;
   server_ = server;
+  //连接服务器
   client_->Connect(server, port, GetPeerName());
 }
 
