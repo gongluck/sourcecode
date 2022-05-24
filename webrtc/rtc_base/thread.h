@@ -101,10 +101,12 @@ class MessageWithFunctor final : public MessageLikeTask {
 
 }  // namespace rtc_thread_internal
 
+//线程管理类
 class RTC_EXPORT ThreadManager {
  public:
   static const int kForever = -1;
 
+  //单例
   // Singleton, constructor and destructor are private.
   static ThreadManager* Instance();
 
@@ -161,6 +163,7 @@ class RTC_EXPORT ThreadManager {
   void RemoveFromSendGraph(Thread* thread) RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_);
 #endif
 
+  //保存线程对象
   // This list contains all live Threads.
   std::vector<Thread*> message_queues_ RTC_GUARDED_BY(crit_);
 
@@ -323,9 +326,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
   // Amount of time until the next message can be retrieved
   virtual int GetDelay();
 
-  bool empty() const {
-    return size() == 0u;
-  }
+  bool empty() const { return size() == 0u; }
   size_t size() const {
     CritScope cs(&crit_);
     return messages_.size() + delayed_messages_.size() + (fPeekKeep_ ? 1u : 0u);
@@ -348,9 +349,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
 
   // Sets the thread's name, for debugging. Must be called before Start().
   // If `obj` is non-null, its value is appended to `name`.
-  const std::string& name() const {
-    return name_;
-  }
+  const std::string& name() const { return name_; }
   bool SetName(const std::string& name, const void* obj);
 
   // Sets the expected processing time in ms. The thread will write
@@ -493,9 +492,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
   // call this likely do not have enough control/knowledge of the Thread in
   // question to guarantee that the returned value remains true for the duration
   // of whatever code is conditionally executing because of the return value!
-  bool RunningForTest() {
-    return IsRunning();
-  }
+  bool RunningForTest() { return IsRunning(); }
 
   // These functions are public to avoid injecting test hooks. Don't call them
   // outside of tests.
@@ -508,9 +505,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
 
   // Sets the per-thread allow-blocking-calls flag to false; this is
   // irrevocable. Must be called on this thread.
-  void DisallowBlockingCalls() {
-    SetAllowBlockingCalls(false);
-  }
+  void DisallowBlockingCalls() { SetAllowBlockingCalls(false); }
 
  protected:
   class CurrentThreadSetter : CurrentTaskQueueSetter {
@@ -596,9 +591,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
 
   friend class ScopedDisallowBlockingCalls;
 
-  RecursiveCriticalSection* CritForTest() {
-    return &crit_;
-  }
+  RecursiveCriticalSection* CritForTest() { return &crit_; }
 
  private:
   static const int kSlowDispatchLoggingThreshold = 50;  // 50 ms

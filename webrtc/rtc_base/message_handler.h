@@ -21,10 +21,12 @@ namespace rtc {
 
 struct Message;
 
+//消息处理接口
 // MessageQueue/Thread Messages get dispatched via the MessageHandler interface.
 class RTC_EXPORT MessageHandler {
  public:
   virtual ~MessageHandler() {}
+  //消息处理
   virtual void OnMessage(Message* msg) = 0;
 };
 

@@ -71,10 +71,12 @@ class ScopedAutoReleasePool {
 namespace rtc {
 namespace {
 
+//消息处理任务
 class MessageHandlerWithTask final : public MessageHandler {
  public:
   MessageHandlerWithTask() {}
 
+  //执行消息处理
   void OnMessage(Message* msg) override {
     static_cast<rtc_thread_internal::MessageLikeTask*>(msg->pdata)->Run();
     delete msg->pdata;
@@ -417,7 +419,7 @@ void Thread::DoInit() {
   }
 
   fInitialized_ = true;
-  //添加本线程到管理集合钟
+  //添加本线程到管理集合中
   ThreadManager::Add(this);
 }
 
@@ -703,6 +705,7 @@ void Thread::ClearInternal(MessageHandler* phandler,
   delayed_messages_.reheap();
 }
 
+//分发处理消息
 void Thread::Dispatch(Message* pmsg) {
   TRACE_EVENT2("webrtc", "Thread::Dispatch", "src_file",
                pmsg->posted_from.file_name(), "src_func",
@@ -876,6 +879,7 @@ void Thread::AssertBlockingIsAllowedOnCurrentThread() {
 #endif
 }
 
+//线程入口PreRun
 // static
 #if defined(WEBRTC_WIN)
 DWORD WINAPI Thread::PreRun(LPVOID pv) {
@@ -898,6 +902,7 @@ void* Thread::PreRun(void* pv) {
 #endif
 }  // namespace rtc
 
+//线程对象执行
 void Thread::Run() {
   ProcessMessages(kForever);
 }
