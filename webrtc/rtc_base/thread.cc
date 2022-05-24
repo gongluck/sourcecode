@@ -417,6 +417,7 @@ void Thread::DoInit() {
   }
 
   fInitialized_ = true;
+  //添加本线程到管理集合钟
   ThreadManager::Add(this);
 }
 
@@ -1220,6 +1221,7 @@ AutoSocketServerThread::AutoSocketServerThread(SocketServer* ss)
   // Temporarily set the current thread to nullptr so that we can keep checks
   // around that catch unintentional pointer overwrites.
   rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
+  //设置当前线程对象
   rtc::ThreadManager::Instance()->SetCurrentThread(this);
   if (old_thread_) {
     ThreadManager::Remove(old_thread_);
@@ -1240,6 +1242,7 @@ AutoSocketServerThread::~AutoSocketServerThread() {
   Stop();
   DoDestroy();
   rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
+  //还原当前线程对象
   rtc::ThreadManager::Instance()->SetCurrentThread(old_thread_);
   if (old_thread_) {
     ThreadManager::Add(old_thread_);

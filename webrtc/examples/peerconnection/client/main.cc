@@ -76,8 +76,11 @@ int PASCAL wWinMain(HINSTANCE instance,
                     HINSTANCE prev_instance,
                     wchar_t* cmd_line,
                     int cmd_show) {
+  // windows网络初始化
   rtc::WinsockInitializer winsock_init;
+  //套接字服务
   rtc::PhysicalSocketServer ss;
+  //自动管理生存期的套接字服务线程
   rtc::AutoSocketServerThread main_thread(&ss);
 
   WindowsCommandLineArguments win_args;

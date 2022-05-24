@@ -19,6 +19,7 @@
 
 namespace rtc {
 
+// windows网络初始化
 class WinsockInitializer {
  public:
   WinsockInitializer() {

@@ -61,6 +61,7 @@ class Dispatcher {
 #endif
 };
 
+//处理网络消息的套接字服务
 // A socket server that provides the real sockets of the underlying OS.
 class RTC_EXPORT PhysicalSocketServer : public SocketServer {
  public:
