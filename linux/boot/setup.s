@@ -109,6 +109,7 @@ is_disk1:
 	cli			! no interrupts allowed !
 
 ! first we move the system to it's rightful place
+! 移动system模块到0x00000处
 
 	mov	ax,#0x0000
 	cld			! 'direction'=0, movs moves forward
@@ -126,6 +127,7 @@ do_move:
 	jmp	do_move
 
 ! then we load the segment descriptors
+! 加载段描述符
 
 end_move:
 	mov	ax,#SETUPSEG	! right, forgot this at first. didn't work :-)

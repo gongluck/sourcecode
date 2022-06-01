@@ -3,7 +3,7 @@
 ! 0x3000 is 0x30000 bytes = 196kB, more than enough for current
 ! versions of linux
 !
-SYSSIZE = 0x3000
+SYSSIZE = 0x3000 !要加载的字节数 192kB
 !
 !	bootsect.s		(C) 1991 Linus Torvalds
 !
@@ -27,11 +27,11 @@ SYSSIZE = 0x3000
 begtext:
 .data
 begdata:
-.bss
+.bss  !未初始化数据段
 begbss:
 .text
 
-SETUPLEN = 4				! nr of setup-sectors
+SETUPLEN = 4				  ! nr of setup-sectors
 BOOTSEG  = 0x07c0			! original address of boot-sector			引导扇区的基地址
 INITSEG  = 0x9000			! we move boot here - out of the way	实际使用的起点基地址
 SETUPSEG = 0x9020			! setup starts here
@@ -65,7 +65,7 @@ go:
 ! load the setup-sectors directly after the bootblock.
 ! Note that 'es' is already set up.
 
-! 加载setup程序
+! 加载setup程序到0x90200开始处
 load_setup:
 	mov	dx,#0x0000		! drive 0, head 0
 	mov	cx,#0x0002		! sector 2, track 0
@@ -81,7 +81,7 @@ load_setup:
 ok_load_setup:
 
 ! Get disk drive parameters, specifically nr of sectors/track
-
+! 获取磁盘驱动器参数
 	mov	dl,#0x00
 	mov	ax,#0x0800		! AH=8 is get drive parameters
 	int	0x13
@@ -92,6 +92,7 @@ ok_load_setup:
 	mov	es,ax
 
 ! Print some inane message
+! 显示"Loading system ..."
 
 	mov	ah,#0x03		! read cursor pos
 	xor	bh,bh
@@ -105,6 +106,7 @@ ok_load_setup:
 
 ! ok, we've written the message, now
 ! we want to load the system (at 0x10000)
+! 加载system模块到0x10000处
 
 	mov	ax,#SYSSEG
 	mov	es,ax		! segment of 0x010000
@@ -137,6 +139,7 @@ root_defined:
 ! after that (everyting loaded), we jump to
 ! the setup-routine loaded directly after
 ! the bootblock:
+! 加载完成 跳转到setup程序开始处
 
 	jmpi	0,SETUPSEG
 
