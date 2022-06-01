@@ -20,10 +20,7 @@
  * won't be any messing with the stack from main(), but we define
  * some others too.
  */
-static inline _syscall0(int,fork)
-static inline _syscall0(int,pause)
-static inline _syscall1(int,setup,void *,BIOS)
-static inline _syscall0(int,sync)
+static inline _syscall0(int, fork) static inline _syscall0(int, pause) static inline _syscall1(int, setup, void *, BIOS) static inline _syscall0(int, sync)
 
 #include <linux/tty.h>
 #include <linux/sched.h>
@@ -39,7 +36,7 @@ static inline _syscall0(int,sync)
 
 #include <linux/fs.h>
 
-static char printbuf[1024];
+		static char printbuf[1024];
 
 extern int vsprintf();
 extern void init(void);
@@ -49,7 +46,7 @@ extern void hd_init(void);
 extern void floppy_init(void);
 extern void mem_init(long start, long end);
 extern long rd_init(long mem_start, int length);
-extern long kernel_mktime(struct tm * tm);
+extern long kernel_mktime(struct tm *tm);
 extern long startup_time;
 
 /*
@@ -66,18 +63,19 @@ extern long startup_time;
  * bios-listing reading. Urghh.
  */
 
-#define CMOS_READ(addr) ({ \
-outb_p(0x80|addr,0x70); \
-inb_p(0x71); \
+#define CMOS_READ(addr) ({   \
+	outb_p(0x80 | addr, 0x70); \
+	inb_p(0x71);               \
 })
 
-#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
+#define BCD_TO_BIN(val) ((val) = ((val)&15) + ((val) >> 4) * 10)
 
 static void time_init(void)
 {
 	struct tm time;
 
-	do {
+	do
+	{
 		time.tm_sec = CMOS_READ(0);
 		time.tm_min = CMOS_READ(2);
 		time.tm_hour = CMOS_READ(4);
@@ -99,31 +97,35 @@ static long memory_end = 0;
 static long buffer_memory_end = 0;
 static long main_memory_start = 0;
 
-struct drive_info { char dummy[32]; } drive_info;
+struct drive_info
+{
+	char dummy[32];
+} drive_info;
 
-void main(void)		/* This really IS void, no error here. */
-{			/* The startup routine assumes (well, ...) this */
-/*
- * Interrupts are still disabled. Do necessary setups, then
- * enable them
- */
- 	ROOT_DEV = ORIG_ROOT_DEV;
- 	drive_info = DRIVE_INFO;
-	memory_end = (1<<20) + (EXT_MEM_K<<10);
+//系统(逻辑)起点
+void main(void) /* This really IS void, no error here. */
+{								/* The startup routine assumes (well, ...) this */
+								/*
+								 * Interrupts are still disabled. Do necessary setups, then
+								 * enable them
+								 */
+	ROOT_DEV = ORIG_ROOT_DEV;
+	drive_info = DRIVE_INFO;
+	memory_end = (1 << 20) + (EXT_MEM_K << 10);
 	memory_end &= 0xfffff000;
-	if (memory_end > 16*1024*1024)
-		memory_end = 16*1024*1024;
-	if (memory_end > 12*1024*1024) 
-		buffer_memory_end = 4*1024*1024;
-	else if (memory_end > 6*1024*1024)
-		buffer_memory_end = 2*1024*1024;
+	if (memory_end > 16 * 1024 * 1024)
+		memory_end = 16 * 1024 * 1024;
+	if (memory_end > 12 * 1024 * 1024)
+		buffer_memory_end = 4 * 1024 * 1024;
+	else if (memory_end > 6 * 1024 * 1024)
+		buffer_memory_end = 2 * 1024 * 1024;
 	else
-		buffer_memory_end = 1*1024*1024;
+		buffer_memory_end = 1 * 1024 * 1024;
 	main_memory_start = buffer_memory_end;
 #ifdef RAMDISK
-	main_memory_start += rd_init(main_memory_start, RAMDISK*1024);
+	main_memory_start += rd_init(main_memory_start, RAMDISK * 1024);
 #endif
-	mem_init(main_memory_start,memory_end);
+	mem_init(main_memory_start, memory_end);
 	trap_init();
 	blk_dev_init();
 	chr_dev_init();
@@ -135,17 +137,19 @@ void main(void)		/* This really IS void, no error here. */
 	floppy_init();
 	sti();
 	move_to_user_mode();
-	if (!fork()) {		/* we count on this going ok */
+	if (!fork())
+	{ /* we count on this going ok */
 		init();
 	}
-/*
- *   NOTE!!   For any other task 'pause()' would mean we have to get a
- * signal to awaken, but task0 is the sole exception (see 'schedule()')
- * as task 0 gets activated at every idle moment (when no other tasks
- * can run). For task0 'pause()' just means we go check if some other
- * task can run, and if not we return here.
- */
-	for(;;) pause();
+	/*
+	 *   NOTE!!   For any other task 'pause()' would mean we have to get a
+	 * signal to awaken, but task0 is the sole exception (see 'schedule()')
+	 * as task 0 gets activated at every idle moment (when no other tasks
+	 * can run). For task0 'pause()' just means we go check if some other
+	 * task can run, and if not we return here.
+	 */
+	for (;;)
+		pause();
 }
 
 static int printf(const char *fmt, ...)
@@ -154,56 +158,62 @@ static int printf(const char *fmt, ...)
 	int i;
 
 	va_start(args, fmt);
-	write(1,printbuf,i=vsprintf(printbuf, fmt, args));
+	write(1, printbuf, i = vsprintf(printbuf, fmt, args));
 	va_end(args);
 	return i;
 }
 
-static char * argv_rc[] = { "/bin/sh", NULL };
-static char * envp_rc[] = { "HOME=/", NULL };
+static char *argv_rc[] = {"/bin/sh", NULL};
+static char *envp_rc[] = {"HOME=/", NULL};
 
-static char * argv[] = { "-/bin/sh",NULL };
-static char * envp[] = { "HOME=/usr/root", NULL };
+static char *argv[] = {"-/bin/sh", NULL};
+static char *envp[] = {"HOME=/usr/root", NULL};
 
 void init(void)
 {
-	int pid,i;
+	int pid, i;
 
-	setup((void *) &drive_info);
-	(void) open("/dev/tty0",O_RDWR,0);
-	(void) dup(0);
-	(void) dup(0);
-	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
-		NR_BUFFERS*BLOCK_SIZE);
-	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
-	if (!(pid=fork())) {
+	setup((void *)&drive_info);
+	(void)open("/dev/tty0", O_RDWR, 0);
+	(void)dup(0);
+	(void)dup(0);
+	printf("%d buffers = %d bytes buffer space\n\r", NR_BUFFERS,
+				 NR_BUFFERS * BLOCK_SIZE);
+	printf("Free mem: %d bytes\n\r", memory_end - main_memory_start);
+	if (!(pid = fork()))
+	{
 		close(0);
-		if (open("/etc/rc",O_RDONLY,0))
+		if (open("/etc/rc", O_RDONLY, 0))
 			_exit(1);
-		execve("/bin/sh",argv_rc,envp_rc);
+		execve("/bin/sh", argv_rc, envp_rc);
 		_exit(2);
 	}
-	if (pid>0)
+	if (pid > 0)
 		while (pid != wait(&i))
 			/* nothing */;
-	while (1) {
-		if ((pid=fork())<0) {
+	while (1)
+	{
+		if ((pid = fork()) < 0)
+		{
 			printf("Fork failed in init\r\n");
 			continue;
 		}
-		if (!pid) {
-			close(0);close(1);close(2);
+		if (!pid)
+		{
+			close(0);
+			close(1);
+			close(2);
 			setsid();
-			(void) open("/dev/tty0",O_RDWR,0);
-			(void) dup(0);
-			(void) dup(0);
-			_exit(execve("/bin/sh",argv,envp));
+			(void)open("/dev/tty0", O_RDWR, 0);
+			(void)dup(0);
+			(void)dup(0);
+			_exit(execve("/bin/sh", argv, envp));
 		}
 		while (1)
 			if (pid == wait(&i))
 				break;
-		printf("\n\rchild %d died with code %04x\n\r",pid,i);
+		printf("\n\rchild %d died with code %04x\n\r", pid, i);
 		sync();
 	}
-	_exit(0);	/* NOTE! _exit, not exit() */
+	_exit(0); /* NOTE! _exit, not exit() */
 }
