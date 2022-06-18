@@ -24,3 +24,4 @@ redis-3.0.0/
 
 #linux-3.10
 linux-3.10/arch/microblaze/boot/dts/system.dts
+linux-3.10/drivers/gpu/drm/nouveau/core/subdev/i2c/aux.c
