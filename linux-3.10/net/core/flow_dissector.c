@@ -21,7 +21,7 @@
 static void iph_to_flow_copy_addrs(struct flow_keys *flow, const struct iphdr *iph)
 {
 	BUILD_BUG_ON(offsetof(typeof(*flow), dst) !=
-		     offsetof(typeof(*flow), src) + sizeof(flow->src));
+							 offsetof(typeof(*flow), src) + sizeof(flow->src));
 	memcpy(&flow->src, &iph->saddr, sizeof(flow->src) + sizeof(flow->dst));
 }
 
@@ -34,11 +34,13 @@ bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 	memset(flow, 0, sizeof(*flow));
 
 again:
-	switch (proto) {
-	case __constant_htons(ETH_P_IP): {
+	switch (proto)
+	{
+	case __constant_htons(ETH_P_IP):
+	{
 		const struct iphdr *iph;
 		struct iphdr _iph;
-ip:
+	ip:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 		if (!iph)
 			return false;
@@ -51,10 +53,11 @@ ip:
 		nhoff += iph->ihl * 4;
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6): {
+	case __constant_htons(ETH_P_IPV6):
+	{
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
-ipv6:
+	ipv6:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 		if (!iph)
 			return false;
@@ -65,7 +68,8 @@ ipv6:
 		nhoff += sizeof(struct ipv6hdr);
 		break;
 	}
-	case __constant_htons(ETH_P_8021Q): {
+	case __constant_htons(ETH_P_8021Q):
+	{
 		const struct vlan_hdr *vlan;
 		struct vlan_hdr _vlan;
 
@@ -77,17 +81,20 @@ ipv6:
 		nhoff += sizeof(*vlan);
 		goto again;
 	}
-	case __constant_htons(ETH_P_PPP_SES): {
-		struct {
+	case __constant_htons(ETH_P_PPP_SES):
+	{
+		struct
+		{
 			struct pppoe_hdr hdr;
 			__be16 proto;
-		} *hdr, _hdr;
+		} * hdr, _hdr;
 		hdr = skb_header_pointer(skb, nhoff, sizeof(_hdr), &_hdr);
 		if (!hdr)
 			return false;
 		proto = hdr->proto;
 		nhoff += PPPOE_SES_HLEN;
-		switch (proto) {
+		switch (proto)
+		{
 		case __constant_htons(PPP_IP):
 			goto ip;
 		case __constant_htons(PPP_IPV6):
@@ -100,12 +107,15 @@ ipv6:
 		return false;
 	}
 
-	switch (ip_proto) {
-	case IPPROTO_GRE: {
-		struct gre_hdr {
+	switch (ip_proto)
+	{
+	case IPPROTO_GRE:
+	{
+		struct gre_hdr
+		{
 			__be16 flags;
 			__be16 proto;
-		} *hdr, _hdr;
+		} * hdr, _hdr;
 
 		hdr = skb_header_pointer(skb, nhoff, sizeof(_hdr), &_hdr);
 		if (!hdr)
@@ -114,7 +124,8 @@ ipv6:
 		 * Only look inside GRE if version zero and no
 		 * routing
 		 */
-		if (!(hdr->flags & (GRE_VERSION|GRE_ROUTING))) {
+		if (!(hdr->flags & (GRE_VERSION | GRE_ROUTING)))
+		{
 			proto = hdr->proto;
 			nhoff += 4;
 			if (hdr->flags & GRE_CSUM)
@@ -123,12 +134,13 @@ ipv6:
 				nhoff += 4;
 			if (hdr->flags & GRE_SEQ)
 				nhoff += 4;
-			if (proto == htons(ETH_P_TEB)) {
+			if (proto == htons(ETH_P_TEB))
+			{
 				const struct ethhdr *eth;
 				struct ethhdr _eth;
 
 				eth = skb_header_pointer(skb, nhoff,
-							 sizeof(_eth), &_eth);
+																 sizeof(_eth), &_eth);
 				if (!eth)
 					return false;
 				proto = eth->h_proto;
@@ -146,7 +158,8 @@ ipv6:
 
 	flow->ip_proto = ip_proto;
 	poff = proto_ports_offset(ip_proto);
-	if (poff >= 0) {
+	if (poff >= 0)
+	{
 		__be32 *ports, _ports;
 
 		nhoff += poff;
@@ -155,7 +168,7 @@ ipv6:
 			flow->ports = *ports;
 	}
 
-	flow->thoff = (u16) nhoff;
+	flow->thoff = (u16)nhoff;
 
 	return true;
 }
@@ -182,15 +195,16 @@ void __skb_get_rxhash(struct sk_buff *skb)
 
 	/* get a consistent hash (same value on both flow directions) */
 	if (((__force u32)keys.dst < (__force u32)keys.src) ||
-	    (((__force u32)keys.dst == (__force u32)keys.src) &&
-	     ((__force u16)keys.port16[1] < (__force u16)keys.port16[0]))) {
+			(((__force u32)keys.dst == (__force u32)keys.src) &&
+			 ((__force u16)keys.port16[1] < (__force u16)keys.port16[0])))
+	{
 		swap(keys.dst, keys.src);
 		swap(keys.port16[0], keys.port16[1]);
 	}
 
 	hash = jhash_3words((__force u32)keys.dst,
-			    (__force u32)keys.src,
-			    (__force u32)keys.ports, hashrnd);
+											(__force u32)keys.src,
+											(__force u32)keys.ports, hashrnd);
 	if (!hash)
 		hash = 1;
 
@@ -203,20 +217,22 @@ EXPORT_SYMBOL(__skb_get_rxhash);
  * to be used as a distribution range.
  */
 u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
-		  unsigned int num_tx_queues)
+									unsigned int num_tx_queues)
 {
 	u32 hash;
 	u16 qoffset = 0;
 	u16 qcount = num_tx_queues;
 
-	if (skb_rx_queue_recorded(skb)) {
+	if (skb_rx_queue_recorded(skb))
+	{
 		hash = skb_get_rx_queue(skb);
 		while (unlikely(hash >= num_tx_queues))
 			hash -= num_tx_queues;
 		return hash;
 	}
 
-	if (dev->num_tc) {
+	if (dev->num_tc)
+	{
 		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
 		qoffset = dev->tc_to_txq[tc].offset;
 		qcount = dev->tc_to_txq[tc].count;
@@ -225,10 +241,10 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
 	else
-		hash = (__force u16) skb->protocol;
+		hash = (__force u16)skb->protocol;
 	hash = jhash_1word(hash, hashrnd);
 
-	return (u16) (((u64) hash * qcount) >> 32) + qoffset;
+	return (u16)(((u64)hash * qcount) >> 32) + qoffset;
 }
 EXPORT_SYMBOL(__skb_tx_hash);
 
@@ -246,8 +262,10 @@ u32 __skb_get_poff(const struct sk_buff *skb)
 		return 0;
 
 	poff += keys.thoff;
-	switch (keys.ip_proto) {
-	case IPPROTO_TCP: {
+	switch (keys.ip_proto)
+	{
+	case IPPROTO_TCP:
+	{
 		const struct tcphdr *tcph;
 		struct tcphdr _tcph;
 
@@ -287,10 +305,11 @@ u32 __skb_get_poff(const struct sk_buff *skb)
 
 static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 {
-	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
+	if (unlikely(queue_index >= dev->real_num_tx_queues))
+	{
 		net_warn_ratelimited("%s selects TX queue %d, but real number of TX queues is %d\n",
-				     dev->name, queue_index,
-				     dev->real_num_tx_queues);
+												 dev->name, queue_index,
+												 dev->real_num_tx_queues);
 		return 0;
 	}
 	return queue_index;
@@ -305,22 +324,24 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_maps);
-	if (dev_maps) {
+	if (dev_maps)
+	{
 		map = rcu_dereference(
-		    dev_maps->cpu_map[raw_smp_processor_id()]);
-		if (map) {
+				dev_maps->cpu_map[raw_smp_processor_id()]);
+		if (map)
+		{
 			if (map->len == 1)
 				queue_index = map->queues[0];
-			else {
+			else
+			{
 				u32 hash;
 				if (skb->sk && skb->sk->sk_hash)
 					hash = skb->sk->sk_hash;
 				else
-					hash = (__force u16) skb->protocol ^
-					    skb->rxhash;
+					hash = (__force u16)skb->protocol ^
+								 skb->rxhash;
 				hash = jhash_1word(hash, hashrnd);
-				queue_index = map->queues[
-				    ((u64)hash * map->len) >> 32];
+				queue_index = map->queues[((u64)hash * map->len) >> 32];
 			}
 			if (unlikely(queue_index >= dev->real_num_tx_queues))
 				queue_index = -1;
@@ -340,18 +361,20 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 	int queue_index = sk_tx_queue_get(sk);
 
 	if (queue_index < 0 || skb->ooo_okay ||
-	    queue_index >= dev->real_num_tx_queues) {
+			queue_index >= dev->real_num_tx_queues)
+	{
+		//获取XPS配置
 		int new_index = get_xps_queue(dev, skb);
 		if (new_index < 0)
-			new_index = skb_tx_hash(dev, skb);
+			new_index = skb_tx_hash(dev, skb); //自动计算队列
 
-		if (queue_index != new_index && sk) {
+		if (queue_index != new_index && sk)
+		{
 			struct dst_entry *dst =
-				    rcu_dereference_check(sk->sk_dst_cache, 1);
+					rcu_dereference_check(sk->sk_dst_cache, 1);
 
 			if (dst && skb_dst(skb) == dst)
 				sk_tx_queue_set(sk, queue_index);
-
 		}
 
 		queue_index = new_index;
@@ -362,11 +385,12 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 EXPORT_SYMBOL(__netdev_pick_tx);
 
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
-				    struct sk_buff *skb)
+																		struct sk_buff *skb)
 {
 	int queue_index = 0;
 
-	if (dev->real_num_tx_queues != 1) {
+	if (dev->real_num_tx_queues != 1)
+	{
 		const struct net_device_ops *ops = dev->netdev_ops;
 		if (ops->ndo_select_queue)
 			queue_index = ops->ndo_select_queue(dev, skb);

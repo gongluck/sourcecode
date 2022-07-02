@@ -35,23 +35,30 @@ const struct net_offload __rcu *inet_offloads[MAX_INET_PROTOS] __read_mostly;
  *	Add a protocol handler to the hash tables
  */
 
+//注册协议处理函数
 int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
-	if (!prot->netns_ok) {
+	if (!prot->netns_ok)
+	{
 		pr_err("Protocol %u is not namespace aware, cannot register.\n",
-			protocol);
+					 protocol);
 		return -EINVAL;
 	}
 
+	//将协议处理函数注册到inet_protos数组中
 	return !cmpxchg((const struct net_protocol **)&inet_protos[protocol],
-			NULL, prot) ? 0 : -1;
+									NULL, prot)
+						 ? 0
+						 : -1;
 }
 EXPORT_SYMBOL(inet_add_protocol);
 
 int inet_add_offload(const struct net_offload *prot, unsigned char protocol)
 {
 	return !cmpxchg((const struct net_offload **)&inet_offloads[protocol],
-			NULL, prot) ? 0 : -1;
+									NULL, prot)
+						 ? 0
+						 : -1;
 }
 EXPORT_SYMBOL(inet_add_offload);
 
@@ -64,7 +71,9 @@ int inet_del_protocol(const struct net_protocol *prot, unsigned char protocol)
 	int ret;
 
 	ret = (cmpxchg((const struct net_protocol **)&inet_protos[protocol],
-		       prot, NULL) == prot) ? 0 : -1;
+								 prot, NULL) == prot)
+						? 0
+						: -1;
 
 	synchronize_net();
 
@@ -77,7 +86,9 @@ int inet_del_offload(const struct net_offload *prot, unsigned char protocol)
 	int ret;
 
 	ret = (cmpxchg((const struct net_offload **)&inet_offloads[protocol],
-		       prot, NULL) == prot) ? 0 : -1;
+								 prot, NULL) == prot)
+						? 0
+						: -1;
 
 	synchronize_net();
 

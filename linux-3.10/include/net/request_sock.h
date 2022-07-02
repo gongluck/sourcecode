@@ -1,7 +1,7 @@
 /*
  * NET		Generic infrastructure for Network protocols.
  *
- *		Definitions for request_sock 
+ *		Definitions for request_sock
  *
  * Authors:	Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
@@ -27,41 +27,43 @@ struct sk_buff;
 struct dst_entry;
 struct proto;
 
-struct request_sock_ops {
-	int		family;
-	int		obj_size;
-	struct kmem_cache	*slab;
-	char		*slab_name;
-	int		(*rtx_syn_ack)(struct sock *sk,
-				       struct request_sock *req);
-	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
-				    struct request_sock *req);
-	void		(*send_reset)(struct sock *sk,
-				      struct sk_buff *skb);
-	void		(*destructor)(struct request_sock *req);
-	void		(*syn_ack_timeout)(struct sock *sk,
-					   struct request_sock *req);
+struct request_sock_ops
+{
+	int family;
+	int obj_size;
+	struct kmem_cache *slab;
+	char *slab_name;
+	int (*rtx_syn_ack)(struct sock *sk,
+										 struct request_sock *req);
+	void (*send_ack)(struct sock *sk, struct sk_buff *skb,
+									 struct request_sock *req);
+	void (*send_reset)(struct sock *sk,
+										 struct sk_buff *skb);
+	void (*destructor)(struct request_sock *req);
+	void (*syn_ack_timeout)(struct sock *sk,
+													struct request_sock *req);
 };
 
 extern int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
 
 /* struct request_sock - mini sock to represent a connection request
  */
-struct request_sock {
-	struct request_sock		*dl_next;
-	u16				mss;
-	u8				num_retrans; /* number of retransmits */
-	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */
-	u8				num_timeout:7; /* number of timeouts */
+struct request_sock
+{
+	struct request_sock *dl_next;
+	u16 mss;
+	u8 num_retrans;			/* number of retransmits */
+	u8 cookie_ts : 1;		/* syncookie: encode tcpopts in timestamp */
+	u8 num_timeout : 7; /* number of timeouts */
 	/* The following two fields can be easily recomputed I think -AK */
-	u32				window_clamp; /* window clamp at creation time */
-	u32				rcv_wnd;	  /* rcv_wnd offered first time */
-	u32				ts_recent;
-	unsigned long			expires;
-	const struct request_sock_ops	*rsk_ops;
-	struct sock			*sk;
-	u32				secid;
-	u32				peer_secid;
+	u32 window_clamp; /* window clamp at creation time */
+	u32 rcv_wnd;			/* rcv_wnd offered first time */
+	u32 ts_recent;
+	unsigned long expires;
+	const struct request_sock_ops *rsk_ops;
+	struct sock *sk;
+	u32 secid;
+	u32 peer_secid;
 };
 
 static inline struct request_sock *reqsk_alloc(const struct request_sock_ops *ops)
@@ -91,16 +93,17 @@ extern int sysctl_max_syn_backlog;
  *
  * @max_qlen_log - log_2 of maximal queued SYNs/REQUESTs
  */
-struct listen_sock {
-	u8			max_qlen_log;
-	u8			synflood_warned;
+struct listen_sock
+{
+	u8 max_qlen_log;
+	u8 synflood_warned;
 	/* 2 bytes hole, try to use */
-	int			qlen;
-	int			qlen_young;
-	int			clock_hand;
-	u32			hash_rnd;
-	u32			nr_table_entries;
-	struct request_sock	*syn_table[0];
+	int qlen;
+	int qlen_young;
+	int clock_hand;
+	u32 hash_rnd;
+	u32 nr_table_entries;
+	struct request_sock *syn_table[0];
 };
 
 /*
@@ -120,15 +123,16 @@ struct listen_sock {
  *	complexity that needs to be resolved. E.g., a listener can be disabled
  *	temporarily through shutdown()->tcp_disconnect(), and re-enabled later.
  */
-struct fastopen_queue {
-	struct request_sock	*rskq_rst_head; /* Keep track of past TFO */
-	struct request_sock	*rskq_rst_tail; /* requests that caused RST.
-						 * This is part of the defense
-						 * against spoofing attack.
-						 */
-	spinlock_t	lock;
-	int		qlen;		/* # of pending (TCP_SYN_RECV) reqs */
-	int		max_qlen;	/* != 0 iff TFO is currently enabled */
+struct fastopen_queue
+{
+	struct request_sock *rskq_rst_head; /* Keep track of past TFO */
+	struct request_sock *rskq_rst_tail; /* requests that caused RST.
+																			 * This is part of the defense
+																			 * against spoofing attack.
+																			 */
+	spinlock_t lock;
+	int qlen;			/* # of pending (TCP_SYN_RECV) reqs */
+	int max_qlen; /* != 0 iff TFO is currently enabled */
 };
 
 /** struct request_sock_queue - queue of request_socks
@@ -147,31 +151,34 @@ struct fastopen_queue {
  * don't need to grab this lock in read mode too as rskq_accept_head. writes
  * are always protected from the main sock lock.
  */
-struct request_sock_queue {
-	struct request_sock	*rskq_accept_head;
-	struct request_sock	*rskq_accept_tail;
-	rwlock_t		syn_wait_lock;
-	u8			rskq_defer_accept;
+struct request_sock_queue
+{
+	//全连接队列
+	struct request_sock *rskq_accept_head;
+	struct request_sock *rskq_accept_tail;
+	rwlock_t syn_wait_lock;
+	u8 rskq_defer_accept;
 	/* 3 bytes hole, try to pack */
-	struct listen_sock	*listen_opt;
-	struct fastopen_queue	*fastopenq; /* This is non-NULL iff TFO has been
-					     * enabled on this listener. Check
-					     * max_qlen != 0 in fastopen_queue
-					     * to determine if TFO is enabled
-					     * right at this moment.
-					     */
+	//半连接队列
+	struct listen_sock *listen_opt;
+	struct fastopen_queue *fastopenq; /* This is non-NULL iff TFO has been
+																		 * enabled on this listener. Check
+																		 * max_qlen != 0 in fastopen_queue
+																		 * to determine if TFO is enabled
+																		 * right at this moment.
+																		 */
 };
 
 extern int reqsk_queue_alloc(struct request_sock_queue *queue,
-			     unsigned int nr_table_entries);
+														 unsigned int nr_table_entries);
 
 extern void __reqsk_queue_destroy(struct request_sock_queue *queue);
 extern void reqsk_queue_destroy(struct request_sock_queue *queue);
 extern void reqsk_fastopen_remove(struct sock *sk,
-				  struct request_sock *req, bool reset);
+																	struct request_sock *req, bool reset);
 
 static inline struct request_sock *
-	reqsk_queue_yank_acceptq(struct request_sock_queue *queue)
+reqsk_queue_yank_acceptq(struct request_sock_queue *queue)
 {
 	struct request_sock *req = queue->rskq_accept_head;
 
@@ -185,8 +192,8 @@ static inline int reqsk_queue_empty(struct request_sock_queue *queue)
 }
 
 static inline void reqsk_queue_unlink(struct request_sock_queue *queue,
-				      struct request_sock *req,
-				      struct request_sock **prev_req)
+																			struct request_sock *req,
+																			struct request_sock **prev_req)
 {
 	write_lock(&queue->syn_wait_lock);
 	*prev_req = req->dl_next;
@@ -194,9 +201,9 @@ static inline void reqsk_queue_unlink(struct request_sock_queue *queue,
 }
 
 static inline void reqsk_queue_add(struct request_sock_queue *queue,
-				   struct request_sock *req,
-				   struct sock *parent,
-				   struct sock *child)
+																	 struct request_sock *req,
+																	 struct sock *parent,
+																	 struct sock *child)
 {
 	req->sk = child;
 	sk_acceptq_added(parent);
@@ -224,7 +231,7 @@ static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue 
 }
 
 static inline int reqsk_queue_removed(struct request_sock_queue *queue,
-				      struct request_sock *req)
+																			struct request_sock *req)
 {
 	struct listen_sock *lopt = queue->listen_opt;
 
@@ -260,8 +267,8 @@ static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)
 }
 
 static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
-					u32 hash, struct request_sock *req,
-					unsigned long timeout)
+																				u32 hash, struct request_sock *req,
+																				unsigned long timeout)
 {
 	struct listen_sock *lopt = queue->listen_opt;
 

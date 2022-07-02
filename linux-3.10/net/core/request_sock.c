@@ -38,14 +38,16 @@ int sysctl_max_syn_backlog = 256;
 EXPORT_SYMBOL(sysctl_max_syn_backlog);
 
 int reqsk_queue_alloc(struct request_sock_queue *queue,
-		      unsigned int nr_table_entries)
+											unsigned int nr_table_entries)
 {
 	size_t lopt_size = sizeof(struct listen_sock);
 	struct listen_sock *lopt;
 
+	//计算半连接队列长度
 	nr_table_entries = min_t(u32, nr_table_entries, sysctl_max_syn_backlog);
 	nr_table_entries = max_t(u32, nr_table_entries, 8);
 	nr_table_entries = roundup_pow_of_two(nr_table_entries + 1);
+	//为listen_sock对象申请内存
 	lopt_size += nr_table_entries * sizeof(struct request_sock *);
 	if (lopt_size > PAGE_SIZE)
 		lopt = vzalloc(lopt_size);
@@ -55,12 +57,15 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 		return -ENOMEM;
 
 	for (lopt->max_qlen_log = 3;
-	     (1 << lopt->max_qlen_log) < nr_table_entries;
-	     lopt->max_qlen_log++);
+			 (1 << lopt->max_qlen_log) < nr_table_entries;
+			 lopt->max_qlen_log++)
+		;
 
 	get_random_bytes(&lopt->hash_rnd, sizeof(lopt->hash_rnd));
 	rwlock_init(&queue->syn_wait_lock);
+	//全连接队列头
 	queue->rskq_accept_head = NULL;
+	//半连接队列
 	lopt->nr_table_entries = nr_table_entries;
 
 	write_lock_bh(&queue->syn_wait_lock);
@@ -82,7 +87,7 @@ void __reqsk_queue_destroy(struct request_sock_queue *queue)
 
 	lopt = queue->listen_opt;
 	lopt_size = sizeof(struct listen_sock) +
-		lopt->nr_table_entries * sizeof(struct request_sock *);
+							lopt->nr_table_entries * sizeof(struct request_sock *);
 
 	if (lopt_size > PAGE_SIZE)
 		vfree(lopt);
@@ -108,15 +113,18 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 	/* make all the listen_opt local to us */
 	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
 	size_t lopt_size = sizeof(struct listen_sock) +
-		lopt->nr_table_entries * sizeof(struct request_sock *);
+										 lopt->nr_table_entries * sizeof(struct request_sock *);
 
-	if (lopt->qlen != 0) {
+	if (lopt->qlen != 0)
+	{
 		unsigned int i;
 
-		for (i = 0; i < lopt->nr_table_entries; i++) {
+		for (i = 0; i < lopt->nr_table_entries; i++)
+		{
 			struct request_sock *req;
 
-			while ((req = lopt->syn_table[i]) != NULL) {
+			while ((req = lopt->syn_table[i]) != NULL)
+			{
 				lopt->syn_table[i] = req->dl_next;
 				lopt->qlen--;
 				reqsk_free(req);
@@ -180,20 +188,21 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
  * fastopenq->lock in this function.
  */
 void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
-			   bool reset)
+													 bool reset)
 {
 	struct sock *lsk = tcp_rsk(req)->listener;
 	struct fastopen_queue *fastopenq =
-	    inet_csk(lsk)->icsk_accept_queue.fastopenq;
+			inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
 	tcp_sk(sk)->fastopen_rsk = NULL;
 	spin_lock_bh(&fastopenq->lock);
 	fastopenq->qlen--;
 	tcp_rsk(req)->listener = NULL;
-	if (req->sk)	/* the child socket hasn't been accepted yet */
+	if (req->sk) /* the child socket hasn't been accepted yet */
 		goto out;
 
-	if (!reset || lsk->sk_state != TCP_LISTEN) {
+	if (!reset || lsk->sk_state != TCP_LISTEN)
+	{
 		/* If the listener has been closed don't bother with the
 		 * special RST handling below.
 		 */
@@ -209,7 +218,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 	 *
 	 * For more details see CoNext'11 "TCP Fast Open" paper.
 	 */
-	req->expires = jiffies + 60*HZ;
+	req->expires = jiffies + 60 * HZ;
 	if (fastopenq->rskq_rst_head == NULL)
 		fastopenq->rskq_rst_head = req;
 	else
