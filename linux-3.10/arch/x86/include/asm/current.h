@@ -14,6 +14,7 @@ static __always_inline struct task_struct *get_current(void)
 	return this_cpu_read_stable(current_task);
 }
 
+//获取当前线程任务
 #define current get_current()
 
 #endif /* __ASSEMBLY__ */

@@ -24,7 +24,7 @@
  */
 static DEFINE_PER_CPU(struct task_struct *, idle_threads);
 
-struct task_struct * __cpuinit idle_thread_get(unsigned int cpu)
+struct task_struct *__cpuinit idle_thread_get(unsigned int cpu)
 {
 	struct task_struct *tsk = per_cpu(idle_threads, cpu);
 
@@ -49,7 +49,8 @@ static inline void idle_init(unsigned int cpu)
 {
 	struct task_struct *tsk = per_cpu(idle_threads, cpu);
 
-	if (!tsk) {
+	if (!tsk)
+	{
 		tsk = fork_idle(cpu);
 		if (IS_ERR(tsk))
 			pr_err("SMP: fork_idle() failed for CPU %u\n", cpu);
@@ -67,7 +68,8 @@ void __init idle_threads_init(void)
 
 	boot_cpu = smp_processor_id();
 
-	for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu)
+	{
 		if (cpu != boot_cpu)
 			idle_init(cpu);
 	}
@@ -79,13 +81,15 @@ void __init idle_threads_init(void)
 static LIST_HEAD(hotplug_threads);
 static DEFINE_MUTEX(smpboot_threads_lock);
 
-struct smpboot_thread_data {
-	unsigned int			cpu;
-	unsigned int			status;
-	struct smp_hotplug_thread	*ht;
+struct smpboot_thread_data
+{
+	unsigned int cpu;
+	unsigned int status;
+	struct smp_hotplug_thread *ht;
 };
 
-enum {
+enum
+{
 	HP_THREAD_NONE = 0,
 	HP_THREAD_ACTIVE,
 	HP_THREAD_PARKED,
@@ -106,10 +110,12 @@ static int smpboot_thread_fn(void *data)
 	struct smpboot_thread_data *td = data;
 	struct smp_hotplug_thread *ht = td->ht;
 
-	while (1) {
+	while (1)
+	{
 		set_current_state(TASK_INTERRUPTIBLE);
 		preempt_disable();
-		if (kthread_should_stop()) {
+		if (kthread_should_stop())
+		{
 			set_current_state(TASK_RUNNING);
 			preempt_enable();
 			if (ht->cleanup)
@@ -118,10 +124,12 @@ static int smpboot_thread_fn(void *data)
 			return 0;
 		}
 
-		if (kthread_should_park()) {
+		if (kthread_should_park())
+		{
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
-			if (ht->park && td->status == HP_THREAD_ACTIVE) {
+			if (ht->park && td->status == HP_THREAD_ACTIVE)
+			{
 				BUG_ON(td->cpu != smp_processor_id());
 				ht->park(td->cpu);
 				td->status = HP_THREAD_PARKED;
@@ -134,7 +142,8 @@ static int smpboot_thread_fn(void *data)
 		BUG_ON(td->cpu != smp_processor_id());
 
 		/* Check for state change setup */
-		switch (td->status) {
+		switch (td->status)
+		{
 		case HP_THREAD_NONE:
 			preempt_enable();
 			if (ht->setup)
@@ -151,10 +160,13 @@ static int smpboot_thread_fn(void *data)
 			break;
 		}
 
-		if (!ht->thread_should_run(td->cpu)) {
+		if (!ht->thread_should_run(td->cpu))
+		{
 			preempt_enable();
 			schedule();
-		} else {
+		}
+		else
+		{
 			set_current_state(TASK_RUNNING);
 			preempt_enable();
 			ht->thread_fn(td->cpu);
@@ -178,14 +190,16 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 	td->ht = ht;
 
 	tsk = kthread_create_on_cpu(smpboot_thread_fn, td, cpu,
-				    ht->thread_comm);
-	if (IS_ERR(tsk)) {
+															ht->thread_comm);
+	if (IS_ERR(tsk))
+	{
 		kfree(td);
 		return PTR_ERR(tsk);
 	}
 	get_task_struct(tsk);
 	*per_cpu_ptr(ht->store, cpu) = tsk;
-	if (ht->create) {
+	if (ht->create)
+	{
 		/*
 		 * Make sure that the task has actually scheduled out
 		 * into park position, before calling the create
@@ -206,7 +220,8 @@ int smpboot_create_threads(unsigned int cpu)
 	int ret = 0;
 
 	mutex_lock(&smpboot_threads_lock);
-	list_for_each_entry(cur, &hotplug_threads, list) {
+	list_for_each_entry(cur, &hotplug_threads, list)
+	{
 		ret = __smpboot_create_thread(cur, cpu);
 		if (ret)
 			break;
@@ -230,7 +245,7 @@ void smpboot_unpark_threads(unsigned int cpu)
 
 	mutex_lock(&smpboot_threads_lock);
 	list_for_each_entry(cur, &hotplug_threads, list)
-		smpboot_unpark_thread(cur, cpu);
+			smpboot_unpark_thread(cur, cpu);
 	mutex_unlock(&smpboot_threads_lock);
 }
 
@@ -248,7 +263,7 @@ void smpboot_park_threads(unsigned int cpu)
 
 	mutex_lock(&smpboot_threads_lock);
 	list_for_each_entry_reverse(cur, &hotplug_threads, list)
-		smpboot_park_thread(cur, cpu);
+			smpboot_park_thread(cur, cpu);
 	mutex_unlock(&smpboot_threads_lock);
 }
 
@@ -257,10 +272,12 @@ static void smpboot_destroy_threads(struct smp_hotplug_thread *ht)
 	unsigned int cpu;
 
 	/* We need to destroy also the parked threads of offline cpus */
-	for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu)
+	{
 		struct task_struct *tsk = *per_cpu_ptr(ht->store, cpu);
 
-		if (tsk) {
+		if (tsk)
+		{
 			kthread_stop(tsk);
 			put_task_struct(tsk);
 			*per_cpu_ptr(ht->store, cpu) = NULL;
@@ -274,15 +291,18 @@ static void smpboot_destroy_threads(struct smp_hotplug_thread *ht)
  *
  * Creates and starts the threads on all online cpus.
  */
+//为每个CPU注册关联的线程
 int smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread)
 {
 	unsigned int cpu;
 	int ret = 0;
 
 	mutex_lock(&smpboot_threads_lock);
-	for_each_online_cpu(cpu) {
+	for_each_online_cpu(cpu)
+	{
 		ret = __smpboot_create_thread(plug_thread, cpu);
-		if (ret) {
+		if (ret)
+		{
 			smpboot_destroy_threads(plug_thread);
 			goto out;
 		}

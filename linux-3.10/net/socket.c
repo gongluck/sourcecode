@@ -389,13 +389,16 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 }
 EXPORT_SYMBOL(sock_alloc_file);
 
+//为socket分配文件描述符
 static int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
+	//获取可用文件描述符
 	int fd = get_unused_fd_flags(flags);
 	if (unlikely(fd < 0))
 		return fd;
 
+	//分配file结构
 	newfile = sock_alloc_file(sock, flags, NULL);
 	if (likely(!IS_ERR(newfile)))
 	{
@@ -527,6 +530,7 @@ static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
 	return used;
 }
 
+// socket注册到inode的方法
 static const struct inode_operations sockfs_inode_ops = {
 		.getxattr = sockfs_getxattr,
 		.listxattr = sockfs_listxattr,
@@ -545,20 +549,22 @@ static struct socket *sock_alloc(void)
 	struct inode *inode;
 	struct socket *sock;
 
+	//分配inode节点
 	inode = new_inode_pseudo(sock_mnt->mnt_sb);
 	if (!inode)
 		return NULL;
 
+	//获取socket结构
 	sock = SOCKET_I(inode);
 
 	kmemcheck_annotate_bitfield(sock, type);
 	inode->i_ino = get_next_ino();
-	inode->i_mode = S_IFSOCK | S_IRWXUGO;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	inode->i_op = &sockfs_inode_ops;
+	inode->i_mode = S_IFSOCK | S_IRWXUGO; //模式属性
+	inode->i_uid = current_fsuid();				//当前线程的vfsuid
+	inode->i_gid = current_fsgid();				//当前线程的vfsgid
+	inode->i_op = &sockfs_inode_ops;			//操作方法
 
-	this_cpu_add(sockets_in_use, 1);
+	this_cpu_add(sockets_in_use, 1); //统计
 	return sock;
 }
 
@@ -1284,7 +1290,7 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 		 This uglymoron is moved from INET layer to here to avoid
 		 deadlock in module load.
 	 */
-	if (family == PF_INET && type == SOCK_PACKET)
+	if (family == PF_INET && type == SOCK_PACKET) //废弃PF_INET,SOCK_PACKET组合
 	{
 		static int warned;
 		if (!warned)
@@ -1385,6 +1391,7 @@ EXPORT_SYMBOL(__sock_create);
 
 int sock_create(int family, int type, int protocol, struct socket **res)
 {
+	//创建socket
 	return __sock_create(current->nsproxy->net_ns, family, type, protocol, res, 0);
 }
 EXPORT_SYMBOL(sock_create);
@@ -1409,7 +1416,7 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 	BUILD_BUG_ON(SOCK_NONBLOCK & SOCK_TYPE_MASK);
 
 	flags = type & ~SOCK_TYPE_MASK;
-	if (flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+	if (flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK)) // flags含有SOCK_CLOEXEC或SOCK_NONBLOCK之外的参数为错误
 		return -EINVAL;
 	type &= SOCK_TYPE_MASK;
 
@@ -1417,11 +1424,12 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
 	//创建socket
-	retval = sock_create(family, type, protocol, &sock);
+	retval = sock_create(family, type, protocol, &sock); //*①
 	if (retval < 0)
 		goto out;
 
-	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
+	//为socket分配文件描述符
+	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK)); //*②
 	if (retval < 0)
 		goto out_release;
 

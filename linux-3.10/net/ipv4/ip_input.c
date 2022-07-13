@@ -410,7 +410,7 @@ drop:
  * 	Main IP Receive routine.
  */
 
-// IP协议
+// IP协议接收处理
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	const struct iphdr *iph;

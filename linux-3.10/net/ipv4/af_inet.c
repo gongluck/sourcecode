@@ -298,15 +298,17 @@ static int inet_create(struct net *net, struct socket *sock, int protocol,
 	int err;
 
 	if (unlikely(!inet_ehash_secret))
-		if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
+		if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM) //非原始套接字或UDP套接字
 			build_ehash_secret();
 
+	//非连接状态
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
 lookup_protocol:
 	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
+	//遍历查找匹配的协议
 	list_for_each_entry_rcu(answer, &inetsw[sock->type], list)
 	{
 
@@ -361,7 +363,7 @@ lookup_protocol:
 			!ns_capable(net->user_ns, CAP_NET_RAW))
 		goto out_rcu_unlock;
 
-	sock->ops = answer->ops;
+	sock->ops = answer->ops; //拷贝协议操作集合
 	answer_prot = answer->prot;
 	answer_no_check = answer->no_check;
 	answer_flags = answer->flags;
@@ -377,9 +379,10 @@ lookup_protocol:
 
 	err = 0;
 	sk->sk_no_check = answer_no_check;
-	if (INET_PROTOSW_REUSE & answer_flags)
+	if (INET_PROTOSW_REUSE & answer_flags) //端口复用
 		sk->sk_reuse = SK_CAN_REUSE;
 
+	// sock转化成inet_sock
 	inet = inet_sk(sk);
 	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
 
@@ -1058,6 +1061,7 @@ static const struct proto_ops inet_sockraw_ops = {
 #endif
 };
 
+// inet协议
 static const struct net_proto_family inet_family_ops = {
 		.family = PF_INET,
 		.create = inet_create,

@@ -694,7 +694,6 @@ struct net_device *igb_get_hw_dev(struct e1000_hw *hw)
  *  igb_init_module is the first routine called when the driver is
  *  loaded. All it does is register with the PCI subsystem.
  **/
-
 //初始化igb网卡模块
 static int __init igb_init_module(void)
 {
@@ -2845,7 +2844,6 @@ static int igb_sw_init(struct igb_adapter *adapter)
  *  handler is registered with the OS, the watchdog timer is started,
  *  and the stack is notified that the interface is ready.
  **/
-
 //启用igb网卡
 static int __igb_open(struct net_device *netdev, bool resuming)
 {
@@ -2874,7 +2872,7 @@ static int __igb_open(struct net_device *netdev, bool resuming)
 		goto err_setup_tx;
 
 	/* allocate receive descriptors */
-	//分配发送描述符数组
+	//分配接收描述符数组
 	err = igb_setup_all_rx_resources(adapter);
 	if (err)
 		goto err_setup_rx;

@@ -53,6 +53,7 @@ irq_cpustat_t irq_stat[NR_CPUS] ____cacheline_aligned;
 EXPORT_SYMBOL(irq_stat);
 #endif
 
+//中断向量
 static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
 
 DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
@@ -782,7 +783,7 @@ static int ksoftirqd_should_run(unsigned int cpu)
 static void run_ksoftirqd(unsigned int cpu)
 {
 	local_irq_disable();
-	if (local_softirq_pending())
+	if (local_softirq_pending()) //__softirq_pending
 	{
 		//处理软中断
 		__do_softirq();
@@ -879,7 +880,7 @@ static struct notifier_block __cpuinitdata cpu_nfb = {
 //软中断线程相关信息
 static struct smp_hotplug_thread softirq_threads = {
 		.store = &ksoftirqd,
-		.thread_should_run = ksoftirqd_should_run,
+		.thread_should_run = ksoftirqd_should_run, //判断线程变量__softirq_pending是否置位
 		.thread_fn = run_ksoftirqd,
 		.thread_comm = "ksoftirqd/%u", // ps -ef | grep ksoftirqd
 };
@@ -889,6 +890,7 @@ static __init int spawn_ksoftirqd(void)
 {
 	register_cpu_notifier(&cpu_nfb);
 
+	//为每个CPU注册关联的线程
 	BUG_ON(smpboot_register_percpu_thread(&softirq_threads));
 
 	return 0;

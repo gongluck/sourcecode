@@ -28,13 +28,13 @@
 #include <linux/spinlock.h>
 #include <net/protocol.h>
 
+//网络协议处理函数数组
 const struct net_protocol __rcu *inet_protos[MAX_INET_PROTOS] __read_mostly;
 const struct net_offload __rcu *inet_offloads[MAX_INET_PROTOS] __read_mostly;
 
 /*
  *	Add a protocol handler to the hash tables
  */
-
 //注册协议处理函数
 int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {

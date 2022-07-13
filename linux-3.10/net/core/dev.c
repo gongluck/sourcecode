@@ -140,6 +140,7 @@
 
 static DEFINE_SPINLOCK(ptype_lock);
 static DEFINE_SPINLOCK(offload_lock);
+//协议处理列表
 struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 struct list_head ptype_all __read_mostly; /* Taps */
 static struct list_head offload_base __read_mostly;
@@ -373,7 +374,6 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
  *	guarantee all CPU's that are in middle of receiving packets
  *	will see the new packet type (until the next received packet).
  */
-
 void dev_add_pack(struct packet_type *pt)
 {
 	//获取协议处理列表的表头
