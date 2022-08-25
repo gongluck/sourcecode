@@ -285,7 +285,8 @@ void ThreadManager::SetCurrentThreadInternal(Thread* thread) {
 
 #if defined(WEBRTC_WIN)
 ThreadManager::ThreadManager()
-    : key_(TlsAlloc()), main_thread_ref_(CurrentThreadRef()) {}
+    : key_(TlsAlloc() /*线程局部变量索引*/),
+      main_thread_ref_(CurrentThreadRef()) {}
 
 Thread* ThreadManager::CurrentThread() {
   return static_cast<Thread*>(TlsGetValue(key_));
