@@ -24,6 +24,7 @@ namespace webrtc {
 
 namespace {
 
+//创建线程
 rtc::Thread* MaybeStartThread(rtc::Thread* old_thread,
                               const std::string& thread_name,
                               bool with_socket_server,
@@ -80,14 +81,17 @@ rtc::scoped_refptr<ConnectionContext> ConnectionContext::Create(
 
 ConnectionContext::ConnectionContext(
     PeerConnectionFactoryDependencies* dependencies)
+    //网络线程
     : network_thread_(MaybeStartThread(dependencies->network_thread,
                                        "pc_network_thread",
                                        true,
                                        owned_network_thread_)),
+      //工作线程
       worker_thread_(MaybeStartThread(dependencies->worker_thread,
                                       "pc_worker_thread",
                                       false,
                                       owned_worker_thread_)),
+      //信令线程
       signaling_thread_(MaybeWrapThread(dependencies->signaling_thread,
                                         wraps_current_thread_)),
       network_monitor_factory_(
