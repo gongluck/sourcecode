@@ -38,6 +38,7 @@ rtc::Thread* MaybeStartThread(rtc::Thread* old_thread,
     thread_holder = rtc::Thread::Create();
   }
   thread_holder->SetName(thread_name, nullptr);
+  //启动webrtc的线程对象
   thread_holder->Start();
   return thread_holder.get();
 }

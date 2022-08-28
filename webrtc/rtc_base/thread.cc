@@ -547,6 +547,7 @@ bool Thread::Get(Message* pmsg, int cmsWait, bool process_io) {
     }
 
     {
+      //等待事件
       // Wait and multiplex in the meantime
       if (!ss_->Wait(static_cast<int>(cmsNext), process_io))
         return false;
@@ -581,13 +582,16 @@ void Thread::Post(const Location& posted_from,
 
   {
     CritScope cs(&crit_);
+    //构造消息
     Message msg;
     msg.posted_from = posted_from;
     msg.phandler = phandler;
     msg.message_id = id;
     msg.pdata = pdata;
+    //插入消息队列
     messages_.push_back(msg);
   }
+  //唤醒线程
   WakeUpSocketServer();
 }
 
@@ -1150,6 +1154,7 @@ bool Thread::ProcessMessages(int cmsLoop) {
 #if defined(WEBRTC_MAC)
     ScopedAutoReleasePool pool;
 #endif
+    //获取消息并分发处理
     Message msg;
     if (!Get(&msg, cmsNext))
       return !IsQuitting();
