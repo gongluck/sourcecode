@@ -102,6 +102,7 @@ cricket::VideoMediaChannel* RtpTransmissionManager::video_media_channel()
   }
 }
 
+//添加媒体轨
 RTCErrorOr<rtc::scoped_refptr<RtpSenderInterface>>
 RtpTransmissionManager::AddTrack(
     rtc::scoped_refptr<MediaStreamTrackInterface> track,
@@ -193,7 +194,9 @@ RtpTransmissionManager::AddTrackUnifiedPlan(
     if (FindSenderById(sender_id)) {
       sender_id = rtc::CreateRandomUuid();
     }
+    //创建发送端
     auto sender = CreateSender(media_type, sender_id, track, stream_ids, {});
+    //创建接收端
     auto receiver = CreateReceiver(media_type, rtc::CreateRandomUuid());
     transceiver = CreateAndAddTransceiver(sender, receiver);
     transceiver->internal()->set_created_by_addtrack(true);

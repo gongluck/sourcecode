@@ -32,7 +32,7 @@ struct TransportInfo {
       : content_name(content_name), description(description) {}
 
   std::string content_name;
-  TransportDescription description;
+  TransportDescription description;  //传输描述
 };
 
 typedef std::vector<TransportInfo> TransportInfos;

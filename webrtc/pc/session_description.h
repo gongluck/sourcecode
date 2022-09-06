@@ -262,9 +262,9 @@ class MediaContentDescription {
   std::vector<CryptoParams> cryptos_;
   std::vector<webrtc::RtpExtension> rtp_header_extensions_;
   bool rtp_header_extensions_set_ = false;
-  StreamParamsVec send_streams_;
+  StreamParamsVec send_streams_;  //流信息
   bool conference_mode_ = false;
-  webrtc::RtpTransceiverDirection direction_ =
+  webrtc::RtpTransceiverDirection direction_ =  //传输方向
       webrtc::RtpTransceiverDirection::kSendRecv;
   rtc::SocketAddress connection_address_;
   ExtmapAllowMixed extmap_allow_mixed_enum_ = kMedia;
@@ -450,13 +450,13 @@ class RTC_EXPORT ContentInfo {
 
   // TODO(bugs.webrtc.org/8620): Rename this to mid.
   std::string name;
-  MediaProtocolType type;
+  MediaProtocolType type;  //媒体协议类型
   bool rejected = false;
   bool bundle_only = false;
 
  private:
   friend class SessionDescription;
-  std::unique_ptr<MediaContentDescription> description_;
+  std::unique_ptr<MediaContentDescription> description_;  //媒体描述
 };
 
 typedef std::vector<std::string> ContentNames;
@@ -608,9 +608,9 @@ class SessionDescription {
  private:
   SessionDescription(const SessionDescription&);
 
-  ContentInfos contents_;
-  TransportInfos transport_infos_;
-  ContentGroups content_groups_;
+  ContentInfos contents_;           //媒体描述
+  TransportInfos transport_infos_;  //传输描述
+  ContentGroups content_groups_;    //组
   bool msid_supported_ = true;
   // Default to what Plan B would do.
   // TODO(bugs.webrtc.org/8530): Change default to kMsidSignalingMediaSection.
