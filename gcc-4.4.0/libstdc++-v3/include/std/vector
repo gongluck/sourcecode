@@ -63,15 +63,14 @@
 #include <bits/stl_construct.h>
 #include <bits/stl_uninitialized.h>
 #include <bits/stl_vector.h>
-#include <bits/stl_bvector.h> 
+#include <bits/stl_bvector.h>
 
 #ifndef _GLIBCXX_EXPORT_TEMPLATE
-# include <bits/vector.tcc>
+#include <bits/vector.tcc>
 #endif
 
 #ifdef _GLIBCXX_DEBUG
-# include <debug/vector>
+#include <debug/vector>
 #endif
 
 #endif /* _GLIBCXX_VECTOR */
-
