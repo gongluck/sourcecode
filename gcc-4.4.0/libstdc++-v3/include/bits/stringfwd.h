@@ -41,37 +41,40 @@
 
 _GLIBCXX_BEGIN_NAMESPACE(std)
 
-  template<typename _Alloc>
-    class allocator;
+template <typename _Alloc>
+class allocator;
 
-  template<class _CharT>
-    struct char_traits;
+template <class _CharT>
+struct char_traits;
 
-  template<typename _CharT, typename _Traits = char_traits<_CharT>,
-           typename _Alloc = allocator<_CharT> >
-    class basic_string;
+template <typename _CharT, typename _Traits = char_traits<_CharT>,
+          typename _Alloc = allocator<_CharT>>
+class basic_string;
 
-  template<> struct char_traits<char>;
+template <>
+struct char_traits<char>;
 
-  typedef basic_string<char>    string;
+typedef basic_string<char> string;
 
 #ifdef _GLIBCXX_USE_WCHAR_T
-  template<> struct char_traits<wchar_t>;
+template <>
+struct char_traits<wchar_t>;
 
-  typedef basic_string<wchar_t> wstring;
+typedef basic_string<wchar_t> wstring;
 #endif
 
-#if (defined(__GXX_EXPERIMENTAL_CXX0X__) \
-     && defined(_GLIBCXX_USE_C99_STDINT_TR1))
+#if (defined(__GXX_EXPERIMENTAL_CXX0X__) && defined(_GLIBCXX_USE_C99_STDINT_TR1))
 
-  template<> struct char_traits<char16_t>;
-  template<> struct char_traits<char32_t>;
+template <>
+struct char_traits<char16_t>;
+template <>
+struct char_traits<char32_t>;
 
-  typedef basic_string<char16_t> u16string;
-  typedef basic_string<char32_t> u32string;
+typedef basic_string<char16_t> u16string;
+typedef basic_string<char32_t> u32string;
 
 #endif
 
 _GLIBCXX_END_NAMESPACE
 
-#endif	// _STRINGFWD_H
+#endif // _STRINGFWD_H
