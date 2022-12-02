@@ -66,11 +66,10 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
 
 // counted ptr with no deleter or allocator support
 template <typename _Ptr, _Lock_policy _Lp>
-class _Sp_counted_ptr : public _Sp_counted_base<_Lp>
+class _Sp_counted_ptr : public _Sp_counted_base<_Lp> // 引用计数管理器
 {
 public:
-  _Sp_counted_ptr(_Ptr __p)
-      : _M_ptr(__p)
+  _Sp_counted_ptr(_Ptr __p) : _M_ptr(__p)
   {
   }
 
@@ -98,7 +97,7 @@ protected:
 
 // support for custom deleter and/or allocator
 template <typename _Ptr, typename _Deleter, typename _Alloc, _Lock_policy _Lp>
-class _Sp_counted_deleter : public _Sp_counted_ptr<_Ptr, _Lp>
+class _Sp_counted_deleter : public _Sp_counted_ptr<_Ptr, _Lp> // 支持自定义构造和析构
 {
   typedef typename _Alloc::template rebind<_Sp_counted_deleter>::other _My_alloc_type;
 
@@ -121,8 +120,7 @@ public:
    *  @brief
    *  @pre     __d(__p) must not throw.
    */
-  _Sp_counted_deleter(_Ptr __p, _Deleter __d)
-      : _Base_type(__p), _M_del(__d, _Alloc())
+  _Sp_counted_deleter(_Ptr __p, _Deleter __d) : _Base_type(__p), _M_del(__d, _Alloc())
   {
   }
 
@@ -130,8 +128,7 @@ public:
    *  @brief
    *  @pre     __d(__p) must not throw.
    */
-  _Sp_counted_deleter(_Ptr __p, _Deleter __d, const _Alloc &__a)
-      : _Base_type(__p), _M_del(__d, __a)
+  _Sp_counted_deleter(_Ptr __p, _Deleter __d, const _Alloc &__a) : _Base_type(__p), _M_del(__d, __a)
   {
   }
 
@@ -178,8 +175,7 @@ class _Sp_counted_ptr_inplace : public _Sp_counted_deleter<_Tp *, _Sp_destroy_in
   typedef _Sp_counted_deleter<_Tp *, _Sp_destroy_inplace<_Tp>, _Alloc, _Lp> _Base_type;
 
 public:
-  _Sp_counted_ptr_inplace(_Alloc __a)
-      : _Base_type(static_cast<_Tp *>(0), _Sp_destroy_inplace<_Tp>(), __a), _M_storage()
+  _Sp_counted_ptr_inplace(_Alloc __a) : _Base_type(static_cast<_Tp *>(0), _Sp_destroy_inplace<_Tp>(), __a), _M_storage()
   {
     void *__p = &_M_storage;
     ::new (__p) _Tp(); // might throw
@@ -187,8 +183,7 @@ public:
   }
 
   template <typename... _Args>
-  _Sp_counted_ptr_inplace(_Alloc __a, _Args &&...__args)
-      : _Base_type(static_cast<_Tp *>(0), _Sp_destroy_inplace<_Tp>(), __a), _M_storage()
+  _Sp_counted_ptr_inplace(_Alloc __a, _Args &&...__args) : _Base_type(static_cast<_Tp *>(0), _Sp_destroy_inplace<_Tp>(), __a), _M_storage()
   {
     void *__p = &_M_storage;
     ::new (__p) _Tp(std::forward<_Args>(__args)...); // might throw
@@ -207,9 +202,7 @@ public:
   // sneaky trick so __shared_ptr can get the managed pointer
   virtual void *_M_get_deleter(const std::type_info &__ti)
   {
-    return __ti == typeid(_Sp_make_shared_tag)
-               ? static_cast<void *>(&_M_storage)
-               : _Base_type::_M_get_deleter(__ti);
+    return __ti == typeid(_Sp_make_shared_tag) ? static_cast<void *>(&_M_storage) : _Base_type::_M_get_deleter(__ti);
   }
 
 private:
@@ -220,7 +213,7 @@ template <_Lock_policy _Lp = __default_lock_policy>
 class __weak_count;
 
 template <_Lock_policy _Lp = __default_lock_policy>
-class __shared_count
+class __shared_count // 引用计数器
 {
 public:
   __shared_count() : _M_pi(0) // nothrow
@@ -228,11 +221,11 @@ public:
   }
 
   template <typename _Ptr>
-  __shared_count(_Ptr __p) : _M_pi(0)
+  __shared_count(_Ptr __p) /*通过资源裸指针构造*/ : _M_pi(0)
   {
     __try
     {
-      _M_pi = new _Sp_counted_ptr<_Ptr, _Lp>(__p);
+      _M_pi = new _Sp_counted_ptr<_Ptr, _Lp>(__p); // 分配计数器
     }
     __catch(...)
     {
@@ -283,9 +276,8 @@ public:
     }
   }
 
-  template <typename _Tp, typename _Alloc, typename... _Args>
-  __shared_count(_Sp_make_shared_tag, _Tp *, _Alloc __a, _Args &&...__args)
-      : _M_pi(0)
+  template <typename _Tp, typename _Alloc, typename... _Args> // make_shared使用
+  __shared_count(_Sp_make_shared_tag, _Tp *, _Alloc __a, _Args &&...__args) : _M_pi(0)
   {
     typedef _Sp_counted_ptr_inplace<_Tp, _Alloc, _Lp> _Sp_cp_type;
     typedef typename _Alloc::template rebind<_Sp_cp_type>::other _Alloc2;
@@ -315,8 +307,7 @@ public:
 
   // Special case for unique_ptr<_Tp,_Del> to provide the strong guarantee.
   template <typename _Tp, typename _Del>
-  explicit __shared_count(std::unique_ptr<_Tp, _Del> &&__r)
-      : _M_pi(_S_create_from_up(std::move(__r)))
+  explicit __shared_count(std::unique_ptr<_Tp, _Del> &&__r) : _M_pi(_S_create_from_up(std::move(__r)))
   {
     __r.release();
   }
@@ -330,8 +321,7 @@ public:
       _M_pi->_M_release();
   }
 
-  __shared_count(const __shared_count &__r)
-      : _M_pi(__r._M_pi) // nothrow
+  __shared_count(const __shared_count &__r) : _M_pi(__r._M_pi) // nothrow
   {
     if (_M_pi != 0)
       _M_pi->_M_add_ref_copy();
@@ -395,21 +385,17 @@ private:
   friend class __weak_count<_Lp>;
 
   template <typename _Tp, typename _Del>
-  static _Sp_counted_base<_Lp> *_S_create_from_up(std::unique_ptr<_Tp, _Del> &&__r,
-                                                  typename std::enable_if<!std::is_reference<_Del>::value>::type * = 0)
+  static _Sp_counted_base<_Lp> *_S_create_from_up(std::unique_ptr<_Tp, _Del> &&__r, typename std::enable_if<!std::is_reference<_Del>::value>::type * = 0)
   {
-    return new _Sp_counted_deleter<_Tp *, _Del, std::allocator<_Tp>,
-                                   _Lp>(__r.get(), __r.get_deleter());
+    return new _Sp_counted_deleter<_Tp *, _Del, std::allocator<_Tp>, _Lp>(__r.get(), __r.get_deleter());
   }
 
   template <typename _Tp, typename _Del>
-  static _Sp_counted_base<_Lp> *_S_create_from_up(std::unique_ptr<_Tp, _Del> &&__r,
-                                                  typename std::enable_if<std::is_reference<_Del>::value>::type * = 0)
+  static _Sp_counted_base<_Lp> *_S_create_from_up(std::unique_ptr<_Tp, _Del> &&__r, typename std::enable_if<std::is_reference<_Del>::value>::type * = 0)
   {
     typedef typename std::remove_reference<_Del>::type _Del1;
     typedef std::reference_wrapper<_Del1> _Del2;
-    return new _Sp_counted_deleter<_Tp *, _Del2, std::allocator<_Tp>,
-                                   _Lp>(__r.get(), std::ref(__r.get_deleter()));
+    return new _Sp_counted_deleter<_Tp *, _Del2, std::allocator<_Tp>, _Lp>(__r.get(), std::ref(__r.get_deleter()));
   }
 
   _Sp_counted_base<_Lp> *_M_pi;
@@ -499,8 +485,7 @@ private:
 
 // now that __weak_count is defined we can define this constructor:
 template <_Lock_policy _Lp>
-inline __shared_count<_Lp>::__shared_count(const __weak_count<_Lp> &__r)
-    : _M_pi(__r._M_pi)
+inline __shared_count<_Lp>::__shared_count(const __weak_count<_Lp> &__r) : _M_pi(__r._M_pi)
 {
   if (_M_pi != 0)
     _M_pi->_M_add_ref_lock();
@@ -531,19 +516,14 @@ class enable_shared_from_this;
 
 // Friend of __enable_shared_from_this.
 template <_Lock_policy _Lp, typename _Tp1, typename _Tp2>
-void __enable_shared_from_this_helper(const __shared_count<_Lp> &,
-                                      const __enable_shared_from_this<_Tp1, _Lp> *,
-                                      const _Tp2 *);
+void __enable_shared_from_this_helper(const __shared_count<_Lp> &, const __enable_shared_from_this<_Tp1, _Lp> *, const _Tp2 *);
 
 // Friend of enable_shared_from_this.
 template <typename _Tp1, typename _Tp2>
-void __enable_shared_from_this_helper(const __shared_count<> &,
-                                      const enable_shared_from_this<_Tp1> *,
-                                      const _Tp2 *);
+void __enable_shared_from_this_helper(const __shared_count<> &, const enable_shared_from_this<_Tp1> *, const _Tp2 *);
 
 template <_Lock_policy _Lp>
-inline void
-__enable_shared_from_this_helper(const __shared_count<_Lp> &, ...)
+inline void __enable_shared_from_this_helper(const __shared_count<_Lp> &, ...)
 {
 }
 
@@ -556,8 +536,7 @@ public:
   /** @brief  Construct an empty %__shared_ptr.
    *  @post   use_count()==0 && get()==0
    */
-  __shared_ptr()
-      : _M_ptr(0), _M_refcount() // never throws
+  __shared_ptr() : _M_ptr(0), _M_refcount() // never throws
   {
   }
 
@@ -567,8 +546,7 @@ public:
    *  @throw  std::bad_alloc, in which case @c delete @a __p is called.
    */
   template <typename _Tp1>
-  explicit __shared_ptr(_Tp1 *__p)
-      : _M_ptr(__p), _M_refcount(__p)
+  explicit __shared_ptr(_Tp1 *__p) /*通过资源裸指针构造*/ : _M_ptr(__p) /*保存资源裸指针*/, _M_refcount(__p) /*构造引用计数器*/
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         // __glibcxx_function_requires(_CompleteConcept<_Tp1*>)
@@ -589,8 +567,7 @@ public:
    *  @throw  std::bad_alloc, in which case @a __d(__p) is called.
    */
   template <typename _Tp1, typename _Deleter>
-  __shared_ptr(_Tp1 *__p, _Deleter __d)
-      : _M_ptr(__p), _M_refcount(__p, __d)
+  __shared_ptr(_Tp1 *__p, _Deleter __d) : _M_ptr(__p), _M_refcount(__p, __d)
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         // TODO requires _Deleter CopyConstructible and __d(__p) well-formed
@@ -613,8 +590,7 @@ public:
    *  @throw  std::bad_alloc, in which case @a __d(__p) is called.
    */
   template <typename _Tp1, typename _Deleter, typename _Alloc>
-  __shared_ptr(_Tp1 *__p, _Deleter __d, const _Alloc &__a)
-      : _M_ptr(__p), _M_refcount(__p, __d, __a)
+  __shared_ptr(_Tp1 *__p, _Deleter __d, const _Alloc &__a) : _M_ptr(__p), _M_refcount(__p, __d, __a)
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         // TODO requires _Deleter CopyConstructible and __d(__p) well-formed
@@ -637,8 +613,7 @@ public:
    * @endcode
    */
   template <typename _Tp1>
-  __shared_ptr(const __shared_ptr<_Tp1, _Lp> &__r, _Tp *__p)
-      : _M_ptr(__p), _M_refcount(__r._M_refcount) // never throws
+  __shared_ptr(const __shared_ptr<_Tp1, _Lp> &__r, _Tp *__p) : _M_ptr(__p), _M_refcount(__r._M_refcount) // never throws
   {
   }
 
@@ -651,16 +626,14 @@ public:
    *  @post   get() == __r.get() && use_count() == __r.use_count()
    */
   template <typename _Tp1>
-  __shared_ptr(const __shared_ptr<_Tp1, _Lp> &__r)
-      : _M_ptr(__r._M_ptr), _M_refcount(__r._M_refcount) // never throws
-        {__glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)}
+  __shared_ptr(const __shared_ptr<_Tp1, _Lp> &__r) : _M_ptr(__r._M_ptr), _M_refcount(__r._M_refcount) // never throws
+                                                     {__glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)}
 
-        /** @brief  Move-constructs a %__shared_ptr instance from @a __r.
-         *  @param  __r  A %__shared_ptr rvalue.
-         *  @post   *this contains the old value of @a __r, @a __r is empty.
-         */
-        __shared_ptr(__shared_ptr && __r)
-      : _M_ptr(__r._M_ptr), _M_refcount() // never throws
+                                                     /** @brief  Move-constructs a %__shared_ptr instance from @a __r.
+                                                      *  @param  __r  A %__shared_ptr rvalue.
+                                                      *  @post   *this contains the old value of @a __r, @a __r is empty.
+                                                      */
+                                                     __shared_ptr(__shared_ptr && __r) : _M_ptr(__r._M_ptr), _M_refcount() // never throws
   {
     _M_refcount._M_swap(__r._M_refcount);
     __r._M_ptr = 0;
@@ -671,8 +644,7 @@ public:
    *  @post   *this contains the old value of @a __r, @a __r is empty.
    */
   template <typename _Tp1>
-  __shared_ptr(__shared_ptr<_Tp1, _Lp> &&__r)
-      : _M_ptr(__r._M_ptr), _M_refcount() // never throws
+  __shared_ptr(__shared_ptr<_Tp1, _Lp> &&__r) : _M_ptr(__r._M_ptr), _M_refcount() // never throws
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         _M_refcount._M_swap(__r._M_refcount);
@@ -687,8 +659,7 @@ public:
    *          in which case the constructor has no effect.
    */
   template <typename _Tp1>
-  explicit __shared_ptr(const __weak_ptr<_Tp1, _Lp> &__r)
-      : _M_refcount(__r._M_refcount) // may throw
+  explicit __shared_ptr(const __weak_ptr<_Tp1, _Lp> &__r) : _M_refcount(__r._M_refcount) // may throw
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         // It is now safe to copy __r._M_ptr, as _M_refcount(__r._M_refcount)
@@ -703,8 +674,7 @@ public:
    * If an exception is thrown this constructor has no effect.
    */
   template <typename _Tp1, typename _Del>
-  explicit __shared_ptr(std::unique_ptr<_Tp1, _Del> &&__r)
-      : _M_ptr(__r.get()), _M_refcount()
+  explicit __shared_ptr(std::unique_ptr<_Tp1, _Del> &&__r) : _M_ptr(__r.get()), _M_refcount()
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         _Tp1 *__tmp = __r.get();
@@ -852,22 +822,18 @@ public:
 
 protected:
   // This constructor is non-standard, it is used by allocate_shared.
-  template <typename _Alloc, typename... _Args>
-  __shared_ptr(_Sp_make_shared_tag __tag, _Alloc __a, _Args &&...__args)
-      : _M_ptr(), _M_refcount(__tag, (_Tp *)0, __a,
-                              std::forward<_Args>(__args)...)
+  template <typename _Alloc, typename... _Args> // make_shared使用
+  __shared_ptr(_Sp_make_shared_tag __tag, _Alloc __a, _Args &&...__args) : _M_ptr(), _M_refcount(__tag, (_Tp *)0, __a, std::forward<_Args>(__args)...)
   {
     // _M_ptr needs to point to the newly constructed object.
     // This relies on _Sp_counted_ptr_inplace::_M_get_deleter.
     void *__p = _M_refcount._M_get_deleter(typeid(__tag));
-    _M_ptr = static_cast<_Tp *>(__p);
+    _M_ptr = static_cast<_Tp *>(__p); // 重新赋值资源指针
     __enable_shared_from_this_helper(_M_refcount, _M_ptr, _M_ptr);
   }
 
-  template <typename _Tp1, _Lock_policy _Lp1, typename _Alloc,
-            typename... _Args>
-  friend __shared_ptr<_Tp1, _Lp1>
-  __allocate_shared(_Alloc __a, _Args &&...__args);
+  template <typename _Tp1, _Lock_policy _Lp1, typename _Alloc, typename... _Args>
+  friend __shared_ptr<_Tp1, _Lp1> __allocate_shared(_Alloc __a, _Args &&...__args);
 
 private:
   void *_M_get_deleter(const std::type_info &__ti) const
@@ -883,21 +849,19 @@ private:
   template <typename _Del, typename _Tp1, _Lock_policy _Lp1>
   friend _Del *get_deleter(const __shared_ptr<_Tp1, _Lp1> &);
 
-  _Tp *_M_ptr;                     // Contained pointer.
-  __shared_count<_Lp> _M_refcount; // Reference counter.
+  _Tp *_M_ptr;                     // Contained pointer. //资源指针
+  __shared_count<_Lp> _M_refcount; // Reference counter. //引用计数控制块
 };
 
 // 20.8.13.2.7 shared_ptr comparisons
 template <typename _Tp1, typename _Tp2, _Lock_policy _Lp>
-inline bool operator==(const __shared_ptr<_Tp1, _Lp> &__a,
-                       const __shared_ptr<_Tp2, _Lp> &__b)
+inline bool operator==(const __shared_ptr<_Tp1, _Lp> &__a, const __shared_ptr<_Tp2, _Lp> &__b)
 {
   return __a.get() == __b.get();
 }
 
 template <typename _Tp1, typename _Tp2, _Lock_policy _Lp>
-inline bool operator!=(const __shared_ptr<_Tp1, _Lp> &__a,
-                       const __shared_ptr<_Tp2, _Lp> &__b)
+inline bool operator!=(const __shared_ptr<_Tp1, _Lp> &__a, const __shared_ptr<_Tp2, _Lp> &__b)
 {
   return __a.get() != __b.get();
 }
@@ -998,8 +962,7 @@ inline __shared_ptr<_Tp, _Lp> dynamic_pointer_cast(const __shared_ptr<_Tp1, _Lp>
 
 // 2.2.3.7 shared_ptr I/O
 template <typename _Ch, typename _Tr, typename _Tp, _Lock_policy _Lp>
-std::basic_ostream<_Ch, _Tr> &operator<<(std::basic_ostream<_Ch, _Tr> &__os,
-                                         const __shared_ptr<_Tp, _Lp> &__p)
+std::basic_ostream<_Ch, _Tr> &operator<<(std::basic_ostream<_Ch, _Tr> &__os, const __shared_ptr<_Tp, _Lp> &__p)
 {
   __os << __p.get();
   return __os;
@@ -1088,8 +1051,7 @@ public:
 
 #else
     // Optimization: avoid try/catch overhead when single threaded.
-    return expired() ? __shared_ptr<element_type, _Lp>()
-                     : __shared_ptr<element_type, _Lp>(*this);
+    return expired() ? __shared_ptr<element_type, _Lp>() : __shared_ptr<element_type, _Lp>(*this);
 
 #endif
   } // XXX MT
@@ -1190,8 +1152,7 @@ struct owner_less<__shared_ptr<_Tp, _Lp>> : public _Sp_owner_less<__shared_ptr<_
 };
 
 template <typename _Tp, _Lock_policy _Lp>
-struct owner_less<__weak_ptr<_Tp, _Lp>>
-    : public _Sp_owner_less<__weak_ptr<_Tp, _Lp>, __shared_ptr<_Tp, _Lp>>
+struct owner_less<__weak_ptr<_Tp, _Lp>> : public _Sp_owner_less<__weak_ptr<_Tp, _Lp>, __shared_ptr<_Tp, _Lp>>
 {
 };
 
@@ -1229,9 +1190,7 @@ private:
   }
 
   template <typename _Tp1>
-  friend void __enable_shared_from_this_helper(const __shared_count<_Lp> &__pn,
-                                               const __enable_shared_from_this *__pe,
-                                               const _Tp1 *__px)
+  friend void __enable_shared_from_this_helper(const __shared_count<_Lp> &__pn, const __enable_shared_from_this *__pe, const _Tp1 *__px)
   {
     if (__pe != 0)
       __pe->_M_weak_assign(const_cast<_Tp1 *>(__px), __pn);
@@ -1247,14 +1206,14 @@ private:
  *  it is destroyed or reset.
  */
 template <typename _Tp>
-class shared_ptr : public __shared_ptr<_Tp>
+class shared_ptr : public __shared_ptr<_Tp> // 共享型智能指针
 {
 public:
   shared_ptr() : __shared_ptr<_Tp>()
   {
   }
 
-  template <typename _Tp1>
+  template <typename _Tp1> // auto sp = std::shared_ptr<A>(new A);
   explicit shared_ptr(_Tp1 *__p) : __shared_ptr<_Tp>(__p)
   {
   }
@@ -1352,15 +1311,13 @@ public:
 
 private:
   // This constructor is non-standard, it is used by allocate_shared.
-  template <typename _Alloc, typename... _Args>
-  shared_ptr(_Sp_make_shared_tag __tag, _Alloc __a, _Args &&...__args)
-      : __shared_ptr<_Tp>(__tag, __a, std::forward<_Args>(__args)...)
+  template <typename _Alloc, typename... _Args> // make_shared的特化
+  shared_ptr(_Sp_make_shared_tag __tag, _Alloc __a, _Args &&...__args) : __shared_ptr<_Tp>(__tag, __a, std::forward<_Args>(__args)...)
   {
   }
 
   template <typename _Tp1, typename _Alloc, typename... _Args>
-  friend shared_ptr<_Tp1>
-  allocate_shared(_Alloc __a, _Args &&...__args);
+  friend shared_ptr<_Tp1> allocate_shared(_Alloc __a, _Args &&...__args);
 };
 
 // 20.8.13.2.7 shared_ptr comparisons
@@ -1479,8 +1436,7 @@ public:
       return shared_ptr<_Tp>();
     }
 #else
-    return this->expired() ? shared_ptr<_Tp>()
-                           : shared_ptr<_Tp>(*this);
+    return this->expired() ? shared_ptr<_Tp>() : shared_ptr<_Tp>(*this);
 #endif
   }
 
@@ -1550,9 +1506,7 @@ private:
   }
 
   template <typename _Tp1>
-  friend void __enable_shared_from_this_helper(const __shared_count<> &__pn,
-                                               const enable_shared_from_this *__pe,
-                                               const _Tp1 *__px)
+  friend void __enable_shared_from_this_helper(const __shared_count<> &__pn, const enable_shared_from_this *__pe, const _Tp1 *__px)
   {
     if (__pe != 0)
       __pe->_M_weak_assign(const_cast<_Tp1 *>(__px), __pn);
@@ -1564,16 +1518,14 @@ private:
 template <typename _Tp, _Lock_policy _Lp, typename _Alloc, typename... _Args>
 inline __shared_ptr<_Tp, _Lp> __allocate_shared(_Alloc __a, _Args &&...__args)
 {
-  return __shared_ptr<_Tp, _Lp>(_Sp_make_shared_tag(),
-                                std::forward<_Alloc>(__a), std::forward<_Args>(__args)...);
+  return __shared_ptr<_Tp, _Lp>(_Sp_make_shared_tag(), std::forward<_Alloc>(__a), std::forward<_Args>(__args)...);
 }
 
 template <typename _Tp, _Lock_policy _Lp, typename... _Args>
 inline __shared_ptr<_Tp, _Lp> __make_shared(_Args &&...__args)
 {
   typedef typename std::remove_const<_Tp>::type _Tp_nc;
-  return __allocate_shared<_Tp, _Lp>(std::allocator<_Tp_nc>(),
-                                     std::forward<_Args>(__args)...);
+  return __allocate_shared<_Tp, _Lp>(std::allocator<_Tp_nc>(), std::forward<_Args>(__args)...);
 }
 
 /** @brief  Create an object that is owned by a shared_ptr.
@@ -1589,8 +1541,7 @@ inline __shared_ptr<_Tp, _Lp> __make_shared(_Args &&...__args)
 template <typename _Tp, typename _Alloc, typename... _Args>
 inline shared_ptr<_Tp> allocate_shared(_Alloc __a, _Args &&...__args)
 {
-  return shared_ptr<_Tp>(_Sp_make_shared_tag(), std::forward<_Alloc>(__a),
-                         std::forward<_Args>(__args)...);
+  return shared_ptr<_Tp>(_Sp_make_shared_tag(), std::forward<_Alloc>(__a), std::forward<_Args>(__args)...);
 }
 
 /** @brief  Create an object that is owned by a shared_ptr.
@@ -1603,8 +1554,7 @@ template <typename _Tp, typename... _Args>
 inline shared_ptr<_Tp> make_shared(_Args &&...__args)
 {
   typedef typename std::remove_const<_Tp>::type _Tp_nc;
-  return allocate_shared<_Tp>(std::allocator<_Tp_nc>(),
-                              std::forward<_Args>(__args)...);
+  return allocate_shared<_Tp>(std::allocator<_Tp_nc>(), std::forward<_Args>(__args)...);
 }
 
 // @} group pointer_abstractions
