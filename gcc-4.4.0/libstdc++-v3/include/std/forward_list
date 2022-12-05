@@ -32,13 +32,13 @@
 #pragma GCC system_header
 
 #ifndef __GXX_EXPERIMENTAL_CXX0X__
-# include <c++0x_warning.h>
+#include <c++0x_warning.h>
 #else
 
 #include <bits/forward_list.h>
 
 #ifndef _GLIBCXX_EXPORT_TEMPLATE
-# include <bits/forward_list.tcc>
+#include <bits/forward_list.tcc>
 #endif
 
 #endif // __GXX_EXPERIMENTAL_CXX0X__
