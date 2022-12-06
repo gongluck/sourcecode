@@ -136,15 +136,14 @@ private:
   //      beyond-the-end for a null terminator; thus, the shared
   //      empty string representation needs no constructor.
 
-  // 基础描述结构
-  struct _Rep_base
+  struct _Rep_base // 基础描述结构
   {
     size_type _M_length;      // 字符串有效长度
     size_type _M_capacity;    // 内存容量
     _Atomic_word _M_refcount; // 引用计数
   };
 
-  struct _Rep : _Rep_base
+  struct _Rep : _Rep_base // 字符串描述结构
   {
     // Types:
     typedef typename _Alloc::template rebind<char>::other _Raw_bytes_alloc;
@@ -167,8 +166,7 @@ private:
 
     // The following storage is init'd to 0 by the linker, resulting
     // (carefully) in an empty string with one reference.
-    static size_type _S_empty_rep_storage[];
-    // 空描述
+    static size_type _S_empty_rep_storage[]; // 空描述
     static _Rep &_S_empty_rep()
     {
       // NB: Mild hack to avoid strict-aliasing warnings.  Note that
@@ -225,14 +223,14 @@ private:
     // Create & Destroy
     static _Rep *_S_create(size_type, size_type, const _Alloc &);
 
-    void _M_dispose(const _Alloc &__a)
+    void _M_dispose(const _Alloc &__a) // 丢弃
     {
 #ifndef _GLIBCXX_FULLY_DYNAMIC_STRING
-      if (__builtin_expect(this != &_S_empty_rep(), false))
+      if (__builtin_expect(this != &_S_empty_rep(), false)) // 排除全局空描述
 #endif
-        if (__gnu_cxx::__exchange_and_add_dispatch(&this->_M_refcount, -1) <= 0)
-          _M_destroy(__a);
-    } // XXX MT
+        if (__gnu_cxx::__exchange_and_add_dispatch(&this->_M_refcount, -1) <= 0) // 减少引用计数
+          _M_destroy(__a);                                                       // 没有其它共享则销毁
+    }                                                                            // XXX MT
 
     void _M_destroy(const _Alloc &) throw();
 
@@ -312,7 +310,7 @@ private:
 
   void _M_check_length(size_type __n1, size_type __n2, const char *__s) const
   {
-    if (this->max_size() - (this->size() - __n1) < __n2)
+    if (this->max_size() - (this->size() - __n1) < __n2) // maxsize < size - n1 + n2 ==> maxsize - size < n2 - n1 ?
       __throw_length_error(__N(__s));
   }
 
@@ -324,10 +322,9 @@ private:
   }
 
   // True if _Rep and source do not overlap.
-  bool _M_disjunct(const _CharT *__s) const // 判断Rep和s的数据不重叠
+  bool _M_disjunct(const _CharT *__s) const // 判断数据不重叠
   {
-    return (less<const _CharT *>()(__s, _M_data()) ||
-            less<const _CharT *>()(_M_data() + this->size(), __s));
+    return (less<const _CharT *>()(__s, _M_data()) || less<const _CharT *>()(_M_data() + this->size(), __s));
   }
 
   // When __n = 1 way faster than the general multichar
@@ -529,8 +526,7 @@ public:
    *  @brief  Set value to string constructed from initializer list.
    *  @param  l  std::initializer_list.
    */
-  basic_string &
-  operator=(initializer_list<_CharT> __l)
+  basic_string &operator=(initializer_list<_CharT> __l)
   {
     this->assign(__l.begin(), __l.end());
     return *this;
@@ -544,7 +540,7 @@ public:
    */
   iterator begin()
   {
-    _M_leak();
+    _M_leak(); // 占用数据
     return iterator(_M_data());
   }
 
@@ -696,9 +692,9 @@ public:
   /**
    *  Erases the string, making it empty.
    */
-  void clear()
+  void clear() // 清空
   {
-    _M_mutate(0, this->size(), 0);
+    _M_mutate(0, this->size(), 0); // 改变数据
   }
 
   /**
@@ -742,7 +738,7 @@ public:
     _GLIBCXX_DEBUG_ASSERT(__pos <= size());
     // but be strict in pedantic mode:
     _GLIBCXX_DEBUG_PEDASSERT(__pos < size());
-    _M_leak();
+    _M_leak(); // 占用数据
     return _M_data()[__pos];
   }
 
@@ -820,8 +816,7 @@ public:
    *  @param l  The initializer_list of characters to be appended.
    *  @return  Reference to this string.
    */
-  basic_string &
-  operator+=(initializer_list<_CharT> __l)
+  basic_string &operator+=(initializer_list<_CharT> __l)
   {
     return this->append(__l.begin(), __l.end());
   }
@@ -883,8 +878,7 @@ public:
    *  @param l  The initializer_list of characters to append.
    *  @return  Reference to this string.
    */
-  basic_string &
-  append(initializer_list<_CharT> __l)
+  basic_string &append(initializer_list<_CharT> __l)
   {
     return this->append(__l.begin(), __l.end());
   }
@@ -1003,8 +997,7 @@ public:
    *  @param l  The initializer_list of characters to assign.
    *  @return  Reference to this string.
    */
-  basic_string &
-  assign(initializer_list<_CharT> __l)
+  basic_string &assign(initializer_list<_CharT> __l)
   {
     return this->assign(__l.begin(), __l.end());
   }
@@ -1051,8 +1044,7 @@ public:
    *  @param l  The initializer_list of characters to insert.
    *  @throw  std::length_error  If new length exceeds @c max_size().
    */
-  void
-  insert(iterator __p, initializer_list<_CharT> __l)
+  void insert(iterator __p, initializer_list<_CharT> __l)
   {
     this->insert(__p, __l.begin(), __l.end());
   }
@@ -1194,7 +1186,7 @@ public:
    */
   basic_string &erase(size_type __pos = 0, size_type __n = npos)
   {
-    _M_mutate(_M_check(__pos, "basic_string::erase"), _M_limit(__pos, __n), size_type(0));
+    _M_mutate(_M_check(__pos, "basic_string::erase"), _M_limit(__pos, __n), size_type(0)); // 抹除
     return *this;
   }
 
@@ -1272,8 +1264,7 @@ public:
    *  result exceeds max_size(), length_error is thrown.  The value of the
    *  string doesn't change if an error is thrown.
    */
-  basic_string &replace(size_type __pos1, size_type __n1, const basic_string &__str,
-                        size_type __pos2, size_type __n2)
+  basic_string &replace(size_type __pos1, size_type __n1, const basic_string &__str, size_type __pos2, size_type __n2)
   {
     return this->replace(__pos1, __n1, __str._M_data() + __str._M_check(__pos2, "basic_string::replace"), __str._M_limit(__pos2, __n2));
   }
@@ -1462,8 +1453,7 @@ public:
     return this->replace(__i1 - _M_ibegin(), __i2 - __i1, __k1.base(), __k2 - __k1);
   }
 
-  basic_string &replace(iterator __i1, iterator __i2,
-                        const_iterator __k1, const_iterator __k2)
+  basic_string &replace(iterator __i1, iterator __i2, const_iterator __k1, const_iterator __k2)
   {
     _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2 && __i2 <= _M_iend());
     __glibcxx_requires_valid_range(__k1, __k2);
@@ -1484,8 +1474,7 @@ public:
    *  max_size(), length_error is thrown.  The value of the string doesn't
    *  change if an error is thrown.
    */
-  basic_string &replace(iterator __i1, iterator __i2,
-                        initializer_list<_CharT> __l)
+  basic_string &replace(iterator __i1, iterator __i2, initializer_list<_CharT> __l)
   {
     return this->replace(__i1, __i2, __l.begin(), __l.end());
   }
@@ -1854,8 +1843,7 @@ public:
    *  in the first @a n characters of @a s within this string.  If found,
    *  returns the index where it was found.  If not found, returns npos.
    */
-  size_type find_first_not_of(const _CharT *__s, size_type __pos,
-                              size_type __n) const;
+  size_type find_first_not_of(const _CharT *__s, size_type __pos, size_type __n) const;
 
   /**
    *  @brief  Find position of a character not in C string.
@@ -1912,8 +1900,7 @@ public:
    *  If found, returns the index where it was found.  If not found,
    *  returns npos.
    */
-  size_type find_last_not_of(const _CharT *__s, size_type __pos,
-                             size_type __n) const;
+  size_type find_last_not_of(const _CharT *__s, size_type __pos, size_type __n) const;
   /**
    *  @brief  Find last position of a character not in C string.
    *  @param s  C string containing characters to avoid.
@@ -2476,9 +2463,7 @@ basic_istream<char> &getline(basic_istream<char> &__in, basic_string<char> &__st
 
 #ifdef _GLIBCXX_USE_WCHAR_T
 template <>
-basic_istream<wchar_t> &
-getline(basic_istream<wchar_t> &__in, basic_string<wchar_t> &__str,
-        wchar_t __delim);
+basic_istream<wchar_t> &getline(basic_istream<wchar_t> &__in, basic_string<wchar_t> &__str, wchar_t __delim);
 #endif
 
 _GLIBCXX_END_NAMESPACE
@@ -2490,164 +2475,120 @@ _GLIBCXX_END_NAMESPACE
 _GLIBCXX_BEGIN_NAMESPACE(std)
 
 // 21.4 Numeric Conversions [string.conversions].
-inline int
-stoi(const string &__str, size_t *__idx = 0, int __base = 10)
+inline int stoi(const string &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa<long, int>(&std::strtol, "stoi", __str.c_str(),
-                                      __idx, __base);
+  return __gnu_cxx::__stoa<long, int>(&std::strtol, "stoi", __str.c_str(), __idx, __base);
 }
 
-inline long
-stol(const string &__str, size_t *__idx = 0, int __base = 10)
+inline long stol(const string &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::strtol, "stol", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::strtol, "stol", __str.c_str(), __idx, __base);
 }
 
-inline unsigned long
-stoul(const string &__str, size_t *__idx = 0, int __base = 10)
+inline unsigned long stoul(const string &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::strtoul, "stoul", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::strtoul, "stoul", __str.c_str(), __idx, __base);
 }
 
-inline long long
-stoll(const string &__str, size_t *__idx = 0, int __base = 10)
+inline long long stoll(const string &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::strtoll, "stoll", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::strtoll, "stoll", __str.c_str(), __idx, __base);
 }
 
-inline unsigned long long
-stoull(const string &__str, size_t *__idx = 0, int __base = 10)
+inline unsigned long long stoull(const string &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::strtoull, "stoull", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::strtoull, "stoull", __str.c_str(), __idx, __base);
 }
 
 // NB: strtof vs strtod.
-inline float
-stof(const string &__str, size_t *__idx = 0)
+inline float stof(const string &__str, size_t *__idx = 0)
 {
   return __gnu_cxx::__stoa(&std::strtof, "stof", __str.c_str(), __idx);
 }
 
-inline double
-stod(const string &__str, size_t *__idx = 0)
+inline double stod(const string &__str, size_t *__idx = 0)
 {
   return __gnu_cxx::__stoa(&std::strtod, "stod", __str.c_str(), __idx);
 }
 
-inline long double
-stold(const string &__str, size_t *__idx = 0)
+inline long double stold(const string &__str, size_t *__idx = 0)
 {
   return __gnu_cxx::__stoa(&std::strtold, "stold", __str.c_str(), __idx);
 }
 
 // NB: (v)snprintf vs sprintf.
-inline string
-to_string(long long __val)
+inline string to_string(long long __val)
 {
-  return __gnu_cxx::__to_xstring<string>(&std::vsnprintf,
-                                         4 * sizeof(long long),
-                                         "%lld", __val);
+  return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, 4 * sizeof(long long), "%lld", __val);
 }
 
-inline string
-to_string(unsigned long long __val)
+inline string to_string(unsigned long long __val)
 {
-  return __gnu_cxx::__to_xstring<string>(&std::vsnprintf,
-                                         4 * sizeof(unsigned long long),
-                                         "%llu", __val);
+  return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, 4 * sizeof(unsigned long long), "%llu", __val);
 }
 
-inline string
-to_string(long double __val)
+inline stringto_string(long double __val)
 {
-  const int __n =
-      __gnu_cxx::__numeric_traits<long double>::__max_exponent10 + 20;
-  return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n,
-                                         "%Lf", __val);
+  const int __n = __gnu_cxx::__numeric_traits<long double>::__max_exponent10 + 20;
+  return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n, "%Lf", __val);
 }
 
 #ifdef _GLIBCXX_USE_WCHAR_T
-inline int
-stoi(const wstring &__str, size_t *__idx = 0, int __base = 10)
+inline int stoi(const wstring &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa<long, int>(&std::wcstol, "stoi", __str.c_str(),
-                                      __idx, __base);
+  return __gnu_cxx::__stoa<long, int>(&std::wcstol, "stoi", __str.c_str(), __idx, __base);
 }
 
-inline long
-stol(const wstring &__str, size_t *__idx = 0, int __base = 10)
+inline long stol(const wstring &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::wcstol, "stol", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::wcstol, "stol", __str.c_str(), __idx, __base);
 }
 
-inline unsigned long
-stoul(const wstring &__str, size_t *__idx = 0, int __base = 10)
+inline unsigned long stoul(const wstring &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::wcstoul, "stoul", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::wcstoul, "stoul", __str.c_str(), __idx, __base);
 }
 
-inline long long
-stoll(const wstring &__str, size_t *__idx = 0, int __base = 10)
+inline long long stoll(const wstring &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::wcstoll, "stoll", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::wcstoll, "stoll", __str.c_str(), __idx, __base);
 }
 
-inline unsigned long long
-stoull(const wstring &__str, size_t *__idx = 0, int __base = 10)
+inline unsigned long long stoull(const wstring &__str, size_t *__idx = 0, int __base = 10)
 {
-  return __gnu_cxx::__stoa(&std::wcstoull, "stoull", __str.c_str(),
-                           __idx, __base);
+  return __gnu_cxx::__stoa(&std::wcstoull, "stoull", __str.c_str(), __idx, __base);
 }
 
 // NB: wcstof vs wcstod.
-inline float
-stof(const wstring &__str, size_t *__idx = 0)
+inline float stof(const wstring &__str, size_t *__idx = 0)
 {
   return __gnu_cxx::__stoa(&std::wcstof, "stof", __str.c_str(), __idx);
 }
 
-inline double
-stod(const wstring &__str, size_t *__idx = 0)
+inline double stod(const wstring &__str, size_t *__idx = 0)
 {
   return __gnu_cxx::__stoa(&std::wcstod, "stod", __str.c_str(), __idx);
 }
 
-inline long double
-stold(const wstring &__str, size_t *__idx = 0)
+inline long double stold(const wstring &__str, size_t *__idx = 0)
 {
   return __gnu_cxx::__stoa(&std::wcstold, "stold", __str.c_str(), __idx);
 }
 
-inline wstring
-to_wstring(long long __val)
+inline wstring to_wstring(long long __val)
 {
-  return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf,
-                                          4 * sizeof(long long),
-                                          L"%lld", __val);
+  return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, 4 * sizeof(long long), L"%lld", __val);
 }
 
-inline wstring
-to_wstring(unsigned long long __val)
+inline wstring to_wstring(unsigned long long __val)
 {
-  return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf,
-                                          4 * sizeof(unsigned long long),
-                                          L"%llu", __val);
+  return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, 4 * sizeof(unsigned long long), L"%llu", __val);
 }
 
-inline wstring
-to_wstring(long double __val)
+inline wstring to_wstring(long double __val)
 {
-  const int __n =
-      __gnu_cxx::__numeric_traits<long double>::__max_exponent10 + 20;
-  return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, __n,
-                                          L"%Lf", __val);
+  const int __n = __gnu_cxx::__numeric_traits<long double>::__max_exponent10 + 20;
+  return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, __n, L"%Lf", __val);
 }
 #endif
 
