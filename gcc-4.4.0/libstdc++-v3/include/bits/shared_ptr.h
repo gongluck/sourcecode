@@ -66,7 +66,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
 
 // counted ptr with no deleter or allocator support
 template <typename _Ptr, _Lock_policy _Lp>
-class _Sp_counted_ptr : public _Sp_counted_base<_Lp> // 引用计数管理器
+class _Sp_counted_ptr : public _Sp_counted_base<_Lp> // 智能指针引用计数管理器
 {
 public:
   _Sp_counted_ptr(_Ptr __p) : _M_ptr(__p)
@@ -92,7 +92,7 @@ public:
   _Sp_counted_ptr &operator=(const _Sp_counted_ptr &) = delete;
 
 protected:
-  _Ptr _M_ptr; // copy constructor must not throw
+  _Ptr _M_ptr; // copy constructor must not throw //资源指针
 };
 
 // support for custom deleter and/or allocator
@@ -106,7 +106,7 @@ class _Sp_counted_deleter : public _Sp_counted_ptr<_Ptr, _Lp> // 支持自定义
   // Requires that copies of _Alloc can free each other's memory.
   struct _My_Deleter : public _My_alloc_type // copy constructor must not throw
   {
-    _Deleter _M_del; // copy constructor must not throw
+    _Deleter _M_del; // copy constructor must not throw //销毁器成员
     _My_Deleter(_Deleter __d, const _Alloc &__a) : _My_alloc_type(__a), _M_del(__d)
     {
     }
@@ -150,13 +150,13 @@ public:
   }
 
 protected:
-  _My_Deleter _M_del; // copy constructor must not throw
+  _My_Deleter _M_del; // copy constructor must not throw //自定义删除器
 };
 
 // helpers for make_shared / allocate_shared
 
 template <typename _Tp>
-struct _Sp_destroy_inplace
+struct _Sp_destroy_inplace // 智能指针删除器
 {
   void operator()(_Tp *__p) const
   {
@@ -165,11 +165,11 @@ struct _Sp_destroy_inplace
   }
 };
 
-struct _Sp_make_shared_tag
+struct _Sp_make_shared_tag // make_shared标签
 {
 };
 
-template <typename _Tp, typename _Alloc, _Lock_policy _Lp>
+template <typename _Tp, typename _Alloc, _Lock_policy _Lp> // 连续内存存放数据的智能指针引用计数器
 class _Sp_counted_ptr_inplace : public _Sp_counted_deleter<_Tp *, _Sp_destroy_inplace<_Tp>, _Alloc, _Lp>
 {
   typedef _Sp_counted_deleter<_Tp *, _Sp_destroy_inplace<_Tp>, _Alloc, _Lp> _Base_type;
@@ -206,14 +206,14 @@ public:
   }
 
 private:
-  typename aligned_storage<sizeof(_Tp), alignment_of<_Tp>::value>::type _M_storage;
+  typename aligned_storage<sizeof(_Tp), alignment_of<_Tp>::value>::type _M_storage; // 数据作为内部数据成员 和基类_Sp_counted_ptr的其它成员在内存上连续
 };
 
 template <_Lock_policy _Lp = __default_lock_policy>
 class __weak_count;
 
 template <_Lock_policy _Lp = __default_lock_policy>
-class __shared_count // 引用计数器
+class __shared_count // 共享引用计数器
 {
 public:
   __shared_count() : _M_pi(0) // nothrow
@@ -298,8 +298,7 @@ public:
 #if _GLIBCXX_DEPRECATED
   // Special case for auto_ptr<_Tp> to provide the strong guarantee.
   template <typename _Tp>
-  explicit __shared_count(std::auto_ptr<_Tp> &&__r)
-      : _M_pi(new _Sp_counted_ptr<_Tp *, _Lp>(__r.get()))
+  explicit __shared_count(std::auto_ptr<_Tp> &&__r) : _M_pi(new _Sp_counted_ptr<_Tp *, _Lp>(__r.get()))
   {
     __r.release();
   }
@@ -398,7 +397,7 @@ private:
     return new _Sp_counted_deleter<_Tp *, _Del2, std::allocator<_Tp>, _Lp>(__r.get(), std::ref(__r.get_deleter()));
   }
 
-  _Sp_counted_base<_Lp> *_M_pi;
+  _Sp_counted_base<_Lp> *_M_pi; // 指向控制块
 };
 
 template <_Lock_policy _Lp>
@@ -480,15 +479,15 @@ public:
 private:
   friend class __shared_count<_Lp>;
 
-  _Sp_counted_base<_Lp> *_M_pi;
+  _Sp_counted_base<_Lp> *_M_pi; // 计数控制块
 };
 
 // now that __weak_count is defined we can define this constructor:
-template <_Lock_policy _Lp>
-inline __shared_count<_Lp>::__shared_count(const __weak_count<_Lp> &__r) : _M_pi(__r._M_pi)
+template <_Lock_policy _Lp>                                                                 // 从weak_ptr创建
+inline __shared_count<_Lp>::__shared_count(const __weak_count<_Lp> &__r) : _M_pi(__r._M_pi) // 拷贝计数控制块
 {
   if (_M_pi != 0)
-    _M_pi->_M_add_ref_lock();
+    _M_pi->_M_add_ref_lock(); // 增加共享引用计数
   else
     __throw_bad_weak_ptr();
 }
@@ -658,8 +657,8 @@ public:
    *  @throw  bad_weak_ptr when __r.expired(),
    *          in which case the constructor has no effect.
    */
-  template <typename _Tp1>
-  explicit __shared_ptr(const __weak_ptr<_Tp1, _Lp> &__r) : _M_refcount(__r._M_refcount) // may throw
+  template <typename _Tp1>                                                                                  // 从weak_ptr创建
+  explicit __shared_ptr(const __weak_ptr<_Tp1, _Lp> &__r) : _M_refcount(__r._M_refcount) /*拷贝引用控制块*/ // may throw
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         // It is now safe to copy __r._M_ptr, as _M_refcount(__r._M_refcount)
@@ -687,8 +686,7 @@ public:
    * @post use_count() == 1 and __r.get() == 0
    */
   template <typename _Tp1>
-  explicit __shared_ptr(std::auto_ptr<_Tp1> &&__r)
-      : _M_ptr(__r.get()), _M_refcount()
+  explicit __shared_ptr(std::auto_ptr<_Tp1> &&__r) : _M_ptr(__r.get()), _M_refcount()
   {
     __glibcxx_function_requires(_ConvertibleConcept<_Tp1 *, _Tp *>)
         // TODO requires _Tp1 is complete, delete __r.release() well-formed
@@ -708,8 +706,7 @@ public:
 
 #if _GLIBCXX_DEPRECATED
   template <typename _Tp1>
-  __shared_ptr &
-  operator=(std::auto_ptr<_Tp1> &&__r)
+  __shared_ptr &operator=(std::auto_ptr<_Tp1> &&__r)
   {
     __shared_ptr(std::move(__r)).swap(*this);
     return *this;
@@ -1114,8 +1111,8 @@ private:
   friend class __enable_shared_from_this<_Tp, _Lp>;
   friend class enable_shared_from_this<_Tp>;
 
-  _Tp *_M_ptr;                   // Contained pointer.
-  __weak_count<_Lp> _M_refcount; // Reference counter.
+  _Tp *_M_ptr;                   // Contained pointer. //资源指针
+  __weak_count<_Lp> _M_refcount; // Reference counter. //计数控制块
 };
 
 // 20.8.13.3.7 weak_ptr specialized algorithms.
@@ -1248,15 +1245,14 @@ public:
   {
   }
 
-  template <typename _Tp1>
+  template <typename _Tp1> // 从weak_ptr创建
   explicit shared_ptr(const weak_ptr<_Tp1> &__r) : __shared_ptr<_Tp>(__r)
   {
   }
 
 #if _GLIBCXX_DEPRECATED
   template <typename _Tp1>
-  explicit shared_ptr(std::auto_ptr<_Tp1> &&__r)
-      : __shared_ptr<_Tp>(std::move(__r))
+  explicit shared_ptr(std::auto_ptr<_Tp1> &&__r) : __shared_ptr<_Tp>(std::move(__r))
   {
   }
 #endif
@@ -1278,8 +1274,7 @@ public:
 
 #if _GLIBCXX_DEPRECATED
   template <typename _Tp1>
-  shared_ptr &
-  operator=(std::auto_ptr<_Tp1> &&__r)
+  shared_ptr &operator=(std::auto_ptr<_Tp1> &&__r)
   {
     this->__shared_ptr<_Tp>::operator=(std::move(__r));
     return *this;
@@ -1473,7 +1468,7 @@ struct owner_less<weak_ptr<_Tp>> : public _Sp_owner_less<weak_ptr<_Tp>, shared_p
  *  @brief Base class allowing use of member function shared_from_this.
  */
 template <typename _Tp>
-class enable_shared_from_this
+class enable_shared_from_this // 内部转换shared_ptr 避免控制块创建多个
 {
 protected:
   enable_shared_from_this() {}
@@ -1512,7 +1507,7 @@ private:
       __pe->_M_weak_assign(const_cast<_Tp1 *>(__px), __pn);
   }
 
-  mutable weak_ptr<_Tp> _M_weak_this;
+  mutable weak_ptr<_Tp> _M_weak_this; // 弱引用
 };
 
 template <typename _Tp, _Lock_policy _Lp, typename _Alloc, typename... _Args>
