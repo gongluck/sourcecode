@@ -59,657 +59,676 @@
 
 _GLIBCXX_BEGIN_NAMESPACE(std)
 
-  // 20.3.1 base classes
-  /** @defgroup functors Function Objects
-   * @ingroup utilities
-   *
-   *  Function objects, or @e functors, are objects with an @c operator()
-   *  defined and accessible.  They can be passed as arguments to algorithm
-   *  templates and used in place of a function pointer.  Not only is the
-   *  resulting expressiveness of the library increased, but the generated
-   *  code can be more efficient than what you might write by hand.  When we
-   *  refer to "functors," then, generally we include function pointers in
-   *  the description as well.
-   *
-   *  Often, functors are only created as temporaries passed to algorithm
-   *  calls, rather than being created as named variables.
-   *
-   *  Two examples taken from the standard itself follow.  To perform a
-   *  by-element addition of two vectors @c a and @c b containing @c double,
-   *  and put the result in @c a, use
-   *  \code
-   *  transform (a.begin(), a.end(), b.begin(), a.begin(), plus<double>());
-   *  \endcode
-   *  To negate every element in @c a, use
-   *  \code
-   *  transform(a.begin(), a.end(), a.begin(), negate<double>());
-   *  \endcode
-   *  The addition and negation functions will be inlined directly.
-   *
-   *  The standard functors are derived from structs named @c unary_function
-   *  and @c binary_function.  These two classes contain nothing but typedefs,
-   *  to aid in generic (template) programming.  If you write your own
-   *  functors, you might consider doing the same.
-   *
-   *  @{
-   */
-  /**
-   *  This is one of the @link functors functor base classes@endlink.
-   */
-  template<typename _Arg, typename _Result>
-    struct unary_function
-    {
-      typedef _Arg argument_type;   ///< @c argument_type is the type of the
-                                    ///     argument (no surprises here)
-
-      typedef _Result result_type;  ///< @c result_type is the return type
-    };
-
-  /**
-   *  This is one of the @link functors functor base classes@endlink.
-   */
-  template<typename _Arg1, typename _Arg2, typename _Result>
-    struct binary_function
-    {
-      typedef _Arg1 first_argument_type;   ///< the type of the first argument
-                                           ///  (no surprises here)
-
-      typedef _Arg2 second_argument_type;  ///< the type of the second argument
-      typedef _Result result_type;         ///< type of the return type
-    };
-  /** @}  */
-
-  // 20.3.2 arithmetic
-  /** @defgroup arithmetic_functors Arithmetic Classes
-   * @ingroup functors
-   *
-   *  Because basic math often needs to be done during an algorithm,
-   *  the library provides functors for those operations.  See the
-   *  documentation for @link functors the base classes@endlink
-   *  for examples of their use.
-   *
-   *  @{
-   */
-  /// One of the @link arithmetic_functors math functors@endlink.
-  template<typename _Tp>
-    struct plus : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x + __y; }
-    };
-
-  /// One of the @link arithmetic_functors math functors@endlink.
-  template<typename _Tp>
-    struct minus : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x - __y; }
-    };
-
-  /// One of the @link arithmetic_functors math functors@endlink.
-  template<typename _Tp>
-    struct multiplies : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x * __y; }
-    };
-
-  /// One of the @link arithmetic_functors math functors@endlink.
-  template<typename _Tp>
-    struct divides : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x / __y; }
-    };
-
-  /// One of the @link arithmetic_functors math functors@endlink.
-  template<typename _Tp>
-    struct modulus : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x % __y; }
-    };
-
-  /// One of the @link arithmetic_functors math functors@endlink.
-  template<typename _Tp>
-    struct negate : public unary_function<_Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x) const
-      { return -__x; }
-    };
-  /** @}  */
-
-  // 20.3.3 comparisons
-  /** @defgroup comparison_functors Comparison Classes
-   * @ingroup functors
-   *
-   *  The library provides six wrapper functors for all the basic comparisons
-   *  in C++, like @c <.
-   *
-   *  @{
-   */
-  /// One of the @link comparison_functors comparison functors@endlink.
-  template<typename _Tp>
-    struct equal_to : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x == __y; }
-    };
-
-  /// One of the @link comparison_functors comparison functors@endlink.
-  template<typename _Tp>
-    struct not_equal_to : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x != __y; }
-    };
-
-  /// One of the @link comparison_functors comparison functors@endlink.
-  template<typename _Tp>
-    struct greater : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x > __y; }
-    };
-
-  /// One of the @link comparison_functors comparison functors@endlink.
-  template<typename _Tp>
-    struct less : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x < __y; }
-    };
-
-  /// One of the @link comparison_functors comparison functors@endlink.
-  template<typename _Tp>
-    struct greater_equal : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x >= __y; }
-    };
-
-  /// One of the @link comparison_functors comparison functors@endlink.
-  template<typename _Tp>
-    struct less_equal : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x <= __y; }
-    };
-  /** @}  */
-
-  // 20.3.4 logical operations
-  /** @defgroup logical_functors Boolean Operations Classes
-   * @ingroup functors
-   *
-   *  Here are wrapper functors for Boolean operations: @c &&, @c ||,
-   *  and @c !.
-   *
-   *  @{
-   */
-  /// One of the @link logical_functors Boolean operations functors@endlink.
-  template<typename _Tp>
-    struct logical_and : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x && __y; }
-    };
-
-  /// One of the @link logical_functors Boolean operations functors@endlink.
-  template<typename _Tp>
-    struct logical_or : public binary_function<_Tp, _Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x || __y; }
-    };
-
-  /// One of the @link logical_functors Boolean operations functors@endlink.
-  template<typename _Tp>
-    struct logical_not : public unary_function<_Tp, bool>
-    {
-      bool
-      operator()(const _Tp& __x) const
-      { return !__x; }
-    };
-  /** @}  */
-
-  // _GLIBCXX_RESOLVE_LIB_DEFECTS
-  // DR 660. Missing Bitwise Operations.
-  template<typename _Tp>
-    struct bit_and : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x & __y; }
-    };
-
-  template<typename _Tp>
-    struct bit_or : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x | __y; }
-    };
-
-  template<typename _Tp>
-    struct bit_xor : public binary_function<_Tp, _Tp, _Tp>
-    {
-      _Tp
-      operator()(const _Tp& __x, const _Tp& __y) const
-      { return __x ^ __y; }
-    };
-
-  // 20.3.5 negators
-  /** @defgroup negators Negators
-   * @ingroup functors
-   *
-   *  The functions @c not1 and @c not2 each take a predicate functor
-   *  and return an instance of @c unary_negate or
-   *  @c binary_negate, respectively.  These classes are functors whose
-   *  @c operator() performs the stored predicate function and then returns
-   *  the negation of the result.
-   *
-   *  For example, given a vector of integers and a trivial predicate,
-   *  \code
-   *  struct IntGreaterThanThree
-   *    : public std::unary_function<int, bool>
-   *  {
-   *      bool operator() (int x) { return x > 3; }
-   *  };
-   *
-   *  std::find_if (v.begin(), v.end(), not1(IntGreaterThanThree()));
-   *  \endcode
-   *  The call to @c find_if will locate the first index (i) of @c v for which
-   *  "!(v[i] > 3)" is true.
-   *
-   *  The not1/unary_negate combination works on predicates taking a single
-   *  argument.  The not2/binary_negate combination works on predicates which
-   *  take two arguments.
-   *
-   *  @{
-   */
-  /// One of the @link negators negation functors@endlink.
-  template<typename _Predicate>
-    class unary_negate
-    : public unary_function<typename _Predicate::argument_type, bool>
-    {
-    protected:
-      _Predicate _M_pred;
-
-    public:
-      explicit
-      unary_negate(const _Predicate& __x) : _M_pred(__x) { }
-
-      bool
-      operator()(const typename _Predicate::argument_type& __x) const
-      { return !_M_pred(__x); }
-    };
-
-  /// One of the @link negators negation functors@endlink.
-  template<typename _Predicate>
-    inline unary_negate<_Predicate>
-    not1(const _Predicate& __pred)
-    { return unary_negate<_Predicate>(__pred); }
-
-  /// One of the @link negators negation functors@endlink.
-  template<typename _Predicate>
-    class binary_negate
-    : public binary_function<typename _Predicate::first_argument_type,
-			     typename _Predicate::second_argument_type, bool>
-    {
-    protected:
-      _Predicate _M_pred;
-
-    public:
-      explicit
-      binary_negate(const _Predicate& __x) : _M_pred(__x) { }
-
-      bool
-      operator()(const typename _Predicate::first_argument_type& __x,
-		 const typename _Predicate::second_argument_type& __y) const
-      { return !_M_pred(__x, __y); }
-    };
-
-  /// One of the @link negators negation functors@endlink.
-  template<typename _Predicate>
-    inline binary_negate<_Predicate>
-    not2(const _Predicate& __pred)
-    { return binary_negate<_Predicate>(__pred); }
-  /** @}  */
-
-  // 20.3.7 adaptors pointers functions
-  /** @defgroup pointer_adaptors Adaptors for pointers to functions
-   * @ingroup functors
-   *
-   *  The advantage of function objects over pointers to functions is that
-   *  the objects in the standard library declare nested typedefs describing
-   *  their argument and result types with uniform names (e.g., @c result_type
-   *  from the base classes @c unary_function and @c binary_function).
-   *  Sometimes those typedefs are required, not just optional.
-   *
-   *  Adaptors are provided to turn pointers to unary (single-argument) and
-   *  binary (double-argument) functions into function objects.  The
-   *  long-winded functor @c pointer_to_unary_function is constructed with a
-   *  function pointer @c f, and its @c operator() called with argument @c x
-   *  returns @c f(x).  The functor @c pointer_to_binary_function does the same
-   *  thing, but with a double-argument @c f and @c operator().
-   *
-   *  The function @c ptr_fun takes a pointer-to-function @c f and constructs
-   *  an instance of the appropriate functor.
-   *
-   *  @{
-   */
-  /// One of the @link pointer_adaptors adaptors for function pointers@endlink.
-  template<typename _Arg, typename _Result>
-    class pointer_to_unary_function : public unary_function<_Arg, _Result>
-    {
-    protected:
-      _Result (*_M_ptr)(_Arg);
-
-    public:
-      pointer_to_unary_function() { }
-
-      explicit
-      pointer_to_unary_function(_Result (*__x)(_Arg))
-      : _M_ptr(__x) { }
-
-      _Result
-      operator()(_Arg __x) const
-      { return _M_ptr(__x); }
-    };
-
-  /// One of the @link pointer_adaptors adaptors for function pointers@endlink.
-  template<typename _Arg, typename _Result>
-    inline pointer_to_unary_function<_Arg, _Result>
-    ptr_fun(_Result (*__x)(_Arg))
-    { return pointer_to_unary_function<_Arg, _Result>(__x); }
-
-  /// One of the @link pointer_adaptors adaptors for function pointers@endlink.
-  template<typename _Arg1, typename _Arg2, typename _Result>
-    class pointer_to_binary_function
-    : public binary_function<_Arg1, _Arg2, _Result>
-    {
-    protected:
-      _Result (*_M_ptr)(_Arg1, _Arg2);
-
-    public:
-      pointer_to_binary_function() { }
-
-      explicit
-      pointer_to_binary_function(_Result (*__x)(_Arg1, _Arg2))
-      : _M_ptr(__x) { }
-
-      _Result
-      operator()(_Arg1 __x, _Arg2 __y) const
-      { return _M_ptr(__x, __y); }
-    };
-
-  /// One of the @link pointer_adaptors adaptors for function pointers@endlink.
-  template<typename _Arg1, typename _Arg2, typename _Result>
-    inline pointer_to_binary_function<_Arg1, _Arg2, _Result>
-    ptr_fun(_Result (*__x)(_Arg1, _Arg2))
-    { return pointer_to_binary_function<_Arg1, _Arg2, _Result>(__x); }
-  /** @}  */
-
-  template<typename _Tp>
-    struct _Identity : public unary_function<_Tp,_Tp>
-    {
-      _Tp&
-      operator()(_Tp& __x) const
-      { return __x; }
-
-      const _Tp&
-      operator()(const _Tp& __x) const
-      { return __x; }
-    };
-
-  template<typename _Pair>
-    struct _Select1st : public unary_function<_Pair,
-					      typename _Pair::first_type>
-    {
-      typename _Pair::first_type&
-      operator()(_Pair& __x) const
-      { return __x.first; }
-
-      const typename _Pair::first_type&
-      operator()(const _Pair& __x) const
-      { return __x.first; }
-    };
-
-  template<typename _Pair>
-    struct _Select2nd : public unary_function<_Pair,
-					      typename _Pair::second_type>
-    {
-      typename _Pair::second_type&
-      operator()(_Pair& __x) const
-      { return __x.second; }
-
-      const typename _Pair::second_type&
-      operator()(const _Pair& __x) const
-      { return __x.second; }
-    };
-
-  // 20.3.8 adaptors pointers members
-  /** @defgroup memory_adaptors Adaptors for pointers to members
-   * @ingroup functors
-   *
-   *  There are a total of 8 = 2^3 function objects in this family.
-   *   (1) Member functions taking no arguments vs member functions taking
-   *        one argument.
-   *   (2) Call through pointer vs call through reference.
-   *   (3) Const vs non-const member function.
-   *
-   *  All of this complexity is in the function objects themselves.  You can
-   *   ignore it by using the helper function mem_fun and mem_fun_ref,
-   *   which create whichever type of adaptor is appropriate.
-   *
-   *  @{
-   */
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp>
-    class mem_fun_t : public unary_function<_Tp*, _Ret>
-    {
-    public:
-      explicit
-      mem_fun_t(_Ret (_Tp::*__pf)())
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(_Tp* __p) const
-      { return (__p->*_M_f)(); }
-
-    private:
-      _Ret (_Tp::*_M_f)();
-    };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp>
-    class const_mem_fun_t : public unary_function<const _Tp*, _Ret>
-    {
-    public:
-      explicit
-      const_mem_fun_t(_Ret (_Tp::*__pf)() const)
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(const _Tp* __p) const
-      { return (__p->*_M_f)(); }
-
-    private:
-      _Ret (_Tp::*_M_f)() const;
-    };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp>
-    class mem_fun_ref_t : public unary_function<_Tp, _Ret>
-    {
-    public:
-      explicit
-      mem_fun_ref_t(_Ret (_Tp::*__pf)())
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(_Tp& __r) const
-      { return (__r.*_M_f)(); }
-
-    private:
-      _Ret (_Tp::*_M_f)();
-  };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp>
-    class const_mem_fun_ref_t : public unary_function<_Tp, _Ret>
-    {
-    public:
-      explicit
-      const_mem_fun_ref_t(_Ret (_Tp::*__pf)() const)
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(const _Tp& __r) const
-      { return (__r.*_M_f)(); }
-
-    private:
-      _Ret (_Tp::*_M_f)() const;
-    };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp, typename _Arg>
-    class mem_fun1_t : public binary_function<_Tp*, _Arg, _Ret>
-    {
-    public:
-      explicit
-      mem_fun1_t(_Ret (_Tp::*__pf)(_Arg))
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(_Tp* __p, _Arg __x) const
-      { return (__p->*_M_f)(__x); }
-
-    private:
-      _Ret (_Tp::*_M_f)(_Arg);
-    };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp, typename _Arg>
-    class const_mem_fun1_t : public binary_function<const _Tp*, _Arg, _Ret>
-    {
-    public:
-      explicit
-      const_mem_fun1_t(_Ret (_Tp::*__pf)(_Arg) const)
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(const _Tp* __p, _Arg __x) const
-      { return (__p->*_M_f)(__x); }
-
-    private:
-      _Ret (_Tp::*_M_f)(_Arg) const;
-    };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp, typename _Arg>
-    class mem_fun1_ref_t : public binary_function<_Tp, _Arg, _Ret>
-    {
-    public:
-      explicit
-      mem_fun1_ref_t(_Ret (_Tp::*__pf)(_Arg))
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(_Tp& __r, _Arg __x) const
-      { return (__r.*_M_f)(__x); }
-
-    private:
-      _Ret (_Tp::*_M_f)(_Arg);
-    };
-
-  /// One of the @link memory_adaptors adaptors for member
-  /// pointers@endlink.
-  template<typename _Ret, typename _Tp, typename _Arg>
-    class const_mem_fun1_ref_t : public binary_function<_Tp, _Arg, _Ret>
-    {
-    public:
-      explicit
-      const_mem_fun1_ref_t(_Ret (_Tp::*__pf)(_Arg) const)
-      : _M_f(__pf) { }
-
-      _Ret
-      operator()(const _Tp& __r, _Arg __x) const
-      { return (__r.*_M_f)(__x); }
-
-    private:
-      _Ret (_Tp::*_M_f)(_Arg) const;
-    };
-
-  // Mem_fun adaptor helper functions.  There are only two:
-  // mem_fun and mem_fun_ref.
-  template<typename _Ret, typename _Tp>
-    inline mem_fun_t<_Ret, _Tp>
-    mem_fun(_Ret (_Tp::*__f)())
-    { return mem_fun_t<_Ret, _Tp>(__f); }
-
-  template<typename _Ret, typename _Tp>
-    inline const_mem_fun_t<_Ret, _Tp>
-    mem_fun(_Ret (_Tp::*__f)() const)
-    { return const_mem_fun_t<_Ret, _Tp>(__f); }
-
-  template<typename _Ret, typename _Tp>
-    inline mem_fun_ref_t<_Ret, _Tp>
-    mem_fun_ref(_Ret (_Tp::*__f)())
-    { return mem_fun_ref_t<_Ret, _Tp>(__f); }
-
-  template<typename _Ret, typename _Tp>
-    inline const_mem_fun_ref_t<_Ret, _Tp>
-    mem_fun_ref(_Ret (_Tp::*__f)() const)
-    { return const_mem_fun_ref_t<_Ret, _Tp>(__f); }
-
-  template<typename _Ret, typename _Tp, typename _Arg>
-    inline mem_fun1_t<_Ret, _Tp, _Arg>
-    mem_fun(_Ret (_Tp::*__f)(_Arg))
-    { return mem_fun1_t<_Ret, _Tp, _Arg>(__f); }
-
-  template<typename _Ret, typename _Tp, typename _Arg>
-    inline const_mem_fun1_t<_Ret, _Tp, _Arg>
-    mem_fun(_Ret (_Tp::*__f)(_Arg) const)
-    { return const_mem_fun1_t<_Ret, _Tp, _Arg>(__f); }
-
-  template<typename _Ret, typename _Tp, typename _Arg>
-    inline mem_fun1_ref_t<_Ret, _Tp, _Arg>
-    mem_fun_ref(_Ret (_Tp::*__f)(_Arg))
-    { return mem_fun1_ref_t<_Ret, _Tp, _Arg>(__f); }
-
-  template<typename _Ret, typename _Tp, typename _Arg>
-    inline const_mem_fun1_ref_t<_Ret, _Tp, _Arg>
-    mem_fun_ref(_Ret (_Tp::*__f)(_Arg) const)
-    { return const_mem_fun1_ref_t<_Ret, _Tp, _Arg>(__f); }
-
-  /** @}  */
+// 20.3.1 base classes
+/** @defgroup functors Function Objects
+ * @ingroup utilities
+ *
+ *  Function objects, or @e functors, are objects with an @c operator()
+ *  defined and accessible.  They can be passed as arguments to algorithm
+ *  templates and used in place of a function pointer.  Not only is the
+ *  resulting expressiveness of the library increased, but the generated
+ *  code can be more efficient than what you might write by hand.  When we
+ *  refer to "functors," then, generally we include function pointers in
+ *  the description as well.
+ *
+ *  Often, functors are only created as temporaries passed to algorithm
+ *  calls, rather than being created as named variables.
+ *
+ *  Two examples taken from the standard itself follow.  To perform a
+ *  by-element addition of two vectors @c a and @c b containing @c double,
+ *  and put the result in @c a, use
+ *  \code
+ *  transform (a.begin(), a.end(), b.begin(), a.begin(), plus<double>());
+ *  \endcode
+ *  To negate every element in @c a, use
+ *  \code
+ *  transform(a.begin(), a.end(), a.begin(), negate<double>());
+ *  \endcode
+ *  The addition and negation functions will be inlined directly.
+ *
+ *  The standard functors are derived from structs named @c unary_function
+ *  and @c binary_function.  These two classes contain nothing but typedefs,
+ *  to aid in generic (template) programming.  If you write your own
+ *  functors, you might consider doing the same.
+ *
+ *  @{
+ */
+/**
+ *  This is one of the @link functors functor base classes@endlink.
+ */
+template <typename _Arg, typename _Result>
+struct unary_function // 一元函数类型
+{
+  typedef _Arg argument_type; ///< @c argument_type is the type of the
+                              ///     argument (no surprises here)
+
+  typedef _Result result_type; ///< @c result_type is the return type
+};
+
+/**
+ *  This is one of the @link functors functor base classes@endlink.
+ */
+template <typename _Arg1, typename _Arg2, typename _Result>
+struct binary_function // 二元函数类型
+{
+  typedef _Arg1 first_argument_type; ///< the type of the first argument
+                                     ///  (no surprises here)
+
+  typedef _Arg2 second_argument_type; ///< the type of the second argument
+  typedef _Result result_type;        ///< type of the return type
+};
+/** @}  */
+
+// 20.3.2 arithmetic
+/** @defgroup arithmetic_functors Arithmetic Classes
+ * @ingroup functors
+ *
+ *  Because basic math often needs to be done during an algorithm,
+ *  the library provides functors for those operations.  See the
+ *  documentation for @link functors the base classes@endlink
+ *  for examples of their use.
+ *
+ *  @{
+ */
+/// One of the @link arithmetic_functors math functors@endlink.
+template <typename _Tp> // 加法仿函数
+struct plus : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x + __y;
+  }
+};
+
+/// One of the @link arithmetic_functors math functors@endlink.
+template <typename _Tp> // 减法仿函数
+struct minus : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x - __y;
+  }
+};
+
+/// One of the @link arithmetic_functors math functors@endlink.
+template <typename _Tp> // 乘法仿函数
+struct multiplies : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x * __y;
+  }
+};
+
+/// One of the @link arithmetic_functors math functors@endlink.
+template <typename _Tp> // 除法仿函数
+struct divides : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x / __y;
+  }
+};
+
+/// One of the @link arithmetic_functors math functors@endlink.
+template <typename _Tp> // 求余仿函数
+struct modulus : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x % __y;
+  }
+};
+
+/// One of the @link arithmetic_functors math functors@endlink.
+template <typename _Tp> // 取反仿函数
+struct negate : public unary_function<_Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x) const
+  {
+    return -__x;
+  }
+};
+/** @}  */
+
+// 20.3.3 comparisons
+/** @defgroup comparison_functors Comparison Classes
+ * @ingroup functors
+ *
+ *  The library provides six wrapper functors for all the basic comparisons
+ *  in C++, like @c <.
+ *
+ *  @{
+ */
+/// One of the @link comparison_functors comparison functors@endlink.
+template <typename _Tp> // 相等判断仿函数
+struct equal_to : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x == __y;
+  }
+};
+
+/// One of the @link comparison_functors comparison functors@endlink.
+template <typename _Tp> // 不相等判断仿函数
+struct not_equal_to : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x != __y;
+  }
+};
+
+/// One of the @link comparison_functors comparison functors@endlink.
+template <typename _Tp> // 大于判断仿函数
+struct greater : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x > __y;
+  }
+};
+
+/// One of the @link comparison_functors comparison functors@endlink.
+template <typename _Tp> // 小于判断仿函数
+struct less : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x < __y;
+  }
+};
+
+/// One of the @link comparison_functors comparison functors@endlink.
+template <typename _Tp> // 大于等于判断仿函数
+struct greater_equal : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x >= __y;
+  }
+};
+
+/// One of the @link comparison_functors comparison functors@endlink.
+template <typename _Tp> // 小于等于判断仿函数
+struct less_equal : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x <= __y;
+  }
+};
+/** @}  */
+
+// 20.3.4 logical operations
+/** @defgroup logical_functors Boolean Operations Classes
+ * @ingroup functors
+ *
+ *  Here are wrapper functors for Boolean operations: @c &&, @c ||,
+ *  and @c !.
+ *
+ *  @{
+ */
+/// One of the @link logical_functors Boolean operations functors@endlink.
+template <typename _Tp> // 逻辑与仿函数
+struct logical_and : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x && __y;
+  }
+};
+
+/// One of the @link logical_functors Boolean operations functors@endlink.
+template <typename _Tp> // 逻辑或仿函数
+struct logical_or : public binary_function<_Tp, _Tp, bool>
+{
+  bool operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x || __y;
+  }
+};
+
+/// One of the @link logical_functors Boolean operations functors@endlink.
+template <typename _Tp> // 逻辑非仿函数
+struct logical_not : public unary_function<_Tp, bool>
+{
+  bool operator()(const _Tp &__x) const
+  {
+    return !__x;
+  }
+};
+/** @}  */
+
+// _GLIBCXX_RESOLVE_LIB_DEFECTS
+// DR 660. Missing Bitwise Operations.
+template <typename _Tp> // 位与仿函数
+struct bit_and : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x & __y;
+  }
+};
+
+template <typename _Tp> // 位或仿函数
+struct bit_or : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x | __y;
+  }
+};
+
+template <typename _Tp> // 异或仿函数
+struct bit_xor : public binary_function<_Tp, _Tp, _Tp>
+{
+  _Tp operator()(const _Tp &__x, const _Tp &__y) const
+  {
+    return __x ^ __y;
+  }
+};
+
+// 20.3.5 negators
+/** @defgroup negators Negators
+ * @ingroup functors
+ *
+ *  The functions @c not1 and @c not2 each take a predicate functor
+ *  and return an instance of @c unary_negate or
+ *  @c binary_negate, respectively.  These classes are functors whose
+ *  @c operator() performs the stored predicate function and then returns
+ *  the negation of the result.
+ *
+ *  For example, given a vector of integers and a trivial predicate,
+ *  \code
+ *  struct IntGreaterThanThree
+ *    : public std::unary_function<int, bool>
+ *  {
+ *      bool operator() (int x) { return x > 3; }
+ *  };
+ *
+ *  std::find_if (v.begin(), v.end(), not1(IntGreaterThanThree()));
+ *  \endcode
+ *  The call to @c find_if will locate the first index (i) of @c v for which
+ *  "!(v[i] > 3)" is true.
+ *
+ *  The not1/unary_negate combination works on predicates taking a single
+ *  argument.  The not2/binary_negate combination works on predicates which
+ *  take two arguments.
+ *
+ *  @{
+ */
+/// One of the @link negators negation functors@endlink.
+template <typename _Predicate>
+class unary_negate : public unary_function<typename _Predicate::argument_type, bool>
+{
+protected:
+  _Predicate _M_pred;
+
+public:
+  explicit unary_negate(const _Predicate &__x) : _M_pred(__x) {}
+
+  bool operator()(const typename _Predicate::argument_type &__x) const
+  {
+    return !_M_pred(__x);
+  }
+};
+
+/// One of the @link negators negation functors@endlink.
+template <typename _Predicate>
+inline unary_negate<_Predicate> not1(const _Predicate &__pred)
+{
+  return unary_negate<_Predicate>(__pred);
+}
+
+/// One of the @link negators negation functors@endlink.
+template <typename _Predicate>
+class binary_negate : public binary_function<typename _Predicate::first_argument_type, typename _Predicate::second_argument_type, bool>
+{
+protected:
+  _Predicate _M_pred;
+
+public:
+  explicit binary_negate(const _Predicate &__x) : _M_pred(__x) {}
+
+  bool operator()(const typename _Predicate::first_argument_type &__x, const typename _Predicate::second_argument_type &__y) const
+  {
+    return !_M_pred(__x, __y);
+  }
+};
+
+/// One of the @link negators negation functors@endlink.
+template <typename _Predicate>
+inline binary_negate<_Predicate> not2(const _Predicate &__pred)
+{
+  return binary_negate<_Predicate>(__pred);
+}
+/** @}  */
+
+// 20.3.7 adaptors pointers functions
+/** @defgroup pointer_adaptors Adaptors for pointers to functions
+ * @ingroup functors
+ *
+ *  The advantage of function objects over pointers to functions is that
+ *  the objects in the standard library declare nested typedefs describing
+ *  their argument and result types with uniform names (e.g., @c result_type
+ *  from the base classes @c unary_function and @c binary_function).
+ *  Sometimes those typedefs are required, not just optional.
+ *
+ *  Adaptors are provided to turn pointers to unary (single-argument) and
+ *  binary (double-argument) functions into function objects.  The
+ *  long-winded functor @c pointer_to_unary_function is constructed with a
+ *  function pointer @c f, and its @c operator() called with argument @c x
+ *  returns @c f(x).  The functor @c pointer_to_binary_function does the same
+ *  thing, but with a double-argument @c f and @c operator().
+ *
+ *  The function @c ptr_fun takes a pointer-to-function @c f and constructs
+ *  an instance of the appropriate functor.
+ *
+ *  @{
+ */
+/// One of the @link pointer_adaptors adaptors for function pointers@endlink.
+template <typename _Arg, typename _Result>
+class pointer_to_unary_function : public unary_function<_Arg, _Result>
+{
+protected:
+  _Result (*_M_ptr)(_Arg);
+
+public:
+  pointer_to_unary_function() {}
+
+  explicit pointer_to_unary_function(_Result (*__x)(_Arg)) : _M_ptr(__x) {}
+
+  _Result operator()(_Arg __x) const
+  {
+    return _M_ptr(__x);
+  }
+};
+
+/// One of the @link pointer_adaptors adaptors for function pointers@endlink.
+template <typename _Arg, typename _Result>
+inline pointer_to_unary_function<_Arg, _Result> ptr_fun(_Result (*__x)(_Arg))
+{
+  return pointer_to_unary_function<_Arg, _Result>(__x);
+}
+
+/// One of the @link pointer_adaptors adaptors for function pointers@endlink.
+template <typename _Arg1, typename _Arg2, typename _Result>
+class pointer_to_binary_function : public binary_function<_Arg1, _Arg2, _Result>
+{
+protected:
+  _Result (*_M_ptr)(_Arg1, _Arg2);
+
+public:
+  pointer_to_binary_function() {}
+
+  explicit pointer_to_binary_function(_Result (*__x)(_Arg1, _Arg2)) : _M_ptr(__x) {}
+
+  _Result operator()(_Arg1 __x, _Arg2 __y) const
+  {
+    return _M_ptr(__x, __y);
+  }
+};
+
+/// One of the @link pointer_adaptors adaptors for function pointers@endlink.
+template <typename _Arg1, typename _Arg2, typename _Result>
+inline pointer_to_binary_function<_Arg1, _Arg2, _Result> ptr_fun(_Result (*__x)(_Arg1, _Arg2))
+{
+  return pointer_to_binary_function<_Arg1, _Arg2, _Result>(__x);
+}
+/** @}  */
+
+template <typename _Tp>
+struct _Identity : public unary_function<_Tp, _Tp>
+{
+  _Tp &operator()(_Tp &__x) const
+  {
+    return __x;
+  }
+
+  const _Tp &operator()(const _Tp &__x) const
+  {
+    return __x;
+  }
+};
+
+template <typename _Pair>
+struct _Select1st : public unary_function<_Pair, typename _Pair::first_type>
+{
+  typename _Pair::first_type &operator()(_Pair &__x) const
+  {
+    return __x.first;
+  }
+
+  const typename _Pair::first_type &operator()(const _Pair &__x) const
+  {
+    return __x.first;
+  }
+};
+
+template <typename _Pair>
+struct _Select2nd : public unary_function<_Pair, typename _Pair::second_type>
+{
+  typename _Pair::second_type &operator()(_Pair &__x) const
+  {
+    return __x.second;
+  }
+
+  const typename _Pair::second_type &operator()(const _Pair &__x) const
+  {
+    return __x.second;
+  }
+};
+
+// 20.3.8 adaptors pointers members
+/** @defgroup memory_adaptors Adaptors for pointers to members
+ * @ingroup functors
+ *
+ *  There are a total of 8 = 2^3 function objects in this family.
+ *   (1) Member functions taking no arguments vs member functions taking
+ *        one argument.
+ *   (2) Call through pointer vs call through reference.
+ *   (3) Const vs non-const member function.
+ *
+ *  All of this complexity is in the function objects themselves.  You can
+ *   ignore it by using the helper function mem_fun and mem_fun_ref,
+ *   which create whichever type of adaptor is appropriate.
+ *
+ *  @{
+ */
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp>
+class mem_fun_t : public unary_function<_Tp *, _Ret>
+{
+public:
+  explicit mem_fun_t(_Ret (_Tp::*__pf)()) : _M_f(__pf) {}
+
+  _Ret operator()(_Tp *__p) const
+  {
+    return (__p->*_M_f)();
+  }
+
+private:
+  _Ret (_Tp::*_M_f)();
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp>
+class const_mem_fun_t : public unary_function<const _Tp *, _Ret>
+{
+public:
+  explicit const_mem_fun_t(_Ret (_Tp::*__pf)() const) : _M_f(__pf) {}
+
+  _Ret operator()(const _Tp *__p) const
+  {
+    return (__p->*_M_f)();
+  }
+
+private:
+  _Ret (_Tp::*_M_f)() const;
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp>
+class mem_fun_ref_t : public unary_function<_Tp, _Ret>
+{
+public:
+  explicit mem_fun_ref_t(_Ret (_Tp::*__pf)()) : _M_f(__pf) {}
+
+  _Ret operator()(_Tp &__r) const
+  {
+    return (__r.*_M_f)();
+  }
+
+private:
+  _Ret (_Tp::*_M_f)();
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp>
+class const_mem_fun_ref_t : public unary_function<_Tp, _Ret>
+{
+public:
+  explicit const_mem_fun_ref_t(_Ret (_Tp::*__pf)() const) : _M_f(__pf) {}
+
+  _Ret operator()(const _Tp &__r) const
+  {
+    return (__r.*_M_f)();
+  }
+
+private:
+  _Ret (_Tp::*_M_f)() const;
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp, typename _Arg>
+class mem_fun1_t : public binary_function<_Tp *, _Arg, _Ret>
+{
+public:
+  explicit mem_fun1_t(_Ret (_Tp::*__pf)(_Arg)) : _M_f(__pf) {}
+
+  _Ret operator()(_Tp *__p, _Arg __x) const
+  {
+    return (__p->*_M_f)(__x);
+  }
+
+private:
+  _Ret (_Tp::*_M_f)(_Arg);
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp, typename _Arg>
+class const_mem_fun1_t : public binary_function<const _Tp *, _Arg, _Ret>
+{
+public:
+  explicit const_mem_fun1_t(_Ret (_Tp::*__pf)(_Arg) const) : _M_f(__pf) {}
+
+  _Ret operator()(const _Tp *__p, _Arg __x) const
+  {
+    return (__p->*_M_f)(__x);
+  }
+
+private:
+  _Ret (_Tp::*_M_f)(_Arg) const;
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp, typename _Arg>
+class mem_fun1_ref_t : public binary_function<_Tp, _Arg, _Ret>
+{
+public:
+  explicit mem_fun1_ref_t(_Ret (_Tp::*__pf)(_Arg)) : _M_f(__pf) {}
+
+  _Ret operator()(_Tp &__r, _Arg __x) const
+  {
+    return (__r.*_M_f)(__x);
+  }
+
+private:
+  _Ret (_Tp::*_M_f)(_Arg);
+};
+
+/// One of the @link memory_adaptors adaptors for member
+/// pointers@endlink.
+template <typename _Ret, typename _Tp, typename _Arg>
+class const_mem_fun1_ref_t : public binary_function<_Tp, _Arg, _Ret>
+{
+public:
+  explicit const_mem_fun1_ref_t(_Ret (_Tp::*__pf)(_Arg) const) : _M_f(__pf) {}
+
+  _Ret operator()(const _Tp &__r, _Arg __x) const
+  {
+    return (__r.*_M_f)(__x);
+  }
+
+private:
+  _Ret (_Tp::*_M_f)(_Arg) const;
+};
+
+// Mem_fun adaptor helper functions.  There are only two:
+// mem_fun and mem_fun_ref.
+template <typename _Ret, typename _Tp>
+inline mem_fun_t<_Ret, _Tp> mem_fun(_Ret (_Tp::*__f)())
+{
+  return mem_fun_t<_Ret, _Tp>(__f);
+}
+
+template <typename _Ret, typename _Tp>
+inline const_mem_fun_t<_Ret, _Tp> mem_fun(_Ret (_Tp::*__f)() const)
+{
+  return const_mem_fun_t<_Ret, _Tp>(__f);
+}
+
+template <typename _Ret, typename _Tp>
+inline mem_fun_ref_t<_Ret, _Tp> mem_fun_ref(_Ret (_Tp::*__f)())
+{
+  return mem_fun_ref_t<_Ret, _Tp>(__f);
+}
+
+template <typename _Ret, typename _Tp>
+inline const_mem_fun_ref_t<_Ret, _Tp> mem_fun_ref(_Ret (_Tp::*__f)() const)
+{
+  return const_mem_fun_ref_t<_Ret, _Tp>(__f);
+}
+
+template <typename _Ret, typename _Tp, typename _Arg>
+inline mem_fun1_t<_Ret, _Tp, _Arg> mem_fun(_Ret (_Tp::*__f)(_Arg))
+{
+  return mem_fun1_t<_Ret, _Tp, _Arg>(__f);
+}
+
+template <typename _Ret, typename _Tp, typename _Arg>
+inline const_mem_fun1_t<_Ret, _Tp, _Arg> mem_fun(_Ret (_Tp::*__f)(_Arg) const)
+{
+  return const_mem_fun1_t<_Ret, _Tp, _Arg>(__f);
+}
+
+template <typename _Ret, typename _Tp, typename _Arg>
+inline mem_fun1_ref_t<_Ret, _Tp, _Arg> mem_fun_ref(_Ret (_Tp::*__f)(_Arg))
+{
+  return mem_fun1_ref_t<_Ret, _Tp, _Arg>(__f);
+}
+
+template <typename _Ret, typename _Tp, typename _Arg>
+inline const_mem_fun1_ref_t<_Ret, _Tp, _Arg> mem_fun_ref(_Ret (_Tp::*__f)(_Arg) const)
+{
+  return const_mem_fun1_ref_t<_Ret, _Tp, _Arg>(__f);
+}
+
+/** @}  */
 
 _GLIBCXX_END_NAMESPACE
 
 #if !defined(__GXX_EXPERIMENTAL_CXX0X__) || _GLIBCXX_DEPRECATED
-# include <backward/binders.h>
+#include <backward/binders.h>
 #endif
 
 #endif /* _STL_FUNCTION_H */

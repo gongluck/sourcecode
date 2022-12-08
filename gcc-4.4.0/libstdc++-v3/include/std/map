@@ -62,7 +62,7 @@
 #include <bits/stl_multimap.h>
 
 #ifdef _GLIBCXX_DEBUG
-# include <debug/map>
+#include <debug/map>
 #endif
 
 #endif /* _GLIBCXX_MAP */
