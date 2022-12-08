@@ -32,11 +32,11 @@
 #pragma GCC system_header
 
 #ifndef __GXX_EXPERIMENTAL_CXX0X__
-# include <c++0x_warning.h>
+#include <c++0x_warning.h>
 #else
 
 #if defined(_GLIBCXX_INCLUDE_AS_TR1)
-#  error C++0x header cannot be included from TR1 header
+#error C++0x header cannot be included from TR1 header
 #endif
 
 #include <utility>
@@ -50,27 +50,29 @@
 #include <bits/hashtable.h>
 
 #if defined(_GLIBCXX_INCLUDE_AS_CXX0X)
-#  include <tr1_impl/unordered_map>
+#include <tr1_impl/unordered_map>
 #else
-#  define _GLIBCXX_INCLUDE_AS_CXX0X
+#define _GLIBCXX_INCLUDE_AS_CXX0X
 #if defined(_GLIBCXX_DEBUG) || defined(_GLIBCXX_PARALLEL)
-#  define _GLIBCXX_BEGIN_NAMESPACE_TR1 namespace _GLIBCXX_STD_D {
-#  define _GLIBCXX_END_NAMESPACE_TR1 }
-#  define _GLIBCXX_TR1 _GLIBCXX_STD_D
+#define _GLIBCXX_BEGIN_NAMESPACE_TR1 \
+  namespace _GLIBCXX_STD_D           \
+  {
+#define _GLIBCXX_END_NAMESPACE_TR1 }
+#define _GLIBCXX_TR1 _GLIBCXX_STD_D
 #else
-#  define _GLIBCXX_BEGIN_NAMESPACE_TR1
-#  define _GLIBCXX_END_NAMESPACE_TR1
-#  define _GLIBCXX_TR1 
+#define _GLIBCXX_BEGIN_NAMESPACE_TR1
+#define _GLIBCXX_END_NAMESPACE_TR1
+#define _GLIBCXX_TR1
 #endif
-#  include <tr1_impl/unordered_map>
-#  undef _GLIBCXX_TR1
-#  undef _GLIBCXX_END_NAMESPACE_TR1
-#  undef _GLIBCXX_BEGIN_NAMESPACE_TR1
-#  undef _GLIBCXX_INCLUDE_AS_CXX0X
+#include <tr1_impl/unordered_map>
+#undef _GLIBCXX_TR1
+#undef _GLIBCXX_END_NAMESPACE_TR1
+#undef _GLIBCXX_BEGIN_NAMESPACE_TR1
+#undef _GLIBCXX_INCLUDE_AS_CXX0X
 #endif
 
 #ifdef _GLIBCXX_DEBUG
-# include <debug/unordered_map>
+#include <debug/unordered_map>
 #endif
 
 #endif // __GXX_EXPERIMENTAL_CXX0X__
