@@ -101,7 +101,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
  */
 // 21.3  Template class basic_string
 template <typename _CharT, typename _Traits, typename _Alloc>
-class basic_string
+class basic_string // 基础字符串
 {
   typedef typename _Alloc::template rebind<_CharT>::other _CharT_alloc_type;
 
@@ -2081,20 +2081,19 @@ inline basic_string<_CharT, _Traits, _Alloc>::basic_string()
 #ifndef _GLIBCXX_FULLY_DYNAMIC_STRING
     : _M_dataplus(_S_empty_rep()._M_refdata(), _Alloc()){}
 #else
-    : _M_dataplus(_S_construct(size_type(), _CharT(), _Alloc()), _Alloc())
-{
-}
+    : _M_dataplus(_S_construct(size_type(), _CharT(), _Alloc()), _Alloc()){}
 #endif
+      ;
 
-      // operator+
-      /**
-       *  @brief  Concatenate two strings.
-       *  @param lhs  First string.
-       *  @param rhs  Last string.
-       *  @return  New string with value of @a lhs followed by @a rhs.
-       */
-      template <typename _CharT, typename _Traits, typename _Alloc>
-      basic_string<_CharT, _Traits, _Alloc> operator+(const basic_string<_CharT, _Traits, _Alloc> &__lhs, const basic_string<_CharT, _Traits, _Alloc> &__rhs)
+// operator+
+/**
+ *  @brief  Concatenate two strings.
+ *  @param lhs  First string.
+ *  @param rhs  Last string.
+ *  @return  New string with value of @a lhs followed by @a rhs.
+ */
+template <typename _CharT, typename _Traits, typename _Alloc>
+basic_string<_CharT, _Traits, _Alloc> operator+(const basic_string<_CharT, _Traits, _Alloc> &__lhs, const basic_string<_CharT, _Traits, _Alloc> &__rhs)
 {
   basic_string<_CharT, _Traits, _Alloc> __str(__lhs);
   __str.append(__rhs);
