@@ -66,11 +66,11 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD_D)
 
 /// See bits/stl_deque.h's _Deque_base for an explanation.
 template <typename _Tp, typename _Alloc>
-struct _Vector_base
+struct _Vector_base // 动态数组基础结构
 {
   typedef typename _Alloc::template rebind<_Tp>::other _Tp_alloc_type;
 
-  struct _Vector_impl : public _Tp_alloc_type
+  struct _Vector_impl /*动态数组实现*/ : public _Tp_alloc_type
   {
     typename _Tp_alloc_type::pointer _M_start;          // 内存开始
     typename _Tp_alloc_type::pointer _M_finish;         // 数据结束
@@ -115,8 +115,7 @@ public:
   }
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-  _Vector_base(_Vector_base &&__x)
-      : _M_impl(__x._M_get_Tp_allocator())
+  _Vector_base(_Vector_base &&__x) : _M_impl(__x._M_get_Tp_allocator())
   {
     this->_M_impl._M_start = __x._M_impl._M_start;
     this->_M_impl._M_finish = __x._M_impl._M_finish;
@@ -166,14 +165,14 @@ public:
  *  also provided as with C-style arrays.
  */
 template <typename _Tp, typename _Alloc = std::allocator<_Tp>>
-class vector : protected _Vector_base<_Tp, _Alloc>
+class vector /*动态数组*/ : protected _Vector_base<_Tp, _Alloc>
 {
   // Concept requirements.
   typedef typename _Alloc::value_type _Alloc_value_type;
-  __glibcxx_class_requires(_Tp, _SGIAssignableConcept)
-      __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept)
+  __glibcxx_class_requires(_Tp, _SGIAssignableConcept);
+  __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept);
 
-          typedef _Vector_base<_Tp, _Alloc> _Base;
+  typedef _Vector_base<_Tp, _Alloc> _Base;
   typedef typename _Base::_Tp_alloc_type _Tp_alloc_type;
 
 public:
@@ -245,8 +244,7 @@ public:
    *  The newly-created %vector contains the exact contents of @a x.
    *  The contents of @a x are a valid, but unspecified %vector.
    */
-  vector(vector &&__x)
-      : _Base(std::forward<_Base>(__x)) {}
+  vector(vector &&__x) : _Base(std::forward<_Base>(__x)) {}
 
   /**
    *  @brief  Builds a %vector from an initializer list.
@@ -259,12 +257,9 @@ public:
    *  This will call the element type's copy constructor N times
    *  (where N is @a l.size()) and do no memory reallocation.
    */
-  vector(initializer_list<value_type> __l,
-         const allocator_type &__a = allocator_type())
-      : _Base(__a)
+  vector(initializer_list<value_type> __l, const allocator_type &__a = allocator_type()) : _Base(__a)
   {
-    _M_range_initialize(__l.begin(), __l.end(),
-                        random_access_iterator_tag());
+    _M_range_initialize(__l.begin(), __l.end(), random_access_iterator_tag());
   }
 #endif
 
@@ -321,8 +316,7 @@ public:
    *  The contents of @a x are moved into this %vector (without copying).
    *  @a x is a valid, but unspecified %vector.
    */
-  vector &
-  operator=(vector &&__x)
+  vector &operator=(vector &&__x)
   {
     // NB: DR 675.
     this->clear();
@@ -341,8 +335,7 @@ public:
    *  that the resulting %vector's size is the same as the number
    *  of elements assigned.  Old data may be lost.
    */
-  vector &
-  operator=(initializer_list<value_type> __l)
+  vector &operator=(initializer_list<value_type> __l)
   {
     this->assign(__l.begin(), __l.end());
     return *this;
@@ -396,8 +389,7 @@ public:
    *  that the resulting %vector's size is the same as the number
    *  of elements assigned.  Old data may be lost.
    */
-  void
-  assign(initializer_list<value_type> __l)
+  void assign(initializer_list<value_type> __l)
   {
     this->assign(__l.begin(), __l.end());
   }
@@ -493,8 +485,7 @@ public:
    *  first element in the %vector.  Iteration is done in ordinary
    *  element order.
    */
-  const_iterator
-  cbegin() const
+  const_iterator cbegin() const
   {
     return const_iterator(this->_M_impl._M_start);
   }
@@ -504,8 +495,7 @@ public:
    *  the last element in the %vector.  Iteration is done in
    *  ordinary element order.
    */
-  const_iterator
-  cend() const
+  const_iterator cend() const
   {
     return const_iterator(this->_M_impl._M_finish);
   }
@@ -515,8 +505,7 @@ public:
    *  to the last element in the %vector.  Iteration is done in
    *  reverse element order.
    */
-  const_reverse_iterator
-  crbegin() const
+  const_reverse_iterator crbegin() const
   {
     return const_reverse_iterator(end());
   }
@@ -526,8 +515,7 @@ public:
    *  to one before the first element in the %vector.  Iteration
    *  is done in reverse element order.
    */
-  const_reverse_iterator
-  crend() const
+  const_reverse_iterator crend() const
   {
     return const_reverse_iterator(begin());
   }
@@ -560,9 +548,9 @@ public:
   void resize(size_type __new_size, value_type __x = value_type())
   {
     if (__new_size < size())
-      _M_erase_at_end(this->_M_impl._M_start + __new_size);
+      _M_erase_at_end(this->_M_impl._M_start + __new_size); // 删除多余元素
     else
-      insert(end(), __new_size - size(), __x);
+      insert(end(), __new_size - size(), __x); // 添加缺少元素
   }
 
   /**
@@ -754,15 +742,13 @@ public:
   }
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-  void
-  push_back(value_type &&__x)
+  void push_back(value_type &&__x)
   {
     emplace_back(std::move(__x));
   }
 
   template <typename... _Args>
-  void
-  emplace_back(_Args &&...__args);
+  void emplace_back(_Args &&...__args);
 #endif
 
   /**
@@ -794,8 +780,7 @@ public:
    *  std::list.
    */
   template <typename... _Args>
-  iterator
-  emplace(iterator __position, _Args &&...__args);
+  iterator emplace(iterator __position, _Args &&...__args);
 #endif
 
   /**
@@ -823,8 +808,7 @@ public:
    *  could be expensive for a %vector and if it is frequently
    *  used the user should consider using std::list.
    */
-  iterator
-  insert(iterator __position, value_type &&__x)
+  iterator insert(iterator __position, value_type &&__x)
   {
     return emplace(__position, std::move(__x));
   }
@@ -842,8 +826,7 @@ public:
    *  %vector and if it is frequently used the user should
    *  consider using std::list.
    */
-  void
-  insert(iterator __position, initializer_list<value_type> __l)
+  void insert(iterator __position, initializer_list<value_type> __l)
   {
     this->insert(__position, __l.begin(), __l.end());
   }
@@ -1103,8 +1086,7 @@ protected:
   void _M_insert_aux(iterator __position, const value_type &__x);
 #else
   template <typename... _Args>
-  void
-  _M_insert_aux(iterator __position, _Args &&...__args);
+  void _M_insert_aux(iterator __position, _Args &&...__args);
 #endif
 
   // Called by the latter.
@@ -1198,15 +1180,13 @@ inline void swap(vector<_Tp, _Alloc> &__x, vector<_Tp, _Alloc> &__y)
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename _Tp, typename _Alloc>
-inline void
-swap(vector<_Tp, _Alloc> &&__x, vector<_Tp, _Alloc> &__y)
+inline void swap(vector<_Tp, _Alloc> &&__x, vector<_Tp, _Alloc> &__y)
 {
   __x.swap(__y);
 }
 
 template <typename _Tp, typename _Alloc>
-inline void
-swap(vector<_Tp, _Alloc> &__x, vector<_Tp, _Alloc> &&__y)
+inline void swap(vector<_Tp, _Alloc> &__x, vector<_Tp, _Alloc> &&__y)
 {
   __x.swap(__y);
 }

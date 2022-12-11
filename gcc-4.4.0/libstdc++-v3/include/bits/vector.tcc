@@ -60,7 +60,7 @@
 _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD_D)
 
 template <typename _Tp, typename _Alloc>
-void vector<_Tp, _Alloc>::reserve(size_type __n)
+void vector<_Tp, _Alloc>::reserve(size_type __n) // 存储大小保证
 {
   if (__n > this->max_size())
     __throw_length_error(__N("vector::reserve"));
@@ -225,9 +225,7 @@ void vector<_Tp, _Alloc>::_M_assign_aux(_ForwardIterator __first, _ForwardIterat
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename _Tp, typename _Alloc>
 template <typename... _Args>
-typename vector<_Tp, _Alloc>::iterator
-vector<_Tp, _Alloc>::
-    emplace(iterator __position, _Args &&...__args)
+typename vector<_Tp, _Alloc>::iterator vector<_Tp, _Alloc>::emplace(iterator __position, _Args &&...__args)
 {
   const size_type __n = __position - begin();
   if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage && __position == end())
@@ -243,8 +241,7 @@ vector<_Tp, _Alloc>::
 
 template <typename _Tp, typename _Alloc>
 template <typename... _Args>
-void vector<_Tp, _Alloc>::
-    _M_insert_aux(iterator __position, _Args &&...__args)
+void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position, _Args &&...__args)
 #else
 template <typename _Tp, typename _Alloc>
 void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position, const _Tp &__x)
@@ -283,10 +280,8 @@ void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position, const _Tp &__x)
                               __x);
 #endif
       __new_finish = 0;
-
       __new_finish = std::__uninitialized_move_a(this->_M_impl._M_start, __position.base(), __new_start, _M_get_Tp_allocator());
       ++__new_finish;
-
       __new_finish = std::__uninitialized_move_a(__position.base(), this->_M_impl._M_finish, __new_finish, _M_get_Tp_allocator());
     }
     __catch(...)
@@ -343,10 +338,8 @@ void vector<_Tp, _Alloc>::_M_fill_insert(iterator __position, size_type __n, con
         // See _M_insert_aux above.
         std::__uninitialized_fill_n_a(__new_start + __elems_before, __n, __x, _M_get_Tp_allocator());
         __new_finish = 0;
-
         __new_finish = std::__uninitialized_move_a(this->_M_impl._M_start, __position.base(), __new_start, _M_get_Tp_allocator());
         __new_finish += __n;
-
         __new_finish = std::__uninitialized_move_a(__position.base(), this->_M_impl._M_finish, __new_finish, _M_get_Tp_allocator());
       }
       __catch(...)
