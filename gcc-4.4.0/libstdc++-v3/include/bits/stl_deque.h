@@ -91,7 +91,7 @@ inline size_t __deque_buf_size(size_t __size) // 决定每个控制块存放多�
  *  All the functions are op overloads except for _M_set_node.
  */
 template <typename _Tp, typename _Ref, typename _Ptr>
-struct _Deque_iterator
+struct _Deque_iterator // 双端队列迭代器
 {
   typedef _Deque_iterator<_Tp, _Tp &, _Tp *> iterator;
   typedef _Deque_iterator<_Tp, const _Tp &, const _Tp *> const_iterator;
@@ -327,7 +327,7 @@ void fill(const _Deque_iterator<_Tp, _Tp &, _Tp *> &__first, const _Deque_iterat
  *  here.
  */
 template <typename _Tp, typename _Alloc>
-class _Deque_base
+class _Deque_base // 双端队列基础结构
 {
 public:
   typedef _Alloc allocator_type;
@@ -355,8 +355,7 @@ public:
   }
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-  _Deque_base(_Deque_base &&__x)
-      : _M_impl(__x._M_get_Tp_allocator())
+  _Deque_base(_Deque_base &&__x) : _M_impl(__x._M_get_Tp_allocator())
   {
     _M_initialize_map(0);
     if (__x._M_impl._M_map)
@@ -383,8 +382,8 @@ protected:
   {
     _Tp **_M_map;       // 分块管理结构
     size_t _M_map_size; // 总大小
-    iterator _M_start;  // 开始控制块
-    iterator _M_finish; // 结束控制块
+    iterator _M_start;  // 开始
+    iterator _M_finish; // 结束
 
     _Deque_impl() : _Tp_alloc_type(), _M_map(0), _M_map_size(0), _M_start(), _M_finish()
     {
@@ -599,14 +598,14 @@ void _Deque_base<_Tp, _Alloc>::_M_destroy_nodes(_Tp **__nstart, _Tp **__nfinish)
  *  and we can use other standard algorithms as well.
  */
 template <typename _Tp, typename _Alloc = std::allocator<_Tp>>
-class deque : protected _Deque_base<_Tp, _Alloc>
+class deque /*双端队列*/ : protected _Deque_base<_Tp, _Alloc>
 {
   // concept requirements
   typedef typename _Alloc::value_type _Alloc_value_type;
-  __glibcxx_class_requires(_Tp, _SGIAssignableConcept)
-      __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept)
+  __glibcxx_class_requires(_Tp, _SGIAssignableConcept);
+  __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept);
 
-          typedef _Deque_base<_Tp, _Alloc> _Base;
+  typedef _Deque_base<_Tp, _Alloc> _Base;
   typedef typename _Base::_Tp_alloc_type _Tp_alloc_type;
 
 public:
@@ -624,7 +623,7 @@ public:
   typedef _Alloc allocator_type;
 
 protected:
-  typedef pointer *_Map_pointer;
+  typedef pointer *_Map_pointer; // 指向控制块
 
   static size_t _S_buffer_size()
   {
@@ -694,8 +693,7 @@ public:
    *  The newly-created %deque contains the exact contents of @a x.
    *  The contents of @a x are a valid, but unspecified %deque.
    */
-  deque(deque &&__x)
-      : _Base(std::forward<_Base>(__x)) {}
+  deque(deque &&__x) : _Base(std::forward<_Base>(__x)) {}
 
   /**
    *  @brief  Builds a %deque from an initializer list.
@@ -708,12 +706,9 @@ public:
    *  This will call the element type's copy constructor N times
    *  (where N is l.size()) and do no memory reallocation.
    */
-  deque(initializer_list<value_type> __l,
-        const allocator_type &__a = allocator_type())
-      : _Base(__a)
+  deque(initializer_list<value_type> __l, const allocator_type &__a = allocator_type()) : _Base(__a)
   {
-    _M_range_initialize(__l.begin(), __l.end(),
-                        random_access_iterator_tag());
+    _M_range_initialize(__l.begin(), __l.end(), random_access_iterator_tag());
   }
 #endif
 
@@ -767,8 +762,7 @@ public:
    *  The contents of @a x are moved into this deque (without copying).
    *  @a x is a valid, but unspecified %deque.
    */
-  deque &
-  operator=(deque &&__x)
+  deque &operator=(deque &&__x)
   {
     // NB: DR 675.
     this->clear();
@@ -787,8 +781,7 @@ public:
    *  resulting %deque's size is the same as the number of elements
    *  assigned.  Old data may be lost.
    */
-  deque &
-  operator=(initializer_list<value_type> __l)
+  deque &operator=(initializer_list<value_type> __l)
   {
     this->assign(__l.begin(), __l.end());
     return *this;
@@ -841,8 +834,7 @@ public:
    *  resulting %deque's size is the same as the number of elements
    *  assigned.  Old data may be lost.
    */
-  void
-  assign(initializer_list<value_type> __l)
+  void assign(initializer_list<value_type> __l)
   {
     this->assign(__l.begin(), __l.end());
   }
@@ -938,8 +930,7 @@ public:
    *  Returns a read-only (constant) iterator that points to the first
    *  element in the %deque.  Iteration is done in ordinary element order.
    */
-  const_iterator
-  cbegin() const
+  const_iterator cbegin() const
   {
     return this->_M_impl._M_start;
   }
@@ -949,8 +940,7 @@ public:
    *  the last element in the %deque.  Iteration is done in
    *  ordinary element order.
    */
-  const_iterator
-  cend() const
+  const_iterator cend() const
   {
     return this->_M_impl._M_finish;
   }
@@ -960,8 +950,7 @@ public:
    *  to the last element in the %deque.  Iteration is done in
    *  reverse element order.
    */
-  const_reverse_iterator
-  crbegin() const
+  const_reverse_iterator crbegin() const
   {
     return const_reverse_iterator(this->_M_impl._M_finish);
   }
@@ -971,8 +960,7 @@ public:
    *  to one before the first element in the %deque.  Iteration is
    *  done in reverse element order.
    */
-  const_reverse_iterator
-  crend() const
+  const_reverse_iterator crend() const
   {
     return const_reverse_iterator(this->_M_impl._M_start);
   }
@@ -1158,15 +1146,13 @@ public:
   }
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-  void
-  push_front(value_type &&__x)
+  void push_front(value_type &&__x)
   {
     emplace_front(std::move(__x));
   }
 
   template <typename... _Args>
-  void
-  emplace_front(_Args &&...__args);
+  void emplace_front(_Args &&...__args);
 #endif
 
   /**
@@ -1190,15 +1176,13 @@ public:
   }
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-  void
-  push_back(value_type &&__x)
+  void push_back(value_type &&__x)
   {
     emplace_back(std::move(__x));
   }
 
   template <typename... _Args>
-  void
-  emplace_back(_Args &&...__args);
+  void emplace_back(_Args &&...__args);
 #endif
 
   /**
@@ -1250,8 +1234,7 @@ public:
    *  with T(std::forward<Args>(args)...) before the specified location.
    */
   template <typename... _Args>
-  iterator
-  emplace(iterator __position, _Args &&...__args);
+  iterator emplace(iterator __position, _Args &&...__args);
 #endif
 
   /**
@@ -1275,8 +1258,7 @@ public:
    *  This function will insert a copy of the given rvalue before the
    *  specified location.
    */
-  iterator
-  insert(iterator __position, value_type &&__x)
+  iterator insert(iterator __position, value_type &&__x)
   {
     return emplace(__position, std::move(__x));
   }
@@ -1290,8 +1272,7 @@ public:
    *  initializer_list @a l into the %deque before the location
    *  specified by @a p.  This is known as "list insert."
    */
-  void
-  insert(iterator __p, initializer_list<value_type> __l)
+  void insert(iterator __p, initializer_list<value_type> __l)
   {
     this->insert(__p, __l.begin(), __l.end());
   }
@@ -1568,8 +1549,7 @@ protected:
   iterator _M_insert_aux(iterator __pos, const value_type &__x);
 #else
   template <typename... _Args>
-  iterator
-  _M_insert_aux(iterator __pos, _Args &&...__args);
+  iterator _M_insert_aux(iterator __pos, _Args &&...__args);
 #endif
 
   // called by insert(p,n,x) via fill_insert
@@ -1647,7 +1627,7 @@ protected:
    */
   void _M_reserve_map_at_back(size_type __nodes_to_add = 1)
   {
-    if (__nodes_to_add + 1 > this->_M_impl._M_map_size - (this->_M_impl._M_finish._M_node - this->_M_impl._M_map))
+    if (__nodes_to_add + 1 > this->_M_impl._M_map_size - (this->_M_impl._M_finish._M_node - this->_M_impl._M_map) /*已使用控制块数*/)
       _M_reallocate_map(__nodes_to_add, false);
   }
 
@@ -1731,15 +1711,13 @@ inline void swap(deque<_Tp, _Alloc> &__x, deque<_Tp, _Alloc> &__y)
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename _Tp, typename _Alloc>
-inline void
-swap(deque<_Tp, _Alloc> &&__x, deque<_Tp, _Alloc> &__y)
+inline void swap(deque<_Tp, _Alloc> &&__x, deque<_Tp, _Alloc> &__y)
 {
   __x.swap(__y);
 }
 
 template <typename _Tp, typename _Alloc>
-inline void
-swap(deque<_Tp, _Alloc> &__x, deque<_Tp, _Alloc> &&__y)
+inline void swap(deque<_Tp, _Alloc> &__x, deque<_Tp, _Alloc> &&__y)
 {
   __x.swap(__y);
 }

@@ -80,13 +80,11 @@ deque<_Tp, _Alloc> &deque<_Tp, _Alloc>::operator=(const deque &__x)
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename _Tp, typename _Alloc>
 template <typename... _Args>
-void deque<_Tp, _Alloc>::
-    emplace_front(_Args &&...__args)
+void deque<_Tp, _Alloc>::emplace_front(_Args &&...__args)
 {
   if (this->_M_impl._M_start._M_cur != this->_M_impl._M_start._M_first)
   {
-    this->_M_impl.construct(this->_M_impl._M_start._M_cur - 1,
-                            std::forward<_Args>(__args)...);
+    this->_M_impl.construct(this->_M_impl._M_start._M_cur - 1, std::forward<_Args>(__args)...);
     --this->_M_impl._M_start._M_cur;
   }
   else
@@ -95,13 +93,11 @@ void deque<_Tp, _Alloc>::
 
 template <typename _Tp, typename _Alloc>
 template <typename... _Args>
-void deque<_Tp, _Alloc>::
-    emplace_back(_Args &&...__args)
+void deque<_Tp, _Alloc>::emplace_back(_Args &&...__args)
 {
   if (this->_M_impl._M_finish._M_cur != this->_M_impl._M_finish._M_last - 1)
   {
-    this->_M_impl.construct(this->_M_impl._M_finish._M_cur,
-                            std::forward<_Args>(__args)...);
+    this->_M_impl.construct(this->_M_impl._M_finish._M_cur, std::forward<_Args>(__args)...);
     ++this->_M_impl._M_finish._M_cur;
   }
   else
@@ -131,9 +127,7 @@ typename deque<_Tp, _Alloc>::iterator deque<_Tp, _Alloc>::insert(iterator __posi
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename _Tp, typename _Alloc>
 template <typename... _Args>
-typename deque<_Tp, _Alloc>::iterator
-deque<_Tp, _Alloc>::
-    emplace(iterator __position, _Args &&...__args)
+typename deque<_Tp, _Alloc>::iterator deque<_Tp, _Alloc>::emplace(iterator __position, _Args &&...__args)
 {
   if (__position._M_cur == this->_M_impl._M_start._M_cur)
   {
@@ -313,10 +307,9 @@ void deque<_Tp, _Alloc>::_M_range_initialize(_ForwardIterator __first, _ForwardI
 template <typename _Tp, typename _Alloc>
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename... _Args>
-void deque<_Tp, _Alloc>::
-    _M_push_back_aux(_Args &&...__args)
+void deque<_Tp, _Alloc>::_M_push_back_aux(_Args &&...__args)
 #else
-void deque<_Tp, _Alloc>::_M_push_back_aux(const value_type &__t)
+void deque<_Tp, _Alloc>::_M_push_back_aux(const value_type &__t) // 尾部插入一个元素
 #endif
 {
   _M_reserve_map_at_back();
@@ -324,8 +317,7 @@ void deque<_Tp, _Alloc>::_M_push_back_aux(const value_type &__t)
   __try
   {
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-    this->_M_impl.construct(this->_M_impl._M_finish._M_cur,
-                            std::forward<_Args>(__args)...);
+    this->_M_impl.construct(this->_M_impl._M_finish._M_cur, std::forward<_Args>(__args)...);
 #else
     this->_M_impl.construct(this->_M_impl._M_finish._M_cur, __t);
 #endif
@@ -343,8 +335,7 @@ void deque<_Tp, _Alloc>::_M_push_back_aux(const value_type &__t)
 template <typename _Tp, typename _Alloc>
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename... _Args>
-void deque<_Tp, _Alloc>::
-    _M_push_front_aux(_Args &&...__args)
+void deque<_Tp, _Alloc>::_M_push_front_aux(_Args &&...__args)
 #else
 void deque<_Tp, _Alloc>::_M_push_front_aux(const value_type &__t)
 #endif
@@ -356,8 +347,7 @@ void deque<_Tp, _Alloc>::_M_push_front_aux(const value_type &__t)
     this->_M_impl._M_start._M_set_node(this->_M_impl._M_start._M_node - 1);
     this->_M_impl._M_start._M_cur = this->_M_impl._M_start._M_last - 1;
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
-    this->_M_impl.construct(this->_M_impl._M_start._M_cur,
-                            std::forward<_Args>(__args)...);
+    this->_M_impl.construct(this->_M_impl._M_start._M_cur, std::forward<_Args>(__args)...);
 #else
     this->_M_impl.construct(this->_M_impl._M_start._M_cur, __t);
 #endif
@@ -441,9 +431,7 @@ void deque<_Tp, _Alloc>::_M_range_insert_aux(iterator __pos, _ForwardIterator __
 template <typename _Tp, typename _Alloc>
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 template <typename... _Args>
-typename deque<_Tp, _Alloc>::iterator
-deque<_Tp, _Alloc>::
-    _M_insert_aux(iterator __pos, _Args &&...__args)
+typename deque<_Tp, _Alloc>::iterator deque<_Tp, _Alloc>::_M_insert_aux(iterator __pos, _Args &&...__args)
 {
   value_type __x_copy(std::forward<_Args>(__args)...); // XXX copy
 #else
