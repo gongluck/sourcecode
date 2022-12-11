@@ -401,10 +401,10 @@ class list : protected _List_base<_Tp, _Alloc> // 列表
 {
   // concept requirements
   typedef typename _Alloc::value_type _Alloc_value_type;
-  __glibcxx_class_requires(_Tp, _SGIAssignableConcept)
-      __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept)
+  __glibcxx_class_requires(_Tp, _SGIAssignableConcept);
+  __glibcxx_class_requires2(_Tp, _Alloc_value_type, _SameTypeConcept);
 
-          typedef _List_base<_Tp, _Alloc> _Base;
+  typedef _List_base<_Tp, _Alloc> _Base;
   typedef typename _Base::_Tp_alloc_type _Tp_alloc_type;
 
 public:
