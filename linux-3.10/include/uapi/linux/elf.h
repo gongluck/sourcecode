@@ -355,13 +355,13 @@ typedef struct elf64_shdr
 #define SELFMAG 4
 
 #define ELFCLASSNONE 0 /* EI_CLASS */
-#define ELFCLASS32 1
-#define ELFCLASS64 2
+#define ELFCLASS32 1   // 32位标识
+#define ELFCLASS64 2   // 64位标识
 #define ELFCLASSNUM 3
 
 #define ELFDATANONE 0 /* e_ident[EI_DATA] */
-#define ELFDATA2LSB 1
-#define ELFDATA2MSB 2
+#define ELFDATA2LSB 1 // 小端对齐标识
+#define ELFDATA2MSB 2 // 大端对齐标识
 // elf文件版本号
 #define EV_NONE 0 /* e_version, EI_VERSION */
 #define EV_CURRENT 1
