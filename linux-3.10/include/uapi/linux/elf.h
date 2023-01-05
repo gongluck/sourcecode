@@ -224,7 +224,7 @@ typedef struct elf32_hdr // elf文件头
   Elf32_Half e_phnum;                   // program header table的入口个数
   Elf32_Half e_shentsize;               // section header table中每个入口的大小
   Elf32_Half e_shnum;                   // section header table的入口个数
-  Elf32_Half e_shstrndx;                // section header table中字符串段的索引
+  Elf32_Half e_shstrndx;                // section header table中字符串段(.shstrtab)的索引
 } Elf32_Ehdr;
 
 typedef struct elf64_hdr
@@ -275,29 +275,29 @@ typedef struct elf64_phdr
   Elf64_Xword p_align;  /* Segment alignment, file & memory */
 } Elf64_Phdr;
 
-/* sh_type */
-#define SHT_NULL 0
-#define SHT_PROGBITS 1
-#define SHT_SYMTAB 2
-#define SHT_STRTAB 3
-#define SHT_RELA 4
-#define SHT_HASH 5
-#define SHT_DYNAMIC 6
-#define SHT_NOTE 7
-#define SHT_NOBITS 8
-#define SHT_REL 9
-#define SHT_SHLIB 10
-#define SHT_DYNSYM 11
+/* sh_type */          // 段类型
+#define SHT_NULL 0     // 无效段
+#define SHT_PROGBITS 1 // 程序数据段
+#define SHT_SYMTAB 2   // 符号表
+#define SHT_STRTAB 3   // 字符串表
+#define SHT_RELA 4     // 重定位表
+#define SHT_HASH 5     // 符号表的哈希表
+#define SHT_DYNAMIC 6  // 动态链接信息
+#define SHT_NOTE 7     // 提示信息
+#define SHT_NOBITS 8   // 没有内容
+#define SHT_REL 9      // 包含重定位信息
+#define SHT_SHLIB 10   // 保留
+#define SHT_DYNSYM 11  // 动态链接的符号表
 #define SHT_NUM 12
 #define SHT_LOPROC 0x70000000
 #define SHT_HIPROC 0x7fffffff
 #define SHT_LOUSER 0x80000000
 #define SHT_HIUSER 0xffffffff
 
-/* sh_flags */
-#define SHF_WRITE 0x1
-#define SHF_ALLOC 0x2
-#define SHF_EXECINSTR 0x4
+/* sh_flags */            // 段标记
+#define SHF_WRITE 0x1     // 可写
+#define SHF_ALLOC 0x2     // 需要分配空间
+#define SHF_EXECINSTR 0x4 // 可执行
 #define SHF_MASKPROC 0xf0000000
 
 /* special section indexes */
@@ -309,18 +309,18 @@ typedef struct elf64_phdr
 #define SHN_COMMON 0xfff2
 #define SHN_HIRESERVE 0xffff
 
-typedef struct elf32_shdr
+typedef struct elf32_shdr // elf段表描述结构
 {
-  Elf32_Word sh_name;
-  Elf32_Word sh_type;
-  Elf32_Word sh_flags;
-  Elf32_Addr sh_addr;
-  Elf32_Off sh_offset;
-  Elf32_Word sh_size;
-  Elf32_Word sh_link;
-  Elf32_Word sh_info;
-  Elf32_Word sh_addralign;
-  Elf32_Word sh_entsize;
+  Elf32_Word sh_name;      //.shstrtab中的索引
+  Elf32_Word sh_type;      // 段类型
+  Elf32_Word sh_flags;     // 段标志
+  Elf32_Addr sh_addr;      // 段虚拟地址
+  Elf32_Off sh_offset;     // 段在文件中的偏移
+  Elf32_Word sh_size;      // 段大小
+  Elf32_Word sh_link;      // 段使用的字符串表或符号表在段表中的索引
+  Elf32_Word sh_info;      // 重定位表所作用的段在段表中的索引
+  Elf32_Word sh_addralign; // 段对齐 2的n次幂
+  Elf32_Word sh_entsize;   // 段中每项大小(如果可用)
 } Elf32_Shdr;
 
 typedef struct elf64_shdr
