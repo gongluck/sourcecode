@@ -114,21 +114,21 @@ typedef __s64 Elf64_Sxword;
 #define DT_LOPROC 0x70000000
 #define DT_HIPROC 0x7fffffff
 
-/* This info is needed when parsing the symbol table */
-#define STB_LOCAL 0
-#define STB_GLOBAL 1
-#define STB_WEAK 2
+/* This info is needed when parsing the symbol table */ // 符号绑定信息
+#define STB_LOCAL 0                                     // 局部符号
+#define STB_GLOBAL 1                                    // 全局符号
+#define STB_WEAK 2                                      // 弱符号
+// 符号类型
+#define STT_NOTYPE 0  // 未知
+#define STT_OBJECT 1  // 数据对象
+#define STT_FUNC 2    // 函数
+#define STT_SECTION 3 // 段
+#define STT_FILE 4    // 文件名
+#define STT_COMMON 5  // 未初始化的通用块
+#define STT_TLS 6     // 线程局部对象
 
-#define STT_NOTYPE 0
-#define STT_OBJECT 1
-#define STT_FUNC 2
-#define STT_SECTION 3
-#define STT_FILE 4
-#define STT_COMMON 5
-#define STT_TLS 6
-
-#define ELF_ST_BIND(x) ((x) >> 4)
-#define ELF_ST_TYPE(x) (((unsigned int)x) & 0xf)
+#define ELF_ST_BIND(x) ((x) >> 4)                // 提取绑定信息
+#define ELF_ST_TYPE(x) (((unsigned int)x) & 0xf) // 提取类型
 #define ELF32_ST_BIND(x) ELF_ST_BIND(x)
 #define ELF32_ST_TYPE(x) ELF_ST_TYPE(x)
 #define ELF64_ST_BIND(x) ELF_ST_BIND(x)
@@ -187,14 +187,14 @@ typedef struct elf64_rela
   Elf64_Sxword r_addend; /* Constant addend used to compute value */
 } Elf64_Rela;
 
-typedef struct elf32_sym
+typedef struct elf32_sym // 符号表结构
 {
-  Elf32_Word st_name;
-  Elf32_Addr st_value;
-  Elf32_Word st_size;
-  unsigned char st_info;
-  unsigned char st_other;
-  Elf32_Half st_shndx;
+  Elf32_Word st_name;     // 字符串表中的索引
+  Elf32_Addr st_value;    // 符号值 绝对值或在段中偏移的地址值
+  Elf32_Word st_size;     // 符号大小
+  unsigned char st_info;  // 低4位标识符号类型 高4位标识绑定信息
+  unsigned char st_other; // 0
+  Elf32_Half st_shndx;    // 符号所在的段
 } Elf32_Sym;
 
 typedef struct elf64_sym
@@ -300,13 +300,13 @@ typedef struct elf64_phdr
 #define SHF_EXECINSTR 0x4 // 可执行
 #define SHF_MASKPROC 0xf0000000
 
-/* special section indexes */
-#define SHN_UNDEF 0
+/* special section indexes */ // 特殊段索引值
+#define SHN_UNDEF 0           // 符号未定义 可能在其它模块中定义
 #define SHN_LORESERVE 0xff00
 #define SHN_LOPROC 0xff00
 #define SHN_HIPROC 0xff1f
-#define SHN_ABS 0xfff1
-#define SHN_COMMON 0xfff2
+#define SHN_ABS 0xfff1    // 标识符号值是绝对值
+#define SHN_COMMON 0xfff2 // 标识符号是COMMON块的符号
 #define SHN_HIRESERVE 0xffff
 
 typedef struct elf32_shdr // elf段表描述结构
