@@ -154,17 +154,17 @@ typedef struct
   } d_un;
 } Elf64_Dyn;
 
-/* The following are used with relocations */
-#define ELF32_R_SYM(x) ((x) >> 8)
-#define ELF32_R_TYPE(x) ((x)&0xff)
+/* The following are used with relocations */ // 提取符号重定位信息
+#define ELF32_R_SYM(x) ((x) >> 8)             // 提取符号重定位绑定信息
+#define ELF32_R_TYPE(x) ((x)&0xff)            // 提取符号重定位类型
 
 #define ELF64_R_SYM(i) ((i) >> 32)
 #define ELF64_R_TYPE(i) ((i)&0xffffffff)
 
-typedef struct elf32_rel
+typedef struct elf32_rel // 重定位表入口结构
 {
-  Elf32_Addr r_offset;
-  Elf32_Word r_info;
+  Elf32_Addr r_offset; // 段偏移或虚拟地址
+  Elf32_Word r_info;   // 低8位标识入口类型 高24位标识入口符号在符号表的下标
 } Elf32_Rel;
 
 typedef struct elf64_rel
@@ -173,11 +173,11 @@ typedef struct elf64_rel
   Elf64_Xword r_info;  /* index and type of relocation */
 } Elf64_Rel;
 
-typedef struct elf32_rela
+typedef struct elf32_rela // 重定位表入口结构
 {
-  Elf32_Addr r_offset;
-  Elf32_Word r_info;
-  Elf32_Sword r_addend;
+  Elf32_Addr r_offset;  // 段偏移或虚拟地址
+  Elf32_Word r_info;    // 低8位标识入口类型 高24位标识入口符号在符号表的下标
+  Elf32_Sword r_addend; // 辅助计算修订值 某些指令使用的是下一条指令的地址作为偏移寻址，则可以将这部分的偏移信息放在r_addend里面
 } Elf32_Rela;
 
 typedef struct elf64_rela
