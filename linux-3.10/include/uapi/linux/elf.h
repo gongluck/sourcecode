@@ -21,9 +21,9 @@ typedef __u32 Elf64_Word;
 typedef __u64 Elf64_Xword;
 typedef __s64 Elf64_Sxword;
 
-/* These constants are for the segment types stored in the image headers */
+/* These constants are for the segment types stored in the image headers */ // 程序头属性
 #define PT_NULL 0
-#define PT_LOAD 1
+#define PT_LOAD 1 // 需要装载映射
 #define PT_DYNAMIC 2
 #define PT_INTERP 3
 #define PT_NOTE 4
@@ -244,23 +244,23 @@ typedef struct elf64_hdr
   Elf64_Half e_shnum;
   Elf64_Half e_shstrndx;
 } Elf64_Ehdr;
-
+// 程序头权限属性
 /* These constants define the permissions on sections in the program
    header, p_flags. */
-#define PF_R 0x4
-#define PF_W 0x2
-#define PF_X 0x1
+#define PF_R 0x4 // 可读
+#define PF_W 0x2 // 可写
+#define PF_X 0x1 // 可运行
 
-typedef struct elf32_phdr
+typedef struct elf32_phdr // elf程序头表 segment
 {
-  Elf32_Word p_type;
-  Elf32_Off p_offset;
-  Elf32_Addr p_vaddr;
-  Elf32_Addr p_paddr;
-  Elf32_Word p_filesz;
-  Elf32_Word p_memsz;
-  Elf32_Word p_flags;
-  Elf32_Word p_align;
+  Elf32_Word p_type;   // 段类型 PT_XXX
+  Elf32_Off p_offset;  // 段在内存映像(虚拟内存基址)的偏移
+  Elf32_Addr p_vaddr;  // 虚拟地址空间
+  Elf32_Addr p_paddr;  // 物理装载地址
+  Elf32_Word p_filesz; // 段文件长度
+  Elf32_Word p_memsz;  // 段虚拟空间长度
+  Elf32_Word p_flags;  // 权限属性
+  Elf32_Word p_align;  // 对齐幂数
 } Elf32_Phdr;
 
 typedef struct elf64_phdr
