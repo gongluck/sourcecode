@@ -69,23 +69,23 @@ typedef __s64 Elf64_Sxword;
 #define ET_LOPROC 0xff00
 #define ET_HIPROC 0xffff
 
-/* This is the info that is needed to parse the dynamic section of the file */
+/* This is the info that is needed to parse the dynamic section of the file */ //.dynamic动态段节点类型
 #define DT_NULL 0
-#define DT_NEEDED 1
+#define DT_NEEDED 1 // 依赖的共享对象文件 d_ptr表示文件名
 #define DT_PLTRELSZ 2
 #define DT_PLTGOT 3
-#define DT_HASH 4
-#define DT_STRTAB 5
-#define DT_SYMTAB 6
-#define DT_RELA 7
-#define DT_RELASZ 8
-#define DT_RELAENT 9
-#define DT_STRSZ 10
+#define DT_HASH 4    // 动态链接哈希表地址
+#define DT_STRTAB 5  // 动态连接字符串表地址
+#define DT_SYMTAB 6  // 动态链接表地址
+#define DT_RELA 7    // 动态链接重定位表地址
+#define DT_RELASZ 8  // 重定位表的大小
+#define DT_RELAENT 9 // 重定位项的大小
+#define DT_STRSZ 10  // 动态链接字符串表大小
 #define DT_SYMENT 11
-#define DT_INIT 12
-#define DT_FINI 13
-#define DT_SONAME 14
-#define DT_RPATH 15
+#define DT_INIT 12   // 初始化代码地址
+#define DT_FINI 13   // 结束代码地址
+#define DT_SONAME 14 // 共享对象的soname
+#define DT_RPATH 15  // 动态链接共享对象搜索路径
 #define DT_SYMBOLIC 16
 #define DT_REL 17
 #define DT_RELSZ 18
@@ -134,13 +134,13 @@ typedef __s64 Elf64_Sxword;
 #define ELF64_ST_BIND(x) ELF_ST_BIND(x)
 #define ELF64_ST_TYPE(x) ELF_ST_TYPE(x)
 
-typedef struct dynamic
+typedef struct dynamic // .dynamic段节点结构
 {
-  Elf32_Sword d_tag;
+  Elf32_Sword d_tag; // 类型标识 DT_XXX
   union
   {
-    Elf32_Sword d_val;
-    Elf32_Addr d_ptr;
+    Elf32_Sword d_val; // 值
+    Elf32_Addr d_ptr;  // 地址
   } d_un;
 } Elf32_Dyn;
 
