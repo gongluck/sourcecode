@@ -318,7 +318,7 @@ typedef struct elf32_shdr // elf段表描述结构
   Elf32_Off sh_offset;     // 段在文件中的偏移
   Elf32_Word sh_size;      // 段大小
   Elf32_Word sh_link;      // 段使用的字符串表或重定位段使用的符号表在段表中的索引
-  Elf32_Word sh_info;      // 重定位表所作用的段在段表中的索引
+  Elf32_Word sh_info;      // 重定位表所作用的段在段表中的索引 或 最后一个局部符号的索引
   Elf32_Word sh_addralign; // 段对齐 2的n次幂
   Elf32_Word sh_entsize;   // 段中每项大小(如果可用)
 } Elf32_Shdr;
