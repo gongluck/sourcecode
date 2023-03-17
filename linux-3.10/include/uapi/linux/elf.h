@@ -254,7 +254,7 @@ typedef struct elf64_hdr
 typedef struct elf32_phdr // elf程序头表 segment
 {
   Elf32_Word p_type;   // 段类型 PT_XXX
-  Elf32_Off p_offset;  // 段在内存映像(虚拟内存基址)的偏移
+  Elf32_Off p_offset;  // 段位于文件的起始位置
   Elf32_Addr p_vaddr;  // 虚拟地址空间
   Elf32_Addr p_paddr;  // 物理装载地址
   Elf32_Word p_filesz; // 段文件长度
