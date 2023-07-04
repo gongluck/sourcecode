@@ -132,7 +132,8 @@
   });
 }
 
-- (void)appClient:(ARDAppClient *)client didGetStats:(RTC_OBJC_TYPE(RTCStatisticsReport) *)stats {
+- (void)appClient:(ARDAppClient *)client
+      didGetStats:(NSArray *)stats {
   _videoCallView.statsView.stats = stats;
   [_videoCallView setNeedsLayout];
 }

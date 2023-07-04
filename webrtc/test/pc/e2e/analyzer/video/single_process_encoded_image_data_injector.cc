@@ -28,7 +28,8 @@ SingleProcessEncodedImageDataInjector::
 EncodedImage SingleProcessEncodedImageDataInjector::InjectData(
     uint16_t id,
     bool discard,
-    const EncodedImage& source) {
+    const EncodedImage& source,
+    int coding_entity_id) {
   RTC_CHECK(source.size() >= ExtractionInfo::kUsedBufferSize);
 
   ExtractionInfo info;
@@ -60,7 +61,8 @@ void SingleProcessEncodedImageDataInjector::AddParticipantInCall() {
 }
 
 EncodedImageExtractionResult SingleProcessEncodedImageDataInjector::ExtractData(
-    const EncodedImage& source) {
+    const EncodedImage& source,
+    int coding_entity_id) {
   size_t size = source.size();
   auto buffer = EncodedImageBuffer::Create(source.data(), source.size());
   EncodedImage out = source;

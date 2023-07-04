@@ -26,10 +26,9 @@
 
 #include <stdlib.h>
 
-#include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "rtc_base/checks.h"
+#include "common_audio/signal_processing/include/signal_processing_library.h"
 
-//计算每个原始的绝对值的最大值
 // TODO(bjorn/kma): Consolidate function pairs (e.g. combine
 //   WebRtcSpl_MaxAbsValueW16C and WebRtcSpl_MaxAbsIndexW16 into a single one.)
 // TODO(kma): Move the next six functions into min_max_operations_c.c.
@@ -234,10 +233,8 @@ size_t WebRtcSpl_MinIndexW32(const int32_t* vector, size_t length) {
 }
 
 // Finds both the minimum and maximum elements in an array of 16-bit integers.
-void WebRtcSpl_MinMaxW16(const int16_t* vector,
-                         size_t length,
-                         int16_t* min_val,
-                         int16_t* max_val) {
+void WebRtcSpl_MinMaxW16(const int16_t* vector, size_t length,
+                         int16_t* min_val, int16_t* max_val) {
 #if defined(WEBRTC_HAS_NEON)
   return WebRtcSpl_MinMaxW16Neon(vector, length, min_val, max_val);
 #else

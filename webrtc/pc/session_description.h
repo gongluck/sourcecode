@@ -44,14 +44,23 @@ namespace cricket {
 
 typedef std::vector<AudioCodec> AudioCodecs;
 typedef std::vector<VideoCodec> VideoCodecs;
+typedef std::vector<RtpDataCodec> RtpDataCodecs;
 typedef std::vector<CryptoParams> CryptoParamsVec;
 typedef std::vector<webrtc::RtpExtension> RtpHeaderExtensions;
+
+// RTC4585 RTP/AVPF
+extern const char kMediaProtocolAvpf[];
+// RFC5124 RTP/SAVPF
+extern const char kMediaProtocolSavpf[];
+
+extern const char kMediaProtocolDtlsSavpf[];
 
 // Options to control how session descriptions are generated.
 const int kAutoBandwidth = -1;
 
 class AudioContentDescription;
 class VideoContentDescription;
+class RtpDataContentDescription;
 class SctpDataContentDescription;
 class UnsupportedContentDescription;
 
@@ -74,6 +83,11 @@ class MediaContentDescription {
   virtual VideoContentDescription* as_video() { return nullptr; }
   virtual const VideoContentDescription* as_video() const { return nullptr; }
 
+  virtual RtpDataContentDescription* as_rtp_data() { return nullptr; }
+  virtual const RtpDataContentDescription* as_rtp_data() const {
+    return nullptr;
+  }
+
   virtual SctpDataContentDescription* as_sctp() { return nullptr; }
   virtual const SctpDataContentDescription* as_sctp() const { return nullptr; }
 
@@ -92,7 +106,7 @@ class MediaContentDescription {
     return absl::WrapUnique(CloneInternal());
   }
 
-  // `protocol` is the expected media transport protocol, such as RTP/AVPF,
+  // |protocol| is the expected media transport protocol, such as RTP/AVPF,
   // RTP/SAVPF or SCTP/DTLS.
   virtual std::string protocol() const { return protocol_; }
   virtual void set_protocol(const std::string& protocol) {
@@ -136,11 +150,6 @@ class MediaContentDescription {
     cryptos_ = cryptos;
   }
 
-  // List of RTP header extensions. URIs are **NOT** guaranteed to be unique
-  // as they can appear twice when both encrypted and non-encrypted extensions
-  // are present.
-  // Use RtpExtension::FindHeaderExtensionByUri for finding and
-  // RtpExtension::DeduplicateHeaderExtensions for filtering.
   virtual const RtpHeaderExtensions& rtp_header_extensions() const {
     return rtp_header_extensions_;
   }
@@ -262,9 +271,9 @@ class MediaContentDescription {
   std::vector<CryptoParams> cryptos_;
   std::vector<webrtc::RtpExtension> rtp_header_extensions_;
   bool rtp_header_extensions_set_ = false;
-  StreamParamsVec send_streams_;  //流信息
+  StreamParamsVec send_streams_;
   bool conference_mode_ = false;
-  webrtc::RtpTransceiverDirection direction_ =  //传输方向
+  webrtc::RtpTransceiverDirection direction_ =
       webrtc::RtpTransceiverDirection::kSendRecv;
   rtc::SocketAddress connection_address_;
   ExtmapAllowMixed extmap_allow_mixed_enum_ = kMedia;
@@ -352,6 +361,20 @@ class VideoContentDescription : public MediaContentDescriptionImpl<VideoCodec> {
   }
 };
 
+class RtpDataContentDescription
+    : public MediaContentDescriptionImpl<RtpDataCodec> {
+ public:
+  RtpDataContentDescription() {}
+  MediaType type() const override { return MEDIA_TYPE_DATA; }
+  RtpDataContentDescription* as_rtp_data() override { return this; }
+  const RtpDataContentDescription* as_rtp_data() const override { return this; }
+
+ private:
+  RtpDataContentDescription* CloneInternal() const override {
+    return new RtpDataContentDescription(*this);
+  }
+};
+
 class SctpDataContentDescription : public MediaContentDescription {
  public:
   SctpDataContentDescription() {}
@@ -436,11 +459,11 @@ class RTC_EXPORT ContentInfo {
   ContentInfo(ContentInfo&& o) = default;
   ContentInfo& operator=(ContentInfo&& o) = default;
 
-  // Alias for `name`.
+  // Alias for |name|.
   std::string mid() const { return name; }
   void set_mid(const std::string& mid) { this->name = mid; }
 
-  // Alias for `description`.
+  // Alias for |description|.
   MediaContentDescription* media_description();
   const MediaContentDescription* media_description() const;
 
@@ -450,20 +473,20 @@ class RTC_EXPORT ContentInfo {
 
   // TODO(bugs.webrtc.org/8620): Rename this to mid.
   std::string name;
-  MediaProtocolType type;  //媒体协议类型
+  MediaProtocolType type;
   bool rejected = false;
   bool bundle_only = false;
 
  private:
   friend class SessionDescription;
-  std::unique_ptr<MediaContentDescription> description_;  //媒体描述
+  std::unique_ptr<MediaContentDescription> description_;
 };
 
 typedef std::vector<std::string> ContentNames;
 
 // This class provides a mechanism to aggregate different media contents into a
 // group. This group can also be shared with the peers in a pre-defined format.
-// GroupInfo should be populated only with the `content_name` of the
+// GroupInfo should be populated only with the |content_name| of the
 // MediaDescription.
 class ContentGroup {
  public:
@@ -481,8 +504,6 @@ class ContentGroup {
   bool HasContentName(const std::string& content_name) const;
   void AddContentName(const std::string& content_name);
   bool RemoveContentName(const std::string& content_name);
-  // for debugging
-  std::string ToString() const;
 
  private:
   std::string semantics_;
@@ -567,13 +588,11 @@ class SessionDescription {
   // Group accessors.
   const ContentGroups& groups() const { return content_groups_; }
   const ContentGroup* GetGroupByName(const std::string& name) const;
-  std::vector<const ContentGroup*> GetGroupsByName(
-      const std::string& name) const;
   bool HasGroup(const std::string& name) const;
 
   // Group mutators.
   void AddGroup(const ContentGroup& group) { content_groups_.push_back(group); }
-  // Remove the first group with the same semantics specified by `name`.
+  // Remove the first group with the same semantics specified by |name|.
   void RemoveGroupByName(const std::string& name);
 
   // Global attributes.
@@ -608,9 +627,9 @@ class SessionDescription {
  private:
   SessionDescription(const SessionDescription&);
 
-  ContentInfos contents_;           //媒体描述
-  TransportInfos transport_infos_;  //传输描述
-  ContentGroups content_groups_;    //组
+  ContentInfos contents_;
+  TransportInfos transport_infos_;
+  ContentGroups content_groups_;
   bool msid_supported_ = true;
   // Default to what Plan B would do.
   // TODO(bugs.webrtc.org/8530): Change default to kMsidSignalingMediaSection.

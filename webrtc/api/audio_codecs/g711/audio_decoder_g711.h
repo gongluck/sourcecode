@@ -28,9 +28,7 @@ struct RTC_EXPORT AudioDecoderG711 {
   struct Config {
     enum class Type { kPcmU, kPcmA };
     bool IsOk() const {
-      return (type == Type::kPcmU || type == Type::kPcmA) &&
-             num_channels >= 1 &&
-             num_channels <= AudioDecoder::kMaxNumberOfChannels;
+      return (type == Type::kPcmU || type == Type::kPcmA) && num_channels >= 1;
     }
     Type type;
     int num_channels;

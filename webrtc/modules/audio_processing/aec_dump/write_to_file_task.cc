@@ -55,10 +55,10 @@ bool WriteToFileTask::Run() {
 
   // Write message preceded by its size.
   if (!debug_file_->Write(&event_byte_size, sizeof(int32_t))) {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
   }
   if (!debug_file_->Write(event_string.data(), event_string.length())) {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
   }
   return true;  // Delete task from queue at once.
 }

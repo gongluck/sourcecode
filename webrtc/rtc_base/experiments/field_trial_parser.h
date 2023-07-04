@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 
 // Field trial parser functionality. Provides funcitonality to parse field trial
@@ -49,7 +48,7 @@ class FieldTrialParameterInterface {
   explicit FieldTrialParameterInterface(std::string key);
   friend void ParseFieldTrial(
       std::initializer_list<FieldTrialParameterInterface*> fields,
-      absl::string_view trial_string);
+      std::string raw_string);
   void MarkAsUsed() { used_ = true; }
   virtual bool Parse(absl::optional<std::string> str_value) = 0;
 
@@ -66,7 +65,7 @@ class FieldTrialParameterInterface {
 // with extracted values if available.
 void ParseFieldTrial(
     std::initializer_list<FieldTrialParameterInterface*> fields,
-    absl::string_view trial_string);
+    std::string raw_string);
 
 // Specialize this in code file for custom types. Should return absl::nullopt if
 // the given string cannot be properly parsed.

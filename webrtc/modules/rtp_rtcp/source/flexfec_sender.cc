@@ -47,13 +47,13 @@ RtpHeaderExtensionMap RegisterSupportedExtensions(
     const std::vector<RtpExtension>& rtp_header_extensions) {
   RtpHeaderExtensionMap map;
   for (const auto& extension : rtp_header_extensions) {
-    if (extension.uri == TransportSequenceNumber::Uri()) {
+    if (extension.uri == TransportSequenceNumber::kUri) {
       map.Register<TransportSequenceNumber>(extension.id);
-    } else if (extension.uri == AbsoluteSendTime::Uri()) {
+    } else if (extension.uri == AbsoluteSendTime::kUri) {
       map.Register<AbsoluteSendTime>(extension.id);
-    } else if (extension.uri == TransmissionOffset::Uri()) {
+    } else if (extension.uri == TransmissionOffset::kUri) {
       map.Register<TransmissionOffset>(extension.id);
-    } else if (extension.uri == RtpMid::Uri()) {
+    } else if (extension.uri == RtpMid::kUri) {
       map.Register<RtpMid>(extension.id);
     } else {
       RTC_LOG(LS_INFO)

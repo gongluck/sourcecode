@@ -10,9 +10,6 @@
 
 #include "video/encoder_rtcp_feedback.h"
 
-#include <algorithm>
-#include <utility>
-
 #include "absl/types/optional.h"
 #include "api/video_codecs/video_encoder.h"
 #include "rtc_base/checks.h"
@@ -24,36 +21,47 @@ namespace {
 constexpr int kMinKeyframeSendIntervalMs = 300;
 }  // namespace
 
-EncoderRtcpFeedback::EncoderRtcpFeedback(
-    Clock* clock,
-    const std::vector<uint32_t>& ssrcs,
-    VideoStreamEncoderInterface* encoder,
-    std::function<std::vector<RtpSequenceNumberMap::Info>(
-        uint32_t ssrc,
-        const std::vector<uint16_t>& seq_nums)> get_packet_infos)
+EncoderRtcpFeedback::EncoderRtcpFeedback(Clock* clock,
+                                         const std::vector<uint32_t>& ssrcs,
+                                         VideoStreamEncoderInterface* encoder)
     : clock_(clock),
       ssrcs_(ssrcs),
-      get_packet_infos_(std::move(get_packet_infos)),
+      rtp_video_sender_(nullptr),
       video_stream_encoder_(encoder),
-      time_last_packet_delivery_queue_(Timestamp::Millis(0)),
-      min_keyframe_send_interval_(
-          TimeDelta::Millis(KeyframeIntervalSettings::ParseFromFieldTrials()
-                                .MinKeyframeSendIntervalMs()
-                                .value_or(kMinKeyframeSendIntervalMs))) {
+      time_last_intra_request_ms_(-1),
+      min_keyframe_send_interval_ms_(
+          KeyframeIntervalSettings::ParseFromFieldTrials()
+              .MinKeyframeSendIntervalMs()
+              .value_or(kMinKeyframeSendIntervalMs)) {
   RTC_DCHECK(!ssrcs.empty());
-  packet_delivery_queue_.Detach();
 }
 
-// Called via Call::DeliverRtcp.
+void EncoderRtcpFeedback::SetRtpVideoSender(
+    const RtpVideoSenderInterface* rtp_video_sender) {
+  RTC_DCHECK(rtp_video_sender);
+  RTC_DCHECK(!rtp_video_sender_);
+  rtp_video_sender_ = rtp_video_sender;
+}
+
+bool EncoderRtcpFeedback::HasSsrc(uint32_t ssrc) {
+  for (uint32_t registered_ssrc : ssrcs_) {
+    if (registered_ssrc == ssrc) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void EncoderRtcpFeedback::OnReceivedIntraFrameRequest(uint32_t ssrc) {
-  RTC_DCHECK_RUN_ON(&packet_delivery_queue_);
-  RTC_DCHECK(std::find(ssrcs_.begin(), ssrcs_.end(), ssrc) != ssrcs_.end());
-
-  const Timestamp now = clock_->CurrentTime();
-  if (time_last_packet_delivery_queue_ + min_keyframe_send_interval_ > now)
-    return;
-
-  time_last_packet_delivery_queue_ = now;
+  RTC_DCHECK(HasSsrc(ssrc));
+  {
+    int64_t now_ms = clock_->TimeInMilliseconds();
+    MutexLock lock(&mutex_);
+    if (time_last_intra_request_ms_ + min_keyframe_send_interval_ms_ > now_ms) {
+      return;
+    }
+    time_last_intra_request_ms_ = now_ms;
+  }
 
   // Always produce key frame for all streams.
   video_stream_encoder_->SendKeyFrame();
@@ -64,12 +72,12 @@ void EncoderRtcpFeedback::OnReceivedLossNotification(
     uint16_t seq_num_of_last_decodable,
     uint16_t seq_num_of_last_received,
     bool decodability_flag) {
-  RTC_DCHECK(get_packet_infos_) << "Object initialization incomplete.";
+  RTC_DCHECK(rtp_video_sender_) << "Object initialization incomplete.";
 
   const std::vector<uint16_t> seq_nums = {seq_num_of_last_decodable,
                                           seq_num_of_last_received};
   const std::vector<RtpSequenceNumberMap::Info> infos =
-      get_packet_infos_(ssrc, seq_nums);
+      rtp_video_sender_->GetSentRtpPacketInfos(ssrc, seq_nums);
   if (infos.empty()) {
     return;
   }

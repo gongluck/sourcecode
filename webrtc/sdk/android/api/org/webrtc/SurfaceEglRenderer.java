@@ -21,10 +21,7 @@ import java.util.concurrent.CountDownLatch;
  * Interaction from C++ rtc::VideoSinkInterface in renderFrame.
  * Interaction from SurfaceHolder lifecycle in surfaceCreated, surfaceChanged, and surfaceDestroyed.
  */
-public class SurfaceEglRenderer
-  extends EglRenderer
-  implements SurfaceHolder.Callback {
-
+public class SurfaceEglRenderer extends EglRenderer implements SurfaceHolder.Callback {
   private static final String TAG = "SurfaceEglRenderer";
 
   // Callback for reporting renderer events. Read-only after initialization so no lock required.
@@ -45,17 +42,14 @@ public class SurfaceEglRenderer
   }
 
   /**
-   * Initialize this class, sharing resources with `sharedContext`. The custom `drawer` will be used
+   * Initialize this class, sharing resources with |sharedContext|. The custom |drawer| will be used
    * for drawing frames on the EGLSurface. This class is responsible for calling release() on
-   * `drawer`. It is allowed to call init() to reinitialize the renderer after a previous
+   * |drawer|. It is allowed to call init() to reinitialize the renderer after a previous
    * init()/release() cycle.
    */
-  public void init(
-    final EglBase.Context sharedContext,
-    RendererCommon.RendererEvents rendererEvents,
-    final int[] configAttributes,
-    RendererCommon.GlDrawer drawer
-  ) {
+  public void init(final EglBase.Context sharedContext,
+      RendererCommon.RendererEvents rendererEvents, final int[] configAttributes,
+      RendererCommon.GlDrawer drawer) {
     ThreadUtils.checkIsOnMainThread();
     this.rendererEvents = rendererEvents;
     synchronized (layoutLock) {
@@ -68,12 +62,9 @@ public class SurfaceEglRenderer
   }
 
   @Override
-  public void init(
-    final EglBase.Context sharedContext,
-    final int[] configAttributes,
-    RendererCommon.GlDrawer drawer
-  ) {
-    init(sharedContext, null/* rendererEvents */, configAttributes, drawer);
+  public void init(final EglBase.Context sharedContext, final int[] configAttributes,
+      RendererCommon.GlDrawer drawer) {
+    init(sharedContext, null /* rendererEvents */, configAttributes, drawer);
   }
 
   /**
@@ -129,19 +120,12 @@ public class SurfaceEglRenderer
   }
 
   @Override
-  public void surfaceChanged(
-    SurfaceHolder holder,
-    int format,
-    int width,
-    int height
-  ) {
+  public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
     ThreadUtils.checkIsOnMainThread();
-    logD(
-      "surfaceChanged: format: " + format + " size: " + width + "x" + height
-    );
+    logD("surfaceChanged: format: " + format + " size: " + width + "x" + height);
   }
 
-  // Update frame dimensions and report any changes to `rendererEvents`.
+  // Update frame dimensions and report any changes to |rendererEvents|.
   private void updateFrameDimensionsAndReportEvents(VideoFrame frame) {
     synchronized (layoutLock) {
       if (isRenderingPaused) {
@@ -154,25 +138,14 @@ public class SurfaceEglRenderer
           rendererEvents.onFirstFrameRendered();
         }
       }
-      if (
-        rotatedFrameWidth != frame.getRotatedWidth() ||
-        rotatedFrameHeight != frame.getRotatedHeight() ||
-        frameRotation != frame.getRotation()
-      ) {
-        logD(
-          "Reporting frame resolution changed to " +
-          frame.getBuffer().getWidth() +
-          "x" +
-          frame.getBuffer().getHeight() +
-          " with rotation " +
-          frame.getRotation()
-        );
+      if (rotatedFrameWidth != frame.getRotatedWidth()
+          || rotatedFrameHeight != frame.getRotatedHeight()
+          || frameRotation != frame.getRotation()) {
+        logD("Reporting frame resolution changed to " + frame.getBuffer().getWidth() + "x"
+            + frame.getBuffer().getHeight() + " with rotation " + frame.getRotation());
         if (rendererEvents != null) {
           rendererEvents.onFrameResolutionChanged(
-            frame.getBuffer().getWidth(),
-            frame.getBuffer().getHeight(),
-            frame.getRotation()
-          );
+              frame.getBuffer().getWidth(), frame.getBuffer().getHeight(), frame.getRotation());
         }
         rotatedFrameWidth = frame.getRotatedWidth();
         rotatedFrameHeight = frame.getRotatedHeight();

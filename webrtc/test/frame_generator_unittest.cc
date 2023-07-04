@@ -10,6 +10,7 @@
 
 #include "test/frame_generator.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -53,7 +54,7 @@ class FrameGeneratorTest : public ::testing::Test {
 
  protected:
   void WriteYuvFile(FILE* file, uint8_t y, uint8_t u, uint8_t v) {
-    RTC_DCHECK(file);
+    assert(file);
     std::unique_ptr<uint8_t[]> plane_buffer(new uint8_t[y_size]);
     memset(plane_buffer.get(), y, y_size);
     fwrite(plane_buffer.get(), 1, y_size, file);
@@ -179,7 +180,7 @@ TEST_F(FrameGeneratorTest, SlideGenerator) {
   for (int i = 0; i < kGenCount; ++i) {
     hashes[i] = Hash(generator->NextFrame());
   }
-  // Check that the buffer changes only every `kRepeatCount` frames.
+  // Check that the buffer changes only every |kRepeatCount| frames.
   for (int i = 1; i < kGenCount; ++i) {
     if (i % kRepeatCount == 0) {
       EXPECT_NE(hashes[i - 1], hashes[i]);

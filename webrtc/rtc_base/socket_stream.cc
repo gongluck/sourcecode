@@ -15,7 +15,7 @@
 
 namespace rtc {
 
-SocketStream::SocketStream(Socket* socket) : socket_(nullptr) {
+SocketStream::SocketStream(AsyncSocket* socket) : socket_(nullptr) {
   Attach(socket);
 }
 
@@ -23,7 +23,7 @@ SocketStream::~SocketStream() {
   delete socket_;
 }
 
-void SocketStream::Attach(Socket* socket) {
+void SocketStream::Attach(AsyncSocket* socket) {
   if (socket_)
     delete socket_;
   socket_ = socket;
@@ -35,8 +35,8 @@ void SocketStream::Attach(Socket* socket) {
   }
 }
 
-Socket* SocketStream::Detach() {
-  Socket* socket = socket_;
+AsyncSocket* SocketStream::Detach() {
+  AsyncSocket* socket = socket_;
   if (socket_) {
     socket_->SignalConnectEvent.disconnect(this);
     socket_->SignalReadEvent.disconnect(this);
@@ -104,22 +104,22 @@ void SocketStream::Close() {
   socket_->Close();
 }
 
-void SocketStream::OnConnectEvent(Socket* socket) {
+void SocketStream::OnConnectEvent(AsyncSocket* socket) {
   RTC_DCHECK(socket == socket_);
   SignalEvent(this, SE_OPEN | SE_READ | SE_WRITE, 0);
 }
 
-void SocketStream::OnReadEvent(Socket* socket) {
+void SocketStream::OnReadEvent(AsyncSocket* socket) {
   RTC_DCHECK(socket == socket_);
   SignalEvent(this, SE_READ, 0);
 }
 
-void SocketStream::OnWriteEvent(Socket* socket) {
+void SocketStream::OnWriteEvent(AsyncSocket* socket) {
   RTC_DCHECK(socket == socket_);
   SignalEvent(this, SE_WRITE, 0);
 }
 
-void SocketStream::OnCloseEvent(Socket* socket, int err) {
+void SocketStream::OnCloseEvent(AsyncSocket* socket, int err) {
   RTC_DCHECK(socket == socket_);
   SignalEvent(this, SE_CLOSE, err);
 }

@@ -144,7 +144,8 @@ TEST(SwapQueueDeathTest, UnsuccessfulItemVerifyFunctor) {
   int invalid_value = -4;
   EXPECT_TRUE(queue.Insert(&valid_value));
   EXPECT_TRUE(queue.Remove(&valid_value));
-  EXPECT_DEATH((void)queue.Insert(&invalid_value), "");
+  bool result;
+  EXPECT_DEATH(result = queue.Insert(&invalid_value), "");
 }
 
 TEST(SwapQueueDeathTest, UnSuccessfulItemVerifyInsert) {
@@ -153,7 +154,8 @@ TEST(SwapQueueDeathTest, UnSuccessfulItemVerifyInsert) {
             SwapQueueItemVerifier<std::vector<int>, &LengthVerifierFunction>>
       queue(2, template_element);
   std::vector<int> invalid_chunk(kChunkSize - 1, 0);
-  EXPECT_DEATH((void)queue.Insert(&invalid_chunk), "");
+  bool result;
+  EXPECT_DEATH(result = queue.Insert(&invalid_chunk), "");
 }
 
 TEST(SwapQueueDeathTest, UnSuccessfulItemVerifyRemove) {
@@ -165,7 +167,8 @@ TEST(SwapQueueDeathTest, UnSuccessfulItemVerifyRemove) {
   std::vector<int> valid_chunk(kChunkSize, 0);
   EXPECT_TRUE(queue.Insert(&valid_chunk));
   EXPECT_EQ(valid_chunk.size(), kChunkSize);
-  EXPECT_DEATH((void)queue.Remove(&invalid_chunk), "");
+  bool result;
+  EXPECT_DEATH(result = queue.Remove(&invalid_chunk), "");
 }
 #endif
 

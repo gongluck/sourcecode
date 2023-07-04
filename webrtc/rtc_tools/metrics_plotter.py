@@ -88,8 +88,7 @@ def main():
         plt.ylabel('%s (%s)' % (metric[GRAPH_NAME], metric[UNITS]))
         plt.xlabel('time (s)')
         plt.title(metric[GRAPH_NAME])
-        plt.plot(x_values, y_values, marker='x', markersize=3,
-                 markeredgecolor='red')
+        plt.plot(x_values, y_values)
 
     plt.show()
 

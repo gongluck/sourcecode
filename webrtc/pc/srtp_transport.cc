@@ -18,7 +18,6 @@
 
 #include "absl/strings/match.h"
 #include "media/base/rtp_utils.h"
-#include "modules/rtp_rtcp/source/rtp_util.h"
 #include "pc/rtp_transport.h"
 #include "pc/srtp_session.h"
 #include "rtc_base/async_packet_socket.h"
@@ -50,7 +49,7 @@ RTCError SrtpTransport::SetSrtpSendKey(const cricket::CryptoParams& params) {
   }
 
   send_cipher_suite_ = rtc::SrtpCryptoSuiteFromName(params.cipher_suite);
-  if (*send_cipher_suite_ == rtc::kSrtpInvalidCryptoSuite) {
+  if (*send_cipher_suite_ == rtc::SRTP_INVALID_CRYPTO_SUITE) {
     return RTCError(RTCErrorType::INVALID_PARAMETER,
                     "Invalid SRTP crypto suite");
   }
@@ -90,7 +89,7 @@ RTCError SrtpTransport::SetSrtpReceiveKey(const cricket::CryptoParams& params) {
   }
 
   recv_cipher_suite_ = rtc::SrtpCryptoSuiteFromName(params.cipher_suite);
-  if (*recv_cipher_suite_ == rtc::kSrtpInvalidCryptoSuite) {
+  if (*recv_cipher_suite_ == rtc::SRTP_INVALID_CRYPTO_SUITE) {
     return RTCError(RTCErrorType::INVALID_PARAMETER,
                     "Invalid SRTP crypto suite");
   }
@@ -161,8 +160,10 @@ bool SrtpTransport::SendRtpPacket(rtc::CopyOnWriteBuffer* packet,
   }
 #endif
   if (!res) {
-    uint16_t seq_num = ParseRtpSequenceNumber(*packet);
-    uint32_t ssrc = ParseRtpSsrc(*packet);
+    int seq_num = -1;
+    uint32_t ssrc = 0;
+    cricket::GetRtpSeqNum(data, len, &seq_num);
+    cricket::GetRtpSsrc(data, len, &ssrc);
     RTC_LOG(LS_ERROR) << "Failed to protect RTP packet: size=" << len
                       << ", seqnum=" << seq_num << ", SSRC=" << ssrc;
     return false;
@@ -200,22 +201,26 @@ bool SrtpTransport::SendRtcpPacket(rtc::CopyOnWriteBuffer* packet,
 
 void SrtpTransport::OnRtpPacketReceived(rtc::CopyOnWriteBuffer packet,
                                         int64_t packet_time_us) {
-  TRACE_EVENT0("webrtc", "SrtpTransport::OnRtpPacketReceived");
   if (!IsSrtpActive()) {
     RTC_LOG(LS_WARNING)
         << "Inactive SRTP transport received an RTP packet. Drop it.";
     return;
   }
+  TRACE_EVENT0("webrtc", "SRTP Decode");
   char* data = packet.MutableData<char>();
   int len = rtc::checked_cast<int>(packet.size());
   if (!UnprotectRtp(data, len, &len)) {
+    int seq_num = -1;
+    uint32_t ssrc = 0;
+    cricket::GetRtpSeqNum(data, len, &seq_num);
+    cricket::GetRtpSsrc(data, len, &ssrc);
+
     // Limit the error logging to avoid excessive logs when there are lots of
     // bad packets.
     const int kFailureLogThrottleCount = 100;
     if (decryption_failure_count_ % kFailureLogThrottleCount == 0) {
       RTC_LOG(LS_ERROR) << "Failed to unprotect RTP packet: size=" << len
-                        << ", seqnum=" << ParseRtpSequenceNumber(packet)
-                        << ", SSRC=" << ParseRtpSsrc(packet)
+                        << ", seqnum=" << seq_num << ", SSRC=" << ssrc
                         << ", previous failure count: "
                         << decryption_failure_count_;
     }
@@ -228,12 +233,12 @@ void SrtpTransport::OnRtpPacketReceived(rtc::CopyOnWriteBuffer packet,
 
 void SrtpTransport::OnRtcpPacketReceived(rtc::CopyOnWriteBuffer packet,
                                          int64_t packet_time_us) {
-  TRACE_EVENT0("webrtc", "SrtpTransport::OnRtcpPacketReceived");
   if (!IsSrtpActive()) {
     RTC_LOG(LS_WARNING)
         << "Inactive SRTP transport received an RTCP packet. Drop it.";
     return;
   }
+  TRACE_EVENT0("webrtc", "SRTP Decode");
   char* data = packet.MutableData<char>();
   int len = rtc::checked_cast<int>(packet.size());
   if (!UnprotectRtcp(data, len, &len)) {

@@ -29,8 +29,6 @@ def FindSrcDirPath():
 UPDATE_BRANCH_NAME = 'webrtc_version_update'
 CHECKOUT_SRC_DIR = FindSrcDirPath()
 
-NOTIFY_EMAIL = 'mbonadei@webrtc.org'
-
 
 def _RemovePreviousUpdateBranch():
     active_branch, branches = _GetBranches()
@@ -42,14 +40,6 @@ def _RemovePreviousUpdateBranch():
         subprocess.check_call(['git', 'checkout', active_branch])
         subprocess.check_call(['git', 'branch', '-D', UPDATE_BRANCH_NAME])
     logging.info('No branch to remove')
-
-
-def _GetLastAuthor():
-    """Returns a string with the author of the last commit."""
-    author = subprocess.check_output(['git', 'log',
-                                      '-1',
-                                      '--pretty=format:"%an"']).splitlines()
-    return author
 
 
 def _GetBranches():
@@ -111,10 +101,12 @@ def _LocalCommit():
 
     git_author = subprocess.check_output(['git', 'config',
                                           'user.email']).strip()
+    tbr_authors = git_author + ',' + 'mbonadei@webrtc.org'
+    tbr = 'TBR=%s' % tbr_authors
     commit_msg = ('Update WebRTC code version (%02d-%02d-%02dT%02d:%02d:%02d).'
-                  '\n\nBug: None')
+                  '\n\nTBR=%s\nBug: None')
     commit_msg = commit_msg % (d.year, d.month, d.day, d.hour, d.minute,
-                               d.second)
+                               d.second, tbr_authors)
     subprocess.check_call(['git', 'add', '--update', '.'])
     subprocess.check_call(['git', 'commit', '-m', commit_msg])
 
@@ -128,15 +120,13 @@ def _UploadCL(commit_queue_mode):
     - 0: Skip CQ, upload only.
   """
     cmd = ['git', 'cl', 'upload', '--force', '--bypass-hooks',
-           '--bypass-watchlist']
+           '--cc=""', '--bypass-watchlist']
     if commit_queue_mode >= 2:
         logging.info('Sending the CL to the CQ...')
-        cmd.extend(['-o', 'label=Bot-Commit+1'])
-        cmd.extend(['-o', 'label=Commit-Queue+2'])
-        cmd.extend(['--send-mail', '--cc', NOTIFY_EMAIL])
+        cmd.extend(['--use-commit-queue'])
     elif commit_queue_mode >= 1:
         logging.info('Starting CQ dry run...')
-        cmd.extend(['-o', 'label=Commit-Queue+1'])
+        cmd.extend(['--cq-dry-run'])
     subprocess.check_call(cmd)
 
 
@@ -152,15 +142,11 @@ def main():
     if opts.clean:
         _RemovePreviousUpdateBranch()
 
-    if _GetLastAuthor() == 'webrtc-version-updater':
-      logging.info('Last commit is a version change, skipping CL.')
-      return 0
-
     version_filename = os.path.join(CHECKOUT_SRC_DIR, 'call', 'version.cc')
     _CreateUpdateBranch()
     _UpdateWebRTCVersion(version_filename)
     if _IsTreeClean():
-        logging.info('No WebRTC version change detected, skipping CL.')
+        logging.info("No WebRTC version change detected, skipping CL.")
     else:
         _LocalCommit()
         logging.info('Uploading CL...')

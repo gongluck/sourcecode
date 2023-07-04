@@ -10,6 +10,7 @@
 
 #include "modules/desktop_capture/mouse_cursor_monitor.h"
 
+#include <assert.h>
 
 #include <memory>
 
@@ -25,7 +26,6 @@
 #include "modules/desktop_capture/mac/desktop_configuration_monitor.h"
 #include "modules/desktop_capture/mac/window_list_utils.h"
 #include "modules/desktop_capture/mouse_cursor.h"
-#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -88,21 +88,21 @@ MouseCursorMonitorMac::MouseCursorMonitorMac(const DesktopCaptureOptions& option
       screen_id_(screen_id),
       callback_(NULL),
       mode_(SHAPE_AND_POSITION) {
-  RTC_DCHECK(window_id == kCGNullWindowID || screen_id == kInvalidScreenId);
+  assert(window_id == kCGNullWindowID || screen_id == kInvalidScreenId);
 }
 
 MouseCursorMonitorMac::~MouseCursorMonitorMac() {}
 
 void MouseCursorMonitorMac::Init(Callback* callback, Mode mode) {
-  RTC_DCHECK(!callback_);
-  RTC_DCHECK(callback);
+  assert(!callback_);
+  assert(callback);
 
   callback_ = callback;
   mode_ = mode;
 }
 
 void MouseCursorMonitorMac::Capture() {
-  RTC_DCHECK(callback_);
+  assert(callback_);
 
   CGEventRef event = CGEventCreate(NULL);
   CGPoint gc_position = CGEventGetLocation(event);

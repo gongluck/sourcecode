@@ -22,14 +22,13 @@ void JNILogSink::OnLogMessage(const std::string& msg,
                               rtc::LoggingSeverity severity,
                               const char* tag) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
-  //调用java层对象的onLogMessage
   Java_JNILogging_logToInjectable(env, j_logging_, NativeToJavaString(env, msg),
                                   NativeToJavaInteger(env, severity),
                                   NativeToJavaString(env, tag));
 }
 
 void JNILogSink::OnLogMessage(const std::string& msg) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
 }
 
 }  // namespace jni

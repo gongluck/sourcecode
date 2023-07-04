@@ -38,10 +38,7 @@ absl::optional<AudioEncoderG711::Config> AudioEncoderG711::SdpToConfig(
         config.frame_size_ms = rtc::SafeClamp(10 * (*ptime / 10), 10, 60);
       }
     }
-    if (!config.IsOk()) {
-      RTC_DCHECK_NOTREACHED();
-      return absl::nullopt;
-    }
+    RTC_DCHECK(config.IsOk());
     return config;
   } else {
     return absl::nullopt;
@@ -65,10 +62,7 @@ std::unique_ptr<AudioEncoder> AudioEncoderG711::MakeAudioEncoder(
     const Config& config,
     int payload_type,
     absl::optional<AudioCodecPairId> /*codec_pair_id*/) {
-  if (!config.IsOk()) {
-    RTC_DCHECK_NOTREACHED();
-    return nullptr;
-  }
+  RTC_DCHECK(config.IsOk());
   switch (config.type) {
     case Config::Type::kPcmU: {
       AudioEncoderPcmU::Config impl_config;
@@ -85,7 +79,6 @@ std::unique_ptr<AudioEncoder> AudioEncoderG711::MakeAudioEncoder(
       return std::make_unique<AudioEncoderPcmA>(impl_config);
     }
     default: {
-      RTC_DCHECK_NOTREACHED();
       return nullptr;
     }
   }

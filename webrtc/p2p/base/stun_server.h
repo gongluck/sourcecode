@@ -34,7 +34,7 @@ class StunServer : public sigslot::has_slots<> {
   ~StunServer() override;
 
  protected:
-  // Slot for Socket.PacketRead:
+  // Slot for AsyncSocket.PacketRead:
   void OnPacket(rtc::AsyncPacketSocket* socket,
                 const char* buf,
                 size_t size,

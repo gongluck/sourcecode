@@ -14,7 +14,6 @@
 
 namespace webrtc {
 
-//音频数据声道下调
 void DownMixFrame(const AudioFrame& input, rtc::ArrayView<int16_t> output) {
   RTC_DCHECK_EQ(input.num_channels_, 2);
   RTC_DCHECK_EQ(output.size(), input.samples_per_channel_);
@@ -25,8 +24,7 @@ void DownMixFrame(const AudioFrame& input, rtc::ArrayView<int16_t> output) {
     const int16_t* const input_data = input.data();
     for (size_t n = 0; n < input.samples_per_channel_; ++n) {
       output[n] = rtc::dchecked_cast<int16_t>(
-          (int32_t{input_data[2 * n]} + int32_t{input_data[2 * n + 1]}) >>
-          1);  //取两声道的平均值
+          (int32_t{input_data[2 * n]} + int32_t{input_data[2 * n + 1]}) >> 1);
     }
   }
 }

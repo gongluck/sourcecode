@@ -266,7 +266,7 @@ class ReplacementAudioDecoderFactory : public AudioDecoderFactory {
         file_sample_rate_hz_(file_sample_rate_hz) {}
 
   std::vector<AudioCodecSpec> GetSupportedDecoders() override {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
     return {};
   }
 
@@ -307,10 +307,14 @@ std::unique_ptr<test::NetEqStatsGetter> CreateNetEqTestAndRun(
   input.reset(new test::NetEqReplacementInput(std::move(input), kReplacementPt,
                                               cn_types, forbidden_types));
 
+  NetEq::Config config;
+  config.max_packets_in_buffer = 200;
+  config.enable_fast_accelerate = true;
+
   std::unique_ptr<test::VoidAudioSink> output(new test::VoidAudioSink());
 
   rtc::scoped_refptr<AudioDecoderFactory> decoder_factory =
-      rtc::make_ref_counted<ReplacementAudioDecoderFactory>(
+      new rtc::RefCountedObject<ReplacementAudioDecoderFactory>(
           replacement_file_name, file_sample_rate_hz);
 
   test::NetEqTest::DecoderMap codecs = {
@@ -326,7 +330,6 @@ std::unique_ptr<test::NetEqStatsGetter> CreateNetEqTestAndRun(
   callbacks.post_insert_packet = neteq_stats_getter->delay_analyzer();
   callbacks.get_audio_callback = neteq_stats_getter.get();
 
-  NetEq::Config config;
   test::NetEqTest test(config, decoder_factory, codecs, /*text_log=*/nullptr,
                        /*factory=*/nullptr, std::move(input), std::move(output),
                        callbacks);

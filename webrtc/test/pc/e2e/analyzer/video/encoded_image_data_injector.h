@@ -24,13 +24,14 @@ class EncodedImageDataInjector {
  public:
   virtual ~EncodedImageDataInjector() = default;
 
-  // Return encoded image with specified `id` and `discard` flag injected into
-  // its payload. `discard` flag mean does analyzing decoder should discard this
+  // Return encoded image with specified |id| and |discard| flag injected into
+  // its payload. |discard| flag mean does analyzing decoder should discard this
   // encoded image because it belongs to unnecessary simulcast stream or spatial
-  // layer.
+  // layer. |coding_entity_id| is unique id of decoder or encoder.
   virtual EncodedImage InjectData(uint16_t id,
                                   bool discard,
-                                  const EncodedImage& source) = 0;
+                                  const EncodedImage& source,
+                                  int coding_entity_id) = 0;
 };
 
 struct EncodedImageExtractionResult {
@@ -47,7 +48,7 @@ class EncodedImageDataExtractor {
   virtual ~EncodedImageDataExtractor() = default;
 
   // Invoked by framework before any image will come to the extractor.
-  // `expected_receivers_count` is the expected amount of receivers for each
+  // |expected_receivers_count| is the expected amount of receivers for each
   // encoded image.
   virtual void Start(int expected_receivers_count) = 0;
 
@@ -57,15 +58,9 @@ class EncodedImageDataExtractor {
 
   // Returns encoded image id, extracted from payload and also encoded image
   // with its original payload. For concatenated spatial layers it should be the
-  // same id.
-  virtual EncodedImageExtractionResult ExtractData(
-      const EncodedImage& source) = 0;
-};
-
-class EncodedImageDataPropagator : public EncodedImageDataInjector,
-                                   public EncodedImageDataExtractor {
- public:
-  ~EncodedImageDataPropagator() override = default;
+  // same id. |coding_entity_id| is unique id of decoder or encoder.
+  virtual EncodedImageExtractionResult ExtractData(const EncodedImage& source,
+                                                   int coding_entity_id) = 0;
 };
 
 }  // namespace webrtc_pc_e2e

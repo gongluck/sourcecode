@@ -10,12 +10,8 @@
 
 #import <UIKit/UIKit.h>
 
-#import "sdk/objc/base/RTCMacros.h"
-
-@class RTC_OBJC_TYPE(RTCStatisticsReport);
-
 @interface ARDStatsView : UIView
 
-- (void)setStats:(RTC_OBJC_TYPE(RTCStatisticsReport) *)stats;
+- (void)setStats:(NSArray *)stats;
 
 @end

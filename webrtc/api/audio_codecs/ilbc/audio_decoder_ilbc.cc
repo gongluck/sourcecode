@@ -20,11 +20,10 @@ namespace webrtc {
 
 absl::optional<AudioDecoderIlbc::Config> AudioDecoderIlbc::SdpToConfig(
     const SdpAudioFormat& format) {
-  if (absl::EqualsIgnoreCase(format.name, "ILBC") &&
-      format.clockrate_hz == 8000 && format.num_channels == 1) {
-    return Config();
-  }
-  return absl::nullopt;
+  return absl::EqualsIgnoreCase(format.name, "ILBC") &&
+                 format.clockrate_hz == 8000 && format.num_channels == 1
+             ? absl::optional<Config>(Config())
+             : absl::nullopt;
 }
 
 void AudioDecoderIlbc::AppendSupportedDecoders(

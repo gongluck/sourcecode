@@ -27,6 +27,11 @@
 namespace webrtc {
 namespace test {
 
+namespace {
+const int kDefaultWidth = 320;
+const int kDefaultHeight = 180;
+}  // namespace
+
 FakeDecoder::FakeDecoder() : FakeDecoder(nullptr) {}
 
 FakeDecoder::FakeDecoder(TaskQueueFactory* task_queue_factory)
@@ -36,8 +41,9 @@ FakeDecoder::FakeDecoder(TaskQueueFactory* task_queue_factory)
       task_queue_factory_(task_queue_factory),
       decode_delay_ms_(0) {}
 
-bool FakeDecoder::Configure(const Settings& settings) {
-  return true;
+int32_t FakeDecoder::InitDecode(const VideoCodec* config,
+                                int32_t number_of_cores) {
+  return WEBRTC_VIDEO_CODEC_OK;
 }
 
 int32_t FakeDecoder::Decode(const EncodedImage& input,

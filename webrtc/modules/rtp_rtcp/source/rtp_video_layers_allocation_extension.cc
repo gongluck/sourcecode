@@ -21,6 +21,7 @@
 namespace webrtc {
 
 constexpr RTPExtensionType RtpVideoLayersAllocationExtension::kId;
+constexpr const char RtpVideoLayersAllocationExtension::kUri[];
 
 namespace {
 
@@ -109,14 +110,14 @@ bool AllocationIsValid(const VideoLayersAllocation& allocation) {
       if (spatial_layer.height <= 0) {
         return false;
       }
-      if (spatial_layer.frame_rate_fps > 255) {
+      if (spatial_layer.frame_rate_fps < 0 ||
+          spatial_layer.frame_rate_fps > 255) {
         return false;
       }
     }
   }
   if (allocation.rtp_stream_index < 0 ||
-      (!allocation.active_spatial_layers.empty() &&
-       allocation.rtp_stream_index > max_rtp_stream_idx)) {
+      allocation.rtp_stream_index > max_rtp_stream_idx) {
     return false;
   }
   return true;
@@ -200,20 +201,16 @@ SpatialLayersBitmasks SpatialLayersBitmasksPerRtpStream(
 //     Encoded (width - 1), 16-bit, (height - 1), 16-bit,  max frame rate 8-bit
 //     per spatial layer per RTP stream.
 //     Values are stored in (RTP stream id, spatial id) ascending order.
-//
-// An empty layer allocation (i.e nothing sent on ssrc) is encoded as
-// special case with a single 0 byte.
 
 bool RtpVideoLayersAllocationExtension::Write(
     rtc::ArrayView<uint8_t> data,
     const VideoLayersAllocation& allocation) {
+  if (allocation.active_spatial_layers.empty()) {
+    return false;
+  }
+
   RTC_DCHECK(AllocationIsValid(allocation));
   RTC_DCHECK_GE(data.size(), ValueSize(allocation));
-
-  if (allocation.active_spatial_layers.empty()) {
-    data[0] = 0;
-    return true;
-  }
 
   SpatialLayersBitmasks slb = SpatialLayersBitmasksPerRtpStream(allocation);
   uint8_t* write_at = data.data();
@@ -279,18 +276,10 @@ bool RtpVideoLayersAllocationExtension::Parse(
   if (data.empty() || allocation == nullptr) {
     return false;
   }
-
-  allocation->active_spatial_layers.clear();
-
   const uint8_t* read_at = data.data();
   const uint8_t* const end = data.data() + data.size();
 
-  if (data.size() == 1 && *read_at == 0) {
-    allocation->rtp_stream_index = 0;
-    allocation->resolution_and_frame_rate_is_valid = true;
-    return AllocationIsValid(*allocation);
-  }
-
+  allocation->active_spatial_layers.clear();
   // Header byte.
   allocation->rtp_stream_index = *read_at >> 6;
   int num_rtp_streams = 1 + ((*read_at >> 4) & 0b11);
@@ -353,19 +342,16 @@ bool RtpVideoLayersAllocationExtension::Parse(
   // Target bitrates.
   for (auto& layer : allocation->active_spatial_layers) {
     for (DataRate& rate : layer.target_bitrate_per_temporal_layer) {
-      uint64_t bitrate_kbps = ReadLeb128(read_at, end);
-      // bitrate_kbps might represent larger values than DataRate type,
-      // discard unreasonably large values.
-      if (read_at == nullptr || bitrate_kbps > 1'000'000) {
+      rate = DataRate::KilobitsPerSec(ReadLeb128(read_at, end));
+      if (read_at == nullptr) {
         return false;
       }
-      rate = DataRate::KilobitsPerSec(bitrate_kbps);
     }
   }
 
   if (read_at == end) {
     allocation->resolution_and_frame_rate_is_valid = false;
-    return AllocationIsValid(*allocation);
+    return true;
   }
 
   if (read_at + 5 * allocation->active_spatial_layers.size() != end) {
@@ -382,14 +368,13 @@ bool RtpVideoLayersAllocationExtension::Parse(
     layer.frame_rate_fps = *read_at;
     ++read_at;
   }
-
-  return AllocationIsValid(*allocation);
+  return true;
 }
 
 size_t RtpVideoLayersAllocationExtension::ValueSize(
     const VideoLayersAllocation& allocation) {
   if (allocation.active_spatial_layers.empty()) {
-    return 1;
+    return 0;
   }
   size_t result = 1;  // header
   SpatialLayersBitmasks slb = SpatialLayersBitmasksPerRtpStream(allocation);

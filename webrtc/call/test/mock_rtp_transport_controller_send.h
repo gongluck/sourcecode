@@ -34,7 +34,7 @@ class MockRtpTransportControllerSend
  public:
   MOCK_METHOD(RtpVideoSenderInterface*,
               CreateRtpVideoSender,
-              ((const std::map<uint32_t, RtpState>&),
+              ((std::map<uint32_t, RtpState>),
                (const std::map<uint32_t, RtpPayloadState>&),
                const RtpConfig&,
                int rtcp_report_interval_ms,

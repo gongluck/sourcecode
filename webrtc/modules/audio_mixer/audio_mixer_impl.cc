@@ -126,33 +126,30 @@ struct AudioMixerImpl::HelperContainers {
 
 AudioMixerImpl::AudioMixerImpl(
     std::unique_ptr<OutputRateCalculator> output_rate_calculator,
-    bool use_limiter,
-    int max_sources_to_mix)
-    : max_sources_to_mix_(max_sources_to_mix),
-      output_rate_calculator_(std::move(output_rate_calculator)),
+    bool use_limiter)
+    : output_rate_calculator_(std::move(output_rate_calculator)),
       audio_source_list_(),
       helper_containers_(std::make_unique<HelperContainers>()),
       frame_combiner_(use_limiter) {
-  RTC_CHECK_GE(max_sources_to_mix, 1) << "At least one source must be mixed";
-  audio_source_list_.reserve(max_sources_to_mix);
-  helper_containers_->resize(max_sources_to_mix);
+  const int kTypicalMaxNumberOfMixedStreams = 3;
+  audio_source_list_.reserve(kTypicalMaxNumberOfMixedStreams);
+  helper_containers_->resize(kTypicalMaxNumberOfMixedStreams);
 }
 
 AudioMixerImpl::~AudioMixerImpl() {}
 
-rtc::scoped_refptr<AudioMixerImpl> AudioMixerImpl::Create(
-    int max_sources_to_mix) {
+rtc::scoped_refptr<AudioMixerImpl> AudioMixerImpl::Create() {
   return Create(std::unique_ptr<DefaultOutputRateCalculator>(
                     new DefaultOutputRateCalculator()),
-                /*use_limiter=*/true, max_sources_to_mix);
+                true);
 }
 
 rtc::scoped_refptr<AudioMixerImpl> AudioMixerImpl::Create(
     std::unique_ptr<OutputRateCalculator> output_rate_calculator,
-    bool use_limiter,
-    int max_sources_to_mix) {
-  return rtc::make_ref_counted<AudioMixerImpl>(
-      std::move(output_rate_calculator), use_limiter, max_sources_to_mix);
+    bool use_limiter) {
+  return rtc::scoped_refptr<AudioMixerImpl>(
+      new rtc::RefCountedObject<AudioMixerImpl>(
+          std::move(output_rate_calculator), use_limiter));
 }
 
 void AudioMixerImpl::Mix(size_t number_of_channels,
@@ -222,7 +219,7 @@ rtc::ArrayView<AudioFrame* const> AudioMixerImpl::GetAudioFromSources(
   std::sort(audio_source_mixing_data_view.begin(),
             audio_source_mixing_data_view.end(), ShouldMixBefore);
 
-  int max_audio_frame_counter = max_sources_to_mix_;
+  int max_audio_frame_counter = kMaximumAmountOfMixedAudioSources;
   int ramp_list_lengh = 0;
   int audio_to_mix_count = 0;
   // Go through list in order and put unmuted frames in result list.

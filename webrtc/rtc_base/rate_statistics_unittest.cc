@@ -148,15 +148,14 @@ TEST_F(RateStatisticsTest, ResetAfterSilence) {
 
   now_ms += kWindowMs + 1;
   EXPECT_FALSE(static_cast<bool>(stats_.Rate(now_ms)));
-  // Silence over window size should trigger auto reset for coming sample.
   stats_.Update(1000, now_ms);
   ++now_ms;
   stats_.Update(1000, now_ms);
   // We expect two samples of 1000 bytes, and that the bitrate is measured over
-  // active window instead of full window, which is now_ms - first_timestamp + 1
-  EXPECT_EQ(kExpectedBitrate, *stats_.Rate(now_ms));
+  // 500 ms, i.e. 2 * 8 * 1000 / 0.500 = 32000.
+  EXPECT_EQ(32000u, *stats_.Rate(now_ms));
 
-  // Manual reset, add the same samples again.
+  // Reset, add the same samples again.
   stats_.Reset();
   EXPECT_FALSE(static_cast<bool>(stats_.Rate(now_ms)));
   stats_.Update(1000, now_ms);
@@ -273,14 +272,7 @@ TEST_F(RateStatisticsTest, HandlesQuietPeriods) {
   EXPECT_FALSE(static_cast<bool>(stats_.Rate(now_ms)));
 
   // Move window a long way out.
-  // This will cause an automatic reset of the window
-  // First data point won't give a valid result
   now_ms += 2 * kWindowMs;
-  stats_.Update(0, now_ms);
-  bitrate = stats_.Rate(now_ms);
-  EXPECT_FALSE(static_cast<bool>(stats_.Rate(now_ms)));
-  // Second data point gives valid result
-  ++now_ms;
   stats_.Update(0, now_ms);
   bitrate = stats_.Rate(now_ms);
   EXPECT_TRUE(static_cast<bool>(bitrate));

@@ -54,10 +54,12 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/location.h"
+#include "rtc_base/message_handler.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
@@ -92,14 +94,12 @@ struct CryptoParams;
 // NetworkInterface.
 
 class BaseChannel : public ChannelInterface,
-                    // TODO(tommi): Remove has_slots inheritance.
+                    public rtc::MessageHandlerAutoCleanup,
                     public sigslot::has_slots<>,
-                    // TODO(tommi): Consider implementing these interfaces
-                    // via composition.
                     public MediaChannel::NetworkInterface,
                     public webrtc::RtpPacketSinkInterface {
  public:
-  // If `srtp_required` is true, the channel will not send or receive any
+  // If |srtp_required| is true, the channel will not send or receive any
   // RTP/RTCP packets without using SRTP (either using SDES or DTLS-SRTP).
   // The BaseChannel does not own the UniqueRandomIdGenerator so it is the
   // responsibility of the user to ensure it outlives this object.
@@ -124,13 +124,8 @@ class BaseChannel : public ChannelInterface,
   rtc::Thread* network_thread() const { return network_thread_; }
   const std::string& content_name() const override { return content_name_; }
   // TODO(deadbeef): This is redundant; remove this.
-  const std::string& transport_name() const override {
-    RTC_DCHECK_RUN_ON(network_thread());
-    if (rtp_transport_)
-      return rtp_transport_->transport_name();
-    // TODO(tommi): Delete this variable.
-    return transport_name_;
-  }
+  const std::string& transport_name() const override { return transport_name_; }
+  bool enabled() const override { return enabled_; }
 
   // This function returns true if using SRTP (DTLS-based keying or SDES).
   bool srtp_active() const {
@@ -138,15 +133,35 @@ class BaseChannel : public ChannelInterface,
     return rtp_transport_ && rtp_transport_->IsSrtpActive();
   }
 
+  // Version of the above that can be called from any thread.
+  bool SrtpActiveForTesting() const {
+    if (!network_thread_->IsCurrent()) {
+      return network_thread_->Invoke<bool>(RTC_FROM_HERE,
+                                           [this] { return srtp_active(); });
+    }
+    RTC_DCHECK_RUN_ON(network_thread());
+    return srtp_active();
+  }
+
   // Set an RTP level transport which could be an RtpTransport without
   // encryption, an SrtpTransport for SDES or a DtlsSrtpTransport for DTLS-SRTP.
   // This can be called from any thread and it hops to the network thread
-  // internally. It would replace the `SetTransports` and its variants.
+  // internally. It would replace the |SetTransports| and its variants.
   bool SetRtpTransport(webrtc::RtpTransportInternal* rtp_transport) override;
 
   webrtc::RtpTransportInternal* rtp_transport() const {
     RTC_DCHECK_RUN_ON(network_thread());
     return rtp_transport_;
+  }
+
+  // Version of the above that can be called from any thread.
+  webrtc::RtpTransportInternal* RtpTransportForTesting() const {
+    if (!network_thread_->IsCurrent()) {
+      return network_thread_->Invoke<webrtc::RtpTransportInternal*>(
+          RTC_FROM_HERE, [this] { return rtp_transport(); });
+    }
+    RTC_DCHECK_RUN_ON(network_thread());
+    return rtp_transport();
   }
 
   // Channel control
@@ -166,7 +181,7 @@ class BaseChannel : public ChannelInterface,
   // actually belong to a new channel. See: crbug.com/webrtc/11477
   bool SetPayloadTypeDemuxingEnabled(bool enabled) override;
 
-  void Enable(bool enable) override;
+  bool Enable(bool enable) override;
 
   const std::vector<StreamParams>& local_streams() const override {
     return local_streams_;
@@ -176,16 +191,27 @@ class BaseChannel : public ChannelInterface,
   }
 
   // Used for latency measurements.
-  void SetFirstPacketReceivedCallback(std::function<void()> callback) override;
+  sigslot::signal1<ChannelInterface*>& SignalFirstPacketReceived() override;
+
+  // Forward SignalSentPacket to worker thread.
+  sigslot::signal1<const rtc::SentPacket&>& SignalSentPacket();
 
   // From RtpTransport - public for testing only
   void OnTransportReadyToSend(bool ready);
 
   // Only public for unit tests.  Otherwise, consider protected.
   int SetOption(SocketType type, rtc::Socket::Option o, int val) override;
+  int SetOption_n(SocketType type, rtc::Socket::Option o, int val)
+      RTC_RUN_ON(network_thread());
 
   // RtpPacketSinkInterface overrides.
   void OnRtpPacket(const webrtc::RtpPacketReceived& packet) override;
+
+  // Used by the RTCStatsCollector tests to set the transport name without
+  // creating RtpTransports.
+  void set_transport_name_for_testing(const std::string& transport_name) {
+    transport_name_ = transport_name;
+  }
 
   MediaChannel* media_channel() const override {
     return media_channel_.get();
@@ -217,6 +243,8 @@ class BaseChannel : public ChannelInterface,
   bool IsReadyToReceiveMedia_w() const RTC_RUN_ON(worker_thread());
   bool IsReadyToSendMedia_w() const RTC_RUN_ON(worker_thread());
   rtc::Thread* signaling_thread() const { return signaling_thread_; }
+
+  void FlushRtcpMessages_n() RTC_RUN_ON(network_thread());
 
   // NetworkInterface implementation, called by MediaEngine
   bool SendPacket(rtc::CopyOnWriteBuffer* packet,
@@ -272,14 +300,23 @@ class BaseChannel : public ChannelInterface,
                                   webrtc::SdpType type,
                                   std::string* error_desc)
       RTC_RUN_ON(worker_thread()) = 0;
-
-  // Returns a list of RTP header extensions where any extension URI is unique.
-  // Encrypted extensions will be either preferred or discarded, depending on
-  // the current crypto_options_.
-  RtpHeaderExtensions GetDeduplicatedRtpHeaderExtensions(
+  // Return a list of RTP header extensions with the non-encrypted extensions
+  // removed depending on the current crypto_options_ and only if both the
+  // non-encrypted and encrypted extension is present for the same URI.
+  RtpHeaderExtensions GetFilteredRtpHeaderExtensions(
       const RtpHeaderExtensions& extensions);
 
-  // Add `payload_type` to `demuxer_criteria_` if payload type demuxing is
+  // From MessageHandler
+  void OnMessage(rtc::Message* pmsg) override;
+
+  // Helper function template for invoking methods on the worker thread.
+  template <class T>
+  T InvokeOnWorker(const rtc::Location& posted_from,
+                   rtc::FunctionView<T()> functor) {
+    return worker_thread_->Invoke<T>(posted_from, functor);
+  }
+
+  // Add |payload_type| to |demuxer_criteria_| if payload type demuxing is
   // enabled.
   void MaybeAddHandledPayloadType(int payload_type) RTC_RUN_ON(worker_thread());
 
@@ -289,31 +326,39 @@ class BaseChannel : public ChannelInterface,
       const RtpHeaderExtensions& header_extensions);
 
   bool RegisterRtpDemuxerSink_w() RTC_RUN_ON(worker_thread());
+  bool RegisterRtpDemuxerSink_n() RTC_RUN_ON(network_thread());
 
   // Return description of media channel to facilitate logging
   std::string ToString() const;
 
+  void SetNegotiatedHeaderExtensions_w(const RtpHeaderExtensions& extensions)
+      RTC_RUN_ON(worker_thread());
+
+  // ChannelInterface overrides
+  RtpHeaderExtensions GetNegotiatedRtpHeaderExtensions() const override;
+
  private:
   bool ConnectToRtpTransport() RTC_RUN_ON(network_thread());
   void DisconnectFromRtpTransport() RTC_RUN_ON(network_thread());
-  void SignalSentPacket_n(const rtc::SentPacket& sent_packet);
+  void SignalSentPacket_n(const rtc::SentPacket& sent_packet)
+      RTC_RUN_ON(network_thread());
 
   rtc::Thread* const worker_thread_;
   rtc::Thread* const network_thread_;
   rtc::Thread* const signaling_thread_;
   rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> alive_;
+  sigslot::signal1<ChannelInterface*> SignalFirstPacketReceived_
+      RTC_GUARDED_BY(signaling_thread_);
+  sigslot::signal1<const rtc::SentPacket&> SignalSentPacket_
+      RTC_GUARDED_BY(worker_thread_);
 
   const std::string content_name_;
 
-  std::function<void()> on_first_packet_received_
-      RTC_GUARDED_BY(network_thread());
+  bool has_received_packet_ = false;
 
   // Won't be set when using raw packet transports. SDP-specific thing.
   // TODO(bugs.webrtc.org/12230): Written on network thread, read on
   // worker thread (at least).
-  // TODO(tommi): Remove this variable and instead use rtp_transport_ to
-  // return the transport name. This variable is currently required for
-  // "for_test" methods.
   std::string transport_name_;
 
   webrtc::RtpTransportInternal* rtp_transport_
@@ -327,34 +372,15 @@ class BaseChannel : public ChannelInterface,
   bool was_ever_writable_n_ RTC_GUARDED_BY(network_thread()) = false;
   bool was_ever_writable_ RTC_GUARDED_BY(worker_thread()) = false;
   const bool srtp_required_ = true;
-
-  // TODO(tommi): This field shouldn't be necessary. It's a copy of
-  // PeerConnection::GetCryptoOptions(), which is const state. It's also only
-  // used to filter header extensions when calling
-  // `rtp_transport_->UpdateRtpHeaderExtensionMap()` when the local/remote
-  // content description is updated. Since the transport is actually owned
-  // by the transport controller that also gets updated whenever the content
-  // description changes, it seems we have two paths into the transports, along
-  // with several thread hops via various classes (such as the Channel classes)
-  // that only serve as additional layers and store duplicate state. The Jsep*
-  // family of classes already apply session description updates on the network
-  // thread every time it changes.
-  // For the Channel classes, we should be able to get rid of:
-  // * crypto_options (and fewer construction parameters)_
-  // * UpdateRtpHeaderExtensionMap
-  // * GetFilteredRtpHeaderExtensions
-  // * Blocking thread hop to the network thread for every call to set
-  //   local/remote content is updated.
   const webrtc::CryptoOptions crypto_options_;
 
   // MediaChannel related members that should be accessed from the worker
   // thread.
   const std::unique_ptr<MediaChannel> media_channel_;
-  // Currently the `enabled_` flag is accessed from the signaling thread as
+  // Currently the |enabled_| flag is accessed from the signaling thread as
   // well, but it can be changed only when signaling thread does a synchronous
   // call to the worker thread, so it should be safe.
-  bool enabled_ RTC_GUARDED_BY(worker_thread()) = false;
-  bool enabled_s_ RTC_GUARDED_BY(signaling_thread()) = false;
+  bool enabled_ = false;
   bool payload_type_demuxing_enabled_ RTC_GUARDED_BY(worker_thread()) = true;
   std::vector<StreamParams> local_streams_ RTC_GUARDED_BY(worker_thread());
   std::vector<StreamParams> remote_streams_ RTC_GUARDED_BY(worker_thread());
@@ -371,14 +397,19 @@ class BaseChannel : public ChannelInterface,
   // TODO(bugs.webrtc.org/12239): Modified on worker thread, accessed
   // on network thread in RegisterRtpDemuxerSink_n (called from Init_w)
   webrtc::RtpDemuxerCriteria demuxer_criteria_;
-  // Accessed on the worker thread, modified on the network thread from
-  // RegisterRtpDemuxerSink_w's Invoke.
-  webrtc::RtpDemuxerCriteria previous_demuxer_criteria_;
   // This generator is used to generate SSRCs for local streams.
   // This is needed in cases where SSRCs are not negotiated or set explicitly
   // like in Simulcast.
   // This object is not owned by the channel so it must outlive it.
   rtc::UniqueRandomIdGenerator* const ssrc_generator_;
+
+  // |negotiated_header_extensions_| is read on the signaling thread, but
+  // written on the worker thread while being sync-invoked from the signal
+  // thread in SdpOfferAnswerHandler::PushdownMediaDescription(). Hence the lock
+  // isn't strictly needed, but it's anyway placed here for future safeness.
+  mutable webrtc::Mutex negotiated_header_extensions_lock_;
+  RtpHeaderExtensions negotiated_header_extensions_
+      RTC_GUARDED_BY(negotiated_header_extensions_lock_);
 };
 
 // VoiceChannel is a specialization that adds support for early media, DTMF,
@@ -403,6 +434,7 @@ class VoiceChannel : public BaseChannel {
   cricket::MediaType media_type() const override {
     return cricket::MEDIA_TYPE_AUDIO;
   }
+  void Init_w(webrtc::RtpTransportInternal* rtp_transport) override;
 
  private:
   // overrides from BaseChannel
@@ -462,6 +494,104 @@ class VideoChannel : public BaseChannel {
   // Last VideoRecvParameters sent down to the media_channel() via
   // SetRecvParameters.
   VideoRecvParameters last_recv_params_;
+};
+
+// RtpDataChannel is a specialization for data.
+class RtpDataChannel : public BaseChannel {
+ public:
+  RtpDataChannel(rtc::Thread* worker_thread,
+                 rtc::Thread* network_thread,
+                 rtc::Thread* signaling_thread,
+                 std::unique_ptr<DataMediaChannel> channel,
+                 const std::string& content_name,
+                 bool srtp_required,
+                 webrtc::CryptoOptions crypto_options,
+                 rtc::UniqueRandomIdGenerator* ssrc_generator);
+  ~RtpDataChannel();
+  // TODO(zhihuang): Remove this once the RtpTransport can be shared between
+  // BaseChannels.
+  void Init_w(DtlsTransportInternal* rtp_dtls_transport,
+              DtlsTransportInternal* rtcp_dtls_transport,
+              rtc::PacketTransportInternal* rtp_packet_transport,
+              rtc::PacketTransportInternal* rtcp_packet_transport);
+  void Init_w(webrtc::RtpTransportInternal* rtp_transport) override;
+
+  virtual bool SendData(const SendDataParams& params,
+                        const rtc::CopyOnWriteBuffer& payload,
+                        SendDataResult* result);
+
+  // Should be called on the signaling thread only.
+  bool ready_to_send_data() const { return ready_to_send_data_; }
+
+  sigslot::signal2<const ReceiveDataParams&, const rtc::CopyOnWriteBuffer&>
+      SignalDataReceived;
+  // Signal for notifying when the channel becomes ready to send data.
+  // That occurs when the channel is enabled, the transport is writable,
+  // both local and remote descriptions are set, and the channel is unblocked.
+  sigslot::signal1<bool> SignalReadyToSendData;
+  cricket::MediaType media_type() const override {
+    return cricket::MEDIA_TYPE_DATA;
+  }
+
+ protected:
+  // downcasts a MediaChannel.
+  DataMediaChannel* media_channel() const override {
+    return static_cast<DataMediaChannel*>(BaseChannel::media_channel());
+  }
+
+ private:
+  struct SendDataMessageData : public rtc::MessageData {
+    SendDataMessageData(const SendDataParams& params,
+                        const rtc::CopyOnWriteBuffer* payload,
+                        SendDataResult* result)
+        : params(params), payload(payload), result(result), succeeded(false) {}
+
+    const SendDataParams& params;
+    const rtc::CopyOnWriteBuffer* payload;
+    SendDataResult* result;
+    bool succeeded;
+  };
+
+  struct DataReceivedMessageData : public rtc::MessageData {
+    // We copy the data because the data will become invalid after we
+    // handle DataMediaChannel::SignalDataReceived but before we fire
+    // SignalDataReceived.
+    DataReceivedMessageData(const ReceiveDataParams& params,
+                            const char* data,
+                            size_t len)
+        : params(params), payload(data, len) {}
+    const ReceiveDataParams params;
+    const rtc::CopyOnWriteBuffer payload;
+  };
+
+  typedef rtc::TypedMessageData<bool> DataChannelReadyToSendMessageData;
+
+  // overrides from BaseChannel
+  // Checks that data channel type is RTP.
+  bool CheckDataChannelTypeFromContent(const MediaContentDescription* content,
+                                       std::string* error_desc);
+  bool SetLocalContent_w(const MediaContentDescription* content,
+                         webrtc::SdpType type,
+                         std::string* error_desc) override;
+  bool SetRemoteContent_w(const MediaContentDescription* content,
+                          webrtc::SdpType type,
+                          std::string* error_desc) override;
+  void UpdateMediaSendRecvState_w() override;
+
+  void OnMessage(rtc::Message* pmsg) override;
+  void OnDataReceived(const ReceiveDataParams& params,
+                      const char* data,
+                      size_t len);
+  void OnDataChannelReadyToSend(bool writable);
+
+  bool ready_to_send_data_ = false;
+
+  // Last DataSendParameters sent down to the media_channel() via
+  // SetSendParameters.
+  DataSendParameters last_send_params_;
+  // Last DataRecvParameters sent down to the media_channel() via
+  // SetRecvParameters.
+  DataRecvParameters last_recv_params_;
 };
 
 }  // namespace cricket

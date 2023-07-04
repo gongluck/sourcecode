@@ -11,6 +11,7 @@
 #include "modules/utility/include/helpers_android.h"
 
 #include <android/log.h>
+#include <assert.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <unistd.h>
@@ -32,7 +33,7 @@ JNIEnv* GetEnv(JavaVM* jvm) {
   return reinterpret_cast<JNIEnv*>(env);
 }
 
-// Return a `jlong` that will correctly convert back to `ptr`.  This is needed
+// Return a |jlong| that will correctly convert back to |ptr|.  This is needed
 // because the alternative (of silently passing a 32-bit pointer to a vararg
 // function expecting a 64-bit param) picks up garbage in the high 32 bits.
 jlong PointerTojlong(void* ptr) {

@@ -26,6 +26,7 @@ using ::testing::Property;
 using ::testing::UnorderedElementsAreArray;
 
 namespace webrtc {
+namespace video_coding {
 
 namespace {
 class Frame {
@@ -702,4 +703,5 @@ TEST_F(RtpVp9RefFinderTest, SpatialIndex) {
               Contains(Pointee(Property(&EncodedFrame::SpatialIndex, 2))));
 }
 
+}  // namespace video_coding
 }  // namespace webrtc

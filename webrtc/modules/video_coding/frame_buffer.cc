@@ -10,6 +10,7 @@
 
 #include "modules/video_coding/frame_buffer.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "api/video/encoded_image.h"
@@ -74,7 +75,7 @@ VCMFrameBufferEnum VCMFrameBuffer::InsertPacket(const VCMPacket& packet,
                                                 int64_t timeInMs,
                                                 const FrameData& frame_data) {
   TRACE_EVENT0("webrtc", "VCMFrameBuffer::InsertPacket");
-  RTC_DCHECK(!(NULL == packet.dataPtr && packet.sizeBytes > 0));
+  assert(!(NULL == packet.dataPtr && packet.sizeBytes > 0));
   if (packet.dataPtr != NULL) {
     _payloadType = packet.payloadType;
   }
@@ -229,19 +230,19 @@ void VCMFrameBuffer::SetState(VCMFrameBufferStateEnum state) {
   switch (state) {
     case kStateIncomplete:
       // we can go to this state from state kStateEmpty
-      RTC_DCHECK_EQ(_state, kStateEmpty);
+      assert(_state == kStateEmpty);
 
       // Do nothing, we received a packet
       break;
 
     case kStateComplete:
-      RTC_DCHECK(_state == kStateEmpty || _state == kStateIncomplete);
+      assert(_state == kStateEmpty || _state == kStateIncomplete);
 
       break;
 
     case kStateEmpty:
       // Should only be set to empty through Reset().
-      RTC_DCHECK_NOTREACHED();
+      assert(false);
       break;
   }
   _state = state;

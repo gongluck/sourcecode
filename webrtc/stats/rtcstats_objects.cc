@@ -173,8 +173,6 @@ WEBRTC_RTCSTATS_IMPL(RTCIceCandidatePairStats, RTCStats, "candidate-pair",
     &nominated,
     &writable,
     &readable,
-    &packets_sent,
-    &packets_received,
     &bytes_sent,
     &bytes_received,
     &total_round_trip_time,
@@ -190,9 +188,7 @@ WEBRTC_RTCSTATS_IMPL(RTCIceCandidatePairStats, RTCStats, "candidate-pair",
     &consent_requests_received,
     &consent_requests_sent,
     &consent_responses_received,
-    &consent_responses_sent,
-    &packets_discarded_on_send,
-    &bytes_discarded_on_send)
+    &consent_responses_sent)
 // clang-format on
 
 RTCIceCandidatePairStats::RTCIceCandidatePairStats(const std::string& id,
@@ -210,8 +206,6 @@ RTCIceCandidatePairStats::RTCIceCandidatePairStats(std::string&& id,
       nominated("nominated"),
       writable("writable"),
       readable("readable"),
-      packets_sent("packetsSent"),
-      packets_received("packetsReceived"),
       bytes_sent("bytesSent"),
       bytes_received("bytesReceived"),
       total_round_trip_time("totalRoundTripTime"),
@@ -227,9 +221,7 @@ RTCIceCandidatePairStats::RTCIceCandidatePairStats(std::string&& id,
       consent_requests_received("consentRequestsReceived"),
       consent_requests_sent("consentRequestsSent"),
       consent_responses_received("consentResponsesReceived"),
-      consent_responses_sent("consentResponsesSent"),
-      packets_discarded_on_send("packetsDiscardedOnSend"),
-      bytes_discarded_on_send("bytesDiscardedOnSend") {}
+      consent_responses_sent("consentResponsesSent") {}
 
 RTCIceCandidatePairStats::RTCIceCandidatePairStats(
     const RTCIceCandidatePairStats& other)
@@ -242,8 +234,6 @@ RTCIceCandidatePairStats::RTCIceCandidatePairStats(
       nominated(other.nominated),
       writable(other.writable),
       readable(other.readable),
-      packets_sent(other.packets_sent),
-      packets_received(other.packets_received),
       bytes_sent(other.bytes_sent),
       bytes_received(other.bytes_received),
       total_round_trip_time(other.total_round_trip_time),
@@ -259,9 +249,7 @@ RTCIceCandidatePairStats::RTCIceCandidatePairStats(
       consent_requests_received(other.consent_requests_received),
       consent_requests_sent(other.consent_requests_sent),
       consent_responses_received(other.consent_responses_received),
-      consent_responses_sent(other.consent_responses_sent),
-      packets_discarded_on_send(other.packets_discarded_on_send),
-      bytes_discarded_on_send(other.bytes_discarded_on_send) {}
+      consent_responses_sent(other.consent_responses_sent) {}
 
 RTCIceCandidatePairStats::~RTCIceCandidatePairStats() {}
 
@@ -271,13 +259,13 @@ WEBRTC_RTCSTATS_IMPL(RTCIceCandidateStats, RTCStats, "abstract-ice-candidate",
     &is_remote,
     &network_type,
     &ip,
-    &address,
     &port,
     &protocol,
     &relay_protocol,
     &candidate_type,
     &priority,
-    &url)
+    &url,
+    &deleted)
 // clang-format on
 
 RTCIceCandidateStats::RTCIceCandidateStats(const std::string& id,
@@ -293,13 +281,13 @@ RTCIceCandidateStats::RTCIceCandidateStats(std::string&& id,
       is_remote("isRemote", is_remote),
       network_type("networkType"),
       ip("ip"),
-      address("address"),
       port("port"),
       protocol("protocol"),
       relay_protocol("relayProtocol"),
       candidate_type("candidateType"),
       priority("priority"),
-      url("url") {}
+      url("url"),
+      deleted("deleted", false) {}
 
 RTCIceCandidateStats::RTCIceCandidateStats(const RTCIceCandidateStats& other)
     : RTCStats(other.id(), other.timestamp_us()),
@@ -307,13 +295,13 @@ RTCIceCandidateStats::RTCIceCandidateStats(const RTCIceCandidateStats& other)
       is_remote(other.is_remote),
       network_type(other.network_type),
       ip(other.ip),
-      address(other.address),
       port(other.port),
       protocol(other.protocol),
       relay_protocol(other.relay_protocol),
       candidate_type(other.candidate_type),
       priority(other.priority),
-      url(other.url) {}
+      url(other.url),
+      deleted(other.deleted) {}
 
 RTCIceCandidateStats::~RTCIceCandidateStats() {}
 
@@ -594,8 +582,7 @@ RTCRTPStreamStats::~RTCRTPStreamStats() {}
 WEBRTC_RTCSTATS_IMPL(
     RTCReceivedRtpStreamStats, RTCRTPStreamStats, "received-rtp",
     &jitter,
-    &packets_lost,
-    &packets_discarded)
+    &packets_lost)
 // clang-format on
 
 RTCReceivedRtpStreamStats::RTCReceivedRtpStreamStats(const std::string&& id,
@@ -606,46 +593,19 @@ RTCReceivedRtpStreamStats::RTCReceivedRtpStreamStats(std::string&& id,
                                                      int64_t timestamp_us)
     : RTCRTPStreamStats(std::move(id), timestamp_us),
       jitter("jitter"),
-      packets_lost("packetsLost"),
-      packets_discarded("packetsDiscarded") {}
+      packets_lost("packetsLost") {}
 
 RTCReceivedRtpStreamStats::RTCReceivedRtpStreamStats(
     const RTCReceivedRtpStreamStats& other)
     : RTCRTPStreamStats(other),
       jitter(other.jitter),
-      packets_lost(other.packets_lost),
-      packets_discarded(other.packets_discarded) {}
+      packets_lost(other.packets_lost) {}
 
 RTCReceivedRtpStreamStats::~RTCReceivedRtpStreamStats() {}
 
 // clang-format off
 WEBRTC_RTCSTATS_IMPL(
-    RTCSentRtpStreamStats, RTCRTPStreamStats, "sent-rtp",
-    &packets_sent,
-    &bytes_sent)
-// clang-format on
-
-RTCSentRtpStreamStats::RTCSentRtpStreamStats(const std::string&& id,
-                                             int64_t timestamp_us)
-    : RTCSentRtpStreamStats(std::string(id), timestamp_us) {}
-
-RTCSentRtpStreamStats::RTCSentRtpStreamStats(std::string&& id,
-                                             int64_t timestamp_us)
-    : RTCRTPStreamStats(std::move(id), timestamp_us),
-      packets_sent("packetsSent"),
-      bytes_sent("bytesSent") {}
-
-RTCSentRtpStreamStats::RTCSentRtpStreamStats(const RTCSentRtpStreamStats& other)
-    : RTCRTPStreamStats(other),
-      packets_sent(other.packets_sent),
-      bytes_sent(other.bytes_sent) {}
-
-RTCSentRtpStreamStats::~RTCSentRtpStreamStats() {}
-
-// clang-format off
-WEBRTC_RTCSTATS_IMPL(
     RTCInboundRTPStreamStats, RTCReceivedRtpStreamStats, "inbound-rtp",
-    &remote_id,
     &packets_received,
     &fec_packets_received,
     &fec_packets_discarded,
@@ -665,6 +625,7 @@ WEBRTC_RTCSTATS_IMPL(
     &total_samples_duration,
     &frames_received,
     &round_trip_time,
+    &packets_discarded,
     &packets_repaired,
     &burst_packets_lost,
     &burst_packets_discarded,
@@ -690,7 +651,8 @@ WEBRTC_RTCSTATS_IMPL(
     &fir_count,
     &pli_count,
     &nack_count,
-    &qp_sum)
+    &qp_sum,
+    &is_remote)
 // clang-format on
 
 RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(const std::string& id,
@@ -700,7 +662,6 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(const std::string& id,
 RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(std::string&& id,
                                                    int64_t timestamp_us)
     : RTCReceivedRtpStreamStats(std::move(id), timestamp_us),
-      remote_id("remoteId"),
       packets_received("packetsReceived"),
       fec_packets_received("fecPacketsReceived"),
       fec_packets_discarded("fecPacketsDiscarded"),
@@ -720,6 +681,7 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(std::string&& id,
       total_samples_duration("totalSamplesDuration"),
       frames_received("framesReceived"),
       round_trip_time("roundTripTime"),
+      packets_discarded("packetsDiscarded"),
       packets_repaired("packetsRepaired"),
       burst_packets_lost("burstPacketsLost"),
       burst_packets_discarded("burstPacketsDiscarded"),
@@ -745,12 +707,12 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(std::string&& id,
       fir_count("firCount"),
       pli_count("pliCount"),
       nack_count("nackCount"),
-      qp_sum("qpSum") {}
+      qp_sum("qpSum"),
+      is_remote("isRemote") {}
 
 RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(
     const RTCInboundRTPStreamStats& other)
     : RTCReceivedRtpStreamStats(other),
-      remote_id(other.remote_id),
       packets_received(other.packets_received),
       fec_packets_received(other.fec_packets_received),
       fec_packets_discarded(other.fec_packets_discarded),
@@ -771,6 +733,7 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(
       total_samples_duration(other.total_samples_duration),
       frames_received(other.frames_received),
       round_trip_time(other.round_trip_time),
+      packets_discarded(other.packets_discarded),
       packets_repaired(other.packets_repaired),
       burst_packets_lost(other.burst_packets_lost),
       burst_packets_discarded(other.burst_packets_discarded),
@@ -796,7 +759,8 @@ RTCInboundRTPStreamStats::RTCInboundRTPStreamStats(
       fir_count(other.fir_count),
       pli_count(other.pli_count),
       nack_count(other.nack_count),
-      qp_sum(other.qp_sum) {}
+      qp_sum(other.qp_sum),
+      is_remote(other.is_remote) {}
 
 RTCInboundRTPStreamStats::~RTCInboundRTPStreamStats() {}
 
@@ -823,14 +787,14 @@ WEBRTC_RTCSTATS_IMPL(
     &huge_frames_sent,
     &total_packet_send_delay,
     &quality_limitation_reason,
-    &quality_limitation_durations,
     &quality_limitation_resolution_changes,
     &content_type,
     &encoder_implementation,
     &fir_count,
     &pli_count,
     &nack_count,
-    &qp_sum)
+    &qp_sum,
+    &is_remote)
 // clang-format on
 
 RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(const std::string& id,
@@ -860,7 +824,6 @@ RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(std::string&& id,
       huge_frames_sent("hugeFramesSent"),
       total_packet_send_delay("totalPacketSendDelay"),
       quality_limitation_reason("qualityLimitationReason"),
-      quality_limitation_durations("qualityLimitationDurations"),
       quality_limitation_resolution_changes(
           "qualityLimitationResolutionChanges"),
       content_type("contentType"),
@@ -868,7 +831,8 @@ RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(std::string&& id,
       fir_count("firCount"),
       pli_count("pliCount"),
       nack_count("nackCount"),
-      qp_sum("qpSum") {}
+      qp_sum("qpSum"),
+      is_remote("isRemote") {}
 
 RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(
     const RTCOutboundRTPStreamStats& other)
@@ -893,7 +857,6 @@ RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(
       huge_frames_sent(other.huge_frames_sent),
       total_packet_send_delay(other.total_packet_send_delay),
       quality_limitation_reason(other.quality_limitation_reason),
-      quality_limitation_durations(other.quality_limitation_durations),
       quality_limitation_resolution_changes(
           other.quality_limitation_resolution_changes),
       content_type(other.content_type),
@@ -901,14 +864,18 @@ RTCOutboundRTPStreamStats::RTCOutboundRTPStreamStats(
       fir_count(other.fir_count),
       pli_count(other.pli_count),
       nack_count(other.nack_count),
-      qp_sum(other.qp_sum) {}
+      qp_sum(other.qp_sum),
+      is_remote(other.is_remote) {}
 
 RTCOutboundRTPStreamStats::~RTCOutboundRTPStreamStats() {}
 
 // clang-format off
 WEBRTC_RTCSTATS_IMPL(
-    RTCRemoteInboundRtpStreamStats, RTCReceivedRtpStreamStats,
-        "remote-inbound-rtp",
+    RTCRemoteInboundRtpStreamStats, RTCStats, "remote-inbound-rtp",
+    &ssrc,
+    &kind,
+    &transport_id,
+    &codec_id,
     &local_id,
     &round_trip_time,
     &fraction_lost,
@@ -943,46 +910,6 @@ RTCRemoteInboundRtpStreamStats::RTCRemoteInboundRtpStreamStats(
 RTCRemoteInboundRtpStreamStats::~RTCRemoteInboundRtpStreamStats() {}
 
 // clang-format off
-WEBRTC_RTCSTATS_IMPL(
-    RTCRemoteOutboundRtpStreamStats, RTCSentRtpStreamStats,
-    "remote-outbound-rtp",
-    &local_id,
-    &remote_timestamp,
-    &reports_sent,
-    &round_trip_time,
-    &round_trip_time_measurements,
-    &total_round_trip_time)
-// clang-format on
-
-RTCRemoteOutboundRtpStreamStats::RTCRemoteOutboundRtpStreamStats(
-    const std::string& id,
-    int64_t timestamp_us)
-    : RTCRemoteOutboundRtpStreamStats(std::string(id), timestamp_us) {}
-
-RTCRemoteOutboundRtpStreamStats::RTCRemoteOutboundRtpStreamStats(
-    std::string&& id,
-    int64_t timestamp_us)
-    : RTCSentRtpStreamStats(std::move(id), timestamp_us),
-      local_id("localId"),
-      remote_timestamp("remoteTimestamp"),
-      reports_sent("reportsSent"),
-      round_trip_time("roundTripTime"),
-      round_trip_time_measurements("roundTripTimeMeasurements"),
-      total_round_trip_time("totalRoundTripTime") {}
-
-RTCRemoteOutboundRtpStreamStats::RTCRemoteOutboundRtpStreamStats(
-    const RTCRemoteOutboundRtpStreamStats& other)
-    : RTCSentRtpStreamStats(other),
-      local_id(other.local_id),
-      remote_timestamp(other.remote_timestamp),
-      reports_sent(other.reports_sent),
-      round_trip_time(other.round_trip_time),
-      round_trip_time_measurements(other.round_trip_time_measurements),
-      total_round_trip_time(other.total_round_trip_time) {}
-
-RTCRemoteOutboundRtpStreamStats::~RTCRemoteOutboundRtpStreamStats() {}
-
-// clang-format off
 WEBRTC_RTCSTATS_IMPL(RTCMediaSourceStats, RTCStats, "parent-media-source",
     &track_identifier,
     &kind)
@@ -1008,9 +935,7 @@ RTCMediaSourceStats::~RTCMediaSourceStats() {}
 WEBRTC_RTCSTATS_IMPL(RTCAudioSourceStats, RTCMediaSourceStats, "media-source",
     &audio_level,
     &total_audio_energy,
-    &total_samples_duration,
-    &echo_return_loss,
-    &echo_return_loss_enhancement)
+    &total_samples_duration)
 // clang-format on
 
 RTCAudioSourceStats::RTCAudioSourceStats(const std::string& id,
@@ -1021,17 +946,13 @@ RTCAudioSourceStats::RTCAudioSourceStats(std::string&& id, int64_t timestamp_us)
     : RTCMediaSourceStats(std::move(id), timestamp_us),
       audio_level("audioLevel"),
       total_audio_energy("totalAudioEnergy"),
-      total_samples_duration("totalSamplesDuration"),
-      echo_return_loss("echoReturnLoss"),
-      echo_return_loss_enhancement("echoReturnLossEnhancement") {}
+      total_samples_duration("totalSamplesDuration") {}
 
 RTCAudioSourceStats::RTCAudioSourceStats(const RTCAudioSourceStats& other)
     : RTCMediaSourceStats(other),
       audio_level(other.audio_level),
       total_audio_energy(other.total_audio_energy),
-      total_samples_duration(other.total_samples_duration),
-      echo_return_loss(other.echo_return_loss),
-      echo_return_loss_enhancement(other.echo_return_loss_enhancement) {}
+      total_samples_duration(other.total_samples_duration) {}
 
 RTCAudioSourceStats::~RTCAudioSourceStats() {}
 

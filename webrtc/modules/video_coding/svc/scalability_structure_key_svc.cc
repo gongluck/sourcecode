@@ -51,7 +51,6 @@ ScalabilityStructureKeySvc::StreamConfig() const {
     result.scaling_factor_num[sid - 1] = 1;
     result.scaling_factor_den[sid - 1] = 2 * result.scaling_factor_den[sid];
   }
-  result.uses_reference_scaling = true;
   return result;
 }
 
@@ -198,7 +197,7 @@ ScalabilityStructureKeySvc::NextPattern(FramePattern last_pattern) const {
       }
       return kDeltaT0;
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return kNone;
 }
 
@@ -227,7 +226,7 @@ ScalabilityStructureKeySvc::NextFrameConfig(bool restart) {
     case kNone:
       break;
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return {};
 }
 

@@ -11,7 +11,6 @@ include_rules = [
   "+modules/video_capture",
   "+modules/video_coding",
   "+modules/video_coding/utility",
-  "+net/dcsctp",
   "+p2p",
   "+sound",
   "+system_wrappers",

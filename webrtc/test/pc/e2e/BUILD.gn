@@ -15,10 +15,10 @@ if (!build_with_chromium) {
     deps = [
       ":encoded_image_data_injector_api",
       ":example_video_quality_analyzer",
+      ":id_generator",
       ":quality_analyzing_video_decoder",
       ":quality_analyzing_video_encoder",
       ":single_process_encoded_image_data_injector",
-      ":video_frame_tracking_id_injector",
     ]
     if (rtc_include_tests) {
       deps += [
@@ -34,12 +34,10 @@ if (!build_with_chromium) {
       testonly = true
 
       deps = [
-        ":default_video_quality_analyzer_frames_comparator_test",
         ":default_video_quality_analyzer_test",
         ":multi_head_queue_test",
         ":peer_connection_e2e_smoke_test",
         ":single_process_encoded_image_data_injector_unittest",
-        ":video_frame_tracking_id_injector_unittest",
       ]
     }
   }
@@ -91,20 +89,14 @@ if (!build_with_chromium) {
     absl_deps = [ "//third_party/abseil-cpp/absl/memory" ]
   }
 
-  rtc_library("video_frame_tracking_id_injector") {
+  rtc_library("id_generator") {
     visibility = [ "*" ]
     testonly = true
     sources = [
-      "analyzer/video/video_frame_tracking_id_injector.cc",
-      "analyzer/video/video_frame_tracking_id_injector.h",
+      "analyzer/video/id_generator.cc",
+      "analyzer/video/id_generator.h",
     ]
-
-    deps = [
-      ":encoded_image_data_injector_api",
-      "../../../api/video:encoded_image",
-      "../../../rtc_base:checks",
-    ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/memory" ]
+    deps = []
   }
 
   rtc_library("simulcast_dummy_buffer_helper") {
@@ -126,6 +118,7 @@ if (!build_with_chromium) {
     ]
     deps = [
       ":encoded_image_data_injector_api",
+      ":id_generator",
       ":simulcast_dummy_buffer_helper",
       "../../../api:video_quality_analyzer_api",
       "../../../api/video:encoded_image",
@@ -152,6 +145,7 @@ if (!build_with_chromium) {
     ]
     deps = [
       ":encoded_image_data_injector_api",
+      ":id_generator",
       "../../../api:video_quality_analyzer_api",
       "../../../api/video:encoded_image",
       "../../../api/video:video_frame",
@@ -175,6 +169,7 @@ if (!build_with_chromium) {
       ]
       deps = [
         ":encoded_image_data_injector_api",
+        ":id_generator",
         ":quality_analyzing_video_decoder",
         ":quality_analyzing_video_encoder",
         ":simulcast_dummy_buffer_helper",
@@ -187,7 +182,6 @@ if (!build_with_chromium) {
         "../../../api/video:video_rtp_headers",
         "../../../api/video_codecs:video_codecs_api",
         "../../../rtc_base:criticalsection",
-        "../../../rtc_base:stringutils",
         "../../../rtc_base/synchronization:mutex",
         "../../../test:video_test_common",
         "../../../test:video_test_support",
@@ -291,7 +285,6 @@ if (!build_with_chromium) {
         "../../../api:peer_connection_quality_test_fixture_api",
         "../../../api/video:video_frame",
         "../../../pc:peerconnection",
-        "../../../pc:session_description",
         "../../../pc:video_track_source",
       ]
       absl_deps = [ "//third_party/abseil-cpp/absl/types:variant" ]
@@ -415,18 +408,6 @@ if (!build_with_chromium) {
       ]
     }
 
-    rtc_library("video_frame_tracking_id_injector_unittest") {
-      testonly = true
-      sources =
-          [ "analyzer/video/video_frame_tracking_id_injector_unittest.cc" ]
-      deps = [
-        ":video_frame_tracking_id_injector",
-        "../../../api/video:encoded_image",
-        "../../../rtc_base:rtc_base_approved",
-        "../../../test:test_support",
-      ]
-    }
-
     peer_connection_e2e_smoke_test_resources = [
       "../../../resources/pc_quality_smoke_test_alice_source.wav",
       "../../../resources/pc_quality_smoke_test_bob_source.wav",
@@ -446,7 +427,6 @@ if (!build_with_chromium) {
       deps = [
         ":default_audio_quality_analyzer",
         ":default_video_quality_analyzer",
-        ":default_video_quality_analyzer_shared",
         ":network_quality_metrics_reporter",
         ":stats_based_network_quality_metrics_reporter",
         "../../../api:callfactory_api",
@@ -505,7 +485,6 @@ if (!build_with_chromium) {
       sources = [ "analyzer/video/default_video_quality_analyzer_test.cc" ]
       deps = [
         ":default_video_quality_analyzer",
-        ":default_video_quality_analyzer_shared",
         "../..:test_support",
         "../../../api:create_frame_generator",
         "../../../api:rtp_packet_info",
@@ -515,20 +494,6 @@ if (!build_with_chromium) {
         "../../../modules/rtp_rtcp:rtp_rtcp_format",
         "../../../rtc_base:stringutils",
         "../../../rtc_tools:video_quality_analysis",
-        "../../../system_wrappers",
-      ]
-    }
-
-    rtc_library("default_video_quality_analyzer_frames_comparator_test") {
-      testonly = true
-      sources = [ "analyzer/video/default_video_quality_analyzer_frames_comparator_test.cc" ]
-      deps = [
-        ":default_video_quality_analyzer_internal",
-        ":default_video_quality_analyzer_shared",
-        "../..:test_support",
-        "../../../api:create_frame_generator",
-        "../../../api/units:timestamp",
-        "../../../rtc_base:stringutils",
         "../../../system_wrappers",
       ]
     }
@@ -638,8 +603,6 @@ if (!build_with_chromium) {
     ]
 
     deps = [
-      ":default_video_quality_analyzer_internal",
-      ":default_video_quality_analyzer_shared",
       ":multi_head_queue",
       "../..:perf_test",
       "../../../api:array_view",
@@ -651,74 +614,17 @@ if (!build_with_chromium) {
       "../../../api/video:video_frame",
       "../../../api/video:video_rtp_headers",
       "../../../common_video",
-      "../../../rtc_base:checks",
       "../../../rtc_base:criticalsection",
       "../../../rtc_base:logging",
       "../../../rtc_base:rtc_base_approved",
+      "../../../rtc_base:rtc_base_tests_utils",
       "../../../rtc_base:rtc_event",
       "../../../rtc_base:rtc_numerics",
+      "../../../rtc_base:timeutils",
       "../../../rtc_base/synchronization:mutex",
       "../../../rtc_tools:video_quality_analysis",
       "../../../system_wrappers",
     ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-  }
-
-  # This target contains implementation details of DefaultVideoQualityAnalyzer,
-  # so headers exported by it shouldn't be used in other places.
-  rtc_library("default_video_quality_analyzer_internal") {
-    visibility = [
-      ":default_video_quality_analyzer",
-      ":default_video_quality_analyzer_frames_comparator_test",
-    ]
-
-    testonly = true
-    sources = [
-      "analyzer/video/default_video_quality_analyzer_cpu_measurer.cc",
-      "analyzer/video/default_video_quality_analyzer_cpu_measurer.h",
-      "analyzer/video/default_video_quality_analyzer_frames_comparator.cc",
-      "analyzer/video/default_video_quality_analyzer_frames_comparator.h",
-      "analyzer/video/default_video_quality_analyzer_internal_shared_objects.cc",
-      "analyzer/video/default_video_quality_analyzer_internal_shared_objects.h",
-    ]
-
-    deps = [
-      ":default_video_quality_analyzer_shared",
-      "../../../api:array_view",
-      "../../../api:scoped_refptr",
-      "../../../api/numerics:numerics",
-      "../../../api/units:timestamp",
-      "../../../api/video:video_frame",
-      "../../../common_video",
-      "../../../rtc_base:checks",
-      "../../../rtc_base:rtc_base_approved",
-      "../../../rtc_base:rtc_base_tests_utils",
-      "../../../rtc_base:rtc_event",
-      "../../../rtc_base:stringutils",
-      "../../../rtc_base:timeutils",
-      "../../../rtc_base/synchronization:mutex",
-      "../../../rtc_tools:video_quality_analysis",
-      "../../../system_wrappers:system_wrappers",
-    ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-  }
-
-  rtc_library("default_video_quality_analyzer_shared") {
-    visibility = [ "*" ]
-
-    testonly = true
-    sources = [
-      "analyzer/video/default_video_quality_analyzer_shared_objects.cc",
-      "analyzer/video/default_video_quality_analyzer_shared_objects.h",
-    ]
-
-    deps = [
-      "../../../api/numerics:numerics",
-      "../../../api/units:timestamp",
-      "../../../rtc_base:checks",
-      "../../../rtc_base:stringutils",
-    ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
   }
 
   rtc_library("network_quality_metrics_reporter") {
@@ -815,8 +721,6 @@ if (!build_with_chromium) {
       "../../../p2p:rtc_p2p",
       "../../../pc:peerconnection",
       "../../../pc:rtc_pc_base",
-      "../../../pc:session_description",
-      "../../../pc:simulcast_description",
       "../../../rtc_base:stringutils",
     ]
     absl_deps = [

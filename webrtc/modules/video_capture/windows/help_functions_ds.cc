@@ -30,6 +30,7 @@ LONGLONG GetMaxOfFrameArray(LONGLONG* maxFps, long size) {
 }
 
 IPin* GetInputPin(IBaseFilter* filter) {
+  HRESULT hr;
   IPin* pin = NULL;
   IEnumPins* pPinEnum = NULL;
   filter->EnumPins(&pPinEnum);
@@ -38,7 +39,7 @@ IPin* GetInputPin(IBaseFilter* filter) {
   }
 
   // get first unconnected pin
-  pPinEnum->Reset();  // set to first pin
+  hr = pPinEnum->Reset();  // set to first pin
 
   while (S_OK == pPinEnum->Next(1, &pin, NULL)) {
     PIN_DIRECTION pPinDir;
@@ -59,6 +60,7 @@ IPin* GetInputPin(IBaseFilter* filter) {
 }
 
 IPin* GetOutputPin(IBaseFilter* filter, REFGUID Category) {
+  HRESULT hr;
   IPin* pin = NULL;
   IEnumPins* pPinEnum = NULL;
   filter->EnumPins(&pPinEnum);
@@ -66,7 +68,7 @@ IPin* GetOutputPin(IBaseFilter* filter, REFGUID Category) {
     return NULL;
   }
   // get first unconnected pin
-  pPinEnum->Reset();  // set to first pin
+  hr = pPinEnum->Reset();  // set to first pin
   while (S_OK == pPinEnum->Next(1, &pin, NULL)) {
     PIN_DIRECTION pPinDir;
     pin->QueryDirection(&pPinDir);

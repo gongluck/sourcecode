@@ -13,8 +13,8 @@
 
 #include <stddef.h>
 
+#include "rtc_base/async_socket.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/socket.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 
@@ -24,13 +24,13 @@ namespace rtc {
 
 class SocketStream : public StreamInterface, public sigslot::has_slots<> {
  public:
-  explicit SocketStream(Socket* socket);
+  explicit SocketStream(AsyncSocket* socket);
   ~SocketStream() override;
 
-  void Attach(Socket* socket);
-  Socket* Detach();
+  void Attach(AsyncSocket* socket);
+  AsyncSocket* Detach();
 
-  Socket* GetSocket() { return socket_; }
+  AsyncSocket* GetSocket() { return socket_; }
 
   StreamState GetState() const override;
 
@@ -47,12 +47,12 @@ class SocketStream : public StreamInterface, public sigslot::has_slots<> {
   void Close() override;
 
  private:
-  void OnConnectEvent(Socket* socket);
-  void OnReadEvent(Socket* socket);
-  void OnWriteEvent(Socket* socket);
-  void OnCloseEvent(Socket* socket, int err);
+  void OnConnectEvent(AsyncSocket* socket);
+  void OnReadEvent(AsyncSocket* socket);
+  void OnWriteEvent(AsyncSocket* socket);
+  void OnCloseEvent(AsyncSocket* socket, int err);
 
-  Socket* socket_;
+  AsyncSocket* socket_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(SocketStream);
 };

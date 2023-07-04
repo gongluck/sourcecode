@@ -12,7 +12,10 @@
 
 #import <AVFoundation/AVFoundation.h>
 
-#import "sdk/objc/components/renderer/metal/RTCMTLVideoView.h"
+#import "sdk/objc/components/renderer/opengl/RTCEAGLVideoView.h"
+#if defined(RTC_SUPPORTS_METAL)
+#import "sdk/objc/components/renderer/metal/RTCMTLVideoView.h"  // nogncheck
+#endif
 
 #import "UIImage+ARDUtilities.h"
 
@@ -41,7 +44,14 @@ static CGFloat const kStatusBarHeight = 20;
 - (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
 
+#if defined(RTC_SUPPORTS_METAL)
     _remoteVideoView = [[RTC_OBJC_TYPE(RTCMTLVideoView) alloc] initWithFrame:CGRectZero];
+#else
+    RTC_OBJC_TYPE(RTCEAGLVideoView) *remoteView =
+        [[RTC_OBJC_TYPE(RTCEAGLVideoView) alloc] initWithFrame:CGRectZero];
+    remoteView.delegate = self;
+    _remoteVideoView = remoteView;
+#endif
 
     [self addSubview:_remoteVideoView];
 

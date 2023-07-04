@@ -17,6 +17,7 @@
 #include <memory>
 #include <set>
 
+#include "rtc_base/async_socket.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/nat_server.h"
 #include "rtc_base/nat_types.h"
@@ -35,10 +36,10 @@ const size_t kNATEncodedIPv6AddressSize = 20U;
 class NATInternalSocketFactory {
  public:
   virtual ~NATInternalSocketFactory() {}
-  virtual Socket* CreateInternalSocket(int family,
-                                       int type,
-                                       const SocketAddress& local_addr,
-                                       SocketAddress* nat_addr) = 0;
+  virtual AsyncSocket* CreateInternalSocket(int family,
+                                            int type,
+                                            const SocketAddress& local_addr,
+                                            SocketAddress* nat_addr) = 0;
 };
 
 // Creates sockets that will send all traffic through a NAT, using an existing
@@ -52,12 +53,13 @@ class NATSocketFactory : public SocketFactory, public NATInternalSocketFactory {
 
   // SocketFactory implementation
   Socket* CreateSocket(int family, int type) override;
+  AsyncSocket* CreateAsyncSocket(int family, int type) override;
 
   // NATInternalSocketFactory implementation
-  Socket* CreateInternalSocket(int family,
-                               int type,
-                               const SocketAddress& local_addr,
-                               SocketAddress* nat_addr) override;
+  AsyncSocket* CreateInternalSocket(int family,
+                                    int type,
+                                    const SocketAddress& local_addr,
+                                    SocketAddress* nat_addr) override;
 
  private:
   SocketFactory* factory_;
@@ -105,7 +107,7 @@ class NATSocketServer : public SocketServer, public NATInternalSocketFactory {
                const SocketAddress& ext_addr);
     ~Translator();
 
-    SocketFactory* internal_factory() { return internal_server_.get(); }
+    SocketFactory* internal_factory() { return internal_factory_.get(); }
     SocketAddress internal_udp_address() const {
       return nat_server_->internal_udp_address();
     }
@@ -127,7 +129,7 @@ class NATSocketServer : public SocketServer, public NATInternalSocketFactory {
 
    private:
     NATSocketServer* server_;
-    std::unique_ptr<SocketServer> internal_server_;
+    std::unique_ptr<SocketFactory> internal_factory_;
     std::unique_ptr<NATServer> nat_server_;
     TranslatorMap nats_;
     std::set<SocketAddress> clients_;
@@ -146,16 +148,17 @@ class NATSocketServer : public SocketServer, public NATInternalSocketFactory {
 
   // SocketServer implementation
   Socket* CreateSocket(int family, int type) override;
+  AsyncSocket* CreateAsyncSocket(int family, int type) override;
 
   void SetMessageQueue(Thread* queue) override;
   bool Wait(int cms, bool process_io) override;
   void WakeUp() override;
 
   // NATInternalSocketFactory implementation
-  Socket* CreateInternalSocket(int family,
-                               int type,
-                               const SocketAddress& local_addr,
-                               SocketAddress* nat_addr) override;
+  AsyncSocket* CreateInternalSocket(int family,
+                                    int type,
+                                    const SocketAddress& local_addr,
+                                    SocketAddress* nat_addr) override;
 
  private:
   SocketServer* server_;

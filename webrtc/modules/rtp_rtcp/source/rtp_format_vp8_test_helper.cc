@@ -14,30 +14,28 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-// VP8 payload descriptor
-// https://datatracker.ietf.org/doc/html/rfc7741#section-4.2
-//
-//       0 1 2 3 4 5 6 7
-//      +-+-+-+-+-+-+-+-+
-//      |X|R|N|S|R| PID | (REQUIRED)
-//      +-+-+-+-+-+-+-+-+
-// X:   |I|L|T|K| RSV   | (OPTIONAL)
-//      +-+-+-+-+-+-+-+-+
-// I:   |M| PictureID   | (OPTIONAL)
-//      +-+-+-+-+-+-+-+-+
-//      |   PictureID   |
-//      +-+-+-+-+-+-+-+-+
-// L:   |   TL0PICIDX   | (OPTIONAL)
-//      +-+-+-+-+-+-+-+-+
-// T/K: |TID|Y| KEYIDX  | (OPTIONAL)
-//      +-+-+-+-+-+-+-+-+
-
 namespace webrtc {
 namespace {
 
 using ::testing::ElementsAreArray;
 
 constexpr RtpPacketToSend::ExtensionManager* kNoExtensions = nullptr;
+
+// Payload descriptor
+//       0 1 2 3 4 5 6 7
+//      +-+-+-+-+-+-+-+-+
+//      |X|R|N|S|PartID | (REQUIRED)
+//      +-+-+-+-+-+-+-+-+
+// X:   |I|L|T|K|  RSV  | (OPTIONAL)
+//      +-+-+-+-+-+-+-+-+
+//      |M| PictureID   |
+// I:   +-+-+-+-+-+-+-+-+ (OPTIONAL)
+//      |   PictureID   |
+//      +-+-+-+-+-+-+-+-+
+// L:   |   TL0PICIDX   | (OPTIONAL)
+//      +-+-+-+-+-+-+-+-+
+// T/K: |TID|Y| KEYIDX  | (OPTIONAL)
+//      +-+-+-+-+-+-+-+-+
 
 int Bit(uint8_t byte, int position) {
   return (byte >> position) & 0x01;

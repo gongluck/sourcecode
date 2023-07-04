@@ -17,6 +17,7 @@
 #include "modules/video_coding/encoded_frame.h"
 
 namespace webrtc {
+namespace video_coding {
 
 // TODO(philipel): Remove webrtc::VCMEncodedFrame inheritance.
 // TODO(philipel): Move transport specific info out of EncodedFrame.
@@ -46,7 +47,7 @@ class EncodedFrame : public webrtc::VCMEncodedFrame {
   int64_t Id() const { return id_; }
 
   // TODO(philipel): Add simple modify/access functions to prevent adding too
-  // many `references`.
+  // many |references|.
   size_t num_references = 0;
   int64_t references[kMaxFrameReferences];
   // Is this subframe the last one in the superframe (In RTP stream that would
@@ -59,6 +60,7 @@ class EncodedFrame : public webrtc::VCMEncodedFrame {
   int64_t id_ = -1;
 };
 
+}  // namespace video_coding
 }  // namespace webrtc
 
 #endif  // API_VIDEO_ENCODED_FRAME_H_

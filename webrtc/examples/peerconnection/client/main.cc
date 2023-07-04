@@ -27,6 +27,7 @@
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/string_utils.h"  // For ToUtf8
 #include "rtc_base/win32_socket_init.h"
+#include "rtc_base/win32_socket_server.h"
 #include "system_wrappers/include/field_trial.h"
 #include "test/field_trial.h"
 
@@ -70,18 +71,14 @@ WindowsCommandLineArguments::WindowsCommandLineArguments() {
 }
 
 }  // namespace
-
-// windows程序入口
 int PASCAL wWinMain(HINSTANCE instance,
                     HINSTANCE prev_instance,
                     wchar_t* cmd_line,
                     int cmd_show) {
-  // windows网络初始化
   rtc::WinsockInitializer winsock_init;
-  //套接字服务
-  rtc::PhysicalSocketServer ss;
-  //自动管理生存期的套接字服务线程
-  rtc::AutoSocketServerThread main_thread(&ss);
+  rtc::Win32SocketServer w32_ss;
+  rtc::Win32Thread w32_thread(&w32_ss);
+  rtc::ThreadManager::Instance()->SetCurrentThread(&w32_thread);
 
   WindowsCommandLineArguments win_args;
   int argc = win_args.argc();
@@ -103,31 +100,24 @@ int PASCAL wWinMain(HINSTANCE instance,
   }
 
   const std::string server = absl::GetFlag(FLAGS_server);
-
-  //创建窗口
   MainWnd wnd(server.c_str(), absl::GetFlag(FLAGS_port),
               absl::GetFlag(FLAGS_autoconnect), absl::GetFlag(FLAGS_autocall));
   if (!wnd.Create()) {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
     return -1;
   }
 
   rtc::InitializeSSL();
   PeerConnectionClient client;
-
-  //控制器
   rtc::scoped_refptr<Conductor> conductor(
       new rtc::RefCountedObject<Conductor>(&client, &wnd));
 
   // Main loop.
   MSG msg;
   BOOL gm;
-  //消息循环
   while ((gm = ::GetMessage(&msg, NULL, 0, 0)) != 0 && gm != -1) {
-    if (!wnd.PreTranslateMessage(&msg) /*消息预处理*/) {
-      //转换消息
+    if (!wnd.PreTranslateMessage(&msg)) {
       ::TranslateMessage(&msg);
-      //分发消息
       ::DispatchMessage(&msg);
     }
   }

@@ -37,6 +37,7 @@
 namespace webrtc {
 
 class SendStatisticsProxy : public VideoStreamEncoderObserver,
+                            public RtcpStatisticsCallback,
                             public ReportBlockDataObserver,
                             public RtcpPacketTypeCounterObserver,
                             public StreamDataCountersCallback,
@@ -105,6 +106,9 @@ class SendStatisticsProxy : public VideoStreamEncoderObserver,
   int GetSendFrameRate() const;
 
  protected:
+  // From RtcpStatisticsCallback.
+  void StatisticsUpdated(const RtcpStatistics& statistics,
+                         uint32_t ssrc) override;
   // From ReportBlockDataObserver.
   void OnReportBlockDataUpdated(ReportBlockData report_block_data) override;
   // From RtcpPacketTypeCounterObserver.
@@ -284,7 +288,6 @@ class SendStatisticsProxy : public VideoStreamEncoderObserver,
       RTC_GUARDED_BY(mutex_);
   rtc::RateTracker media_byte_rate_tracker_ RTC_GUARDED_BY(mutex_);
   rtc::RateTracker encoded_frame_rate_tracker_ RTC_GUARDED_BY(mutex_);
-  // Rate trackers mapped by ssrc.
   std::map<uint32_t, std::unique_ptr<rtc::RateTracker>>
       encoded_frame_rate_trackers_ RTC_GUARDED_BY(mutex_);
 

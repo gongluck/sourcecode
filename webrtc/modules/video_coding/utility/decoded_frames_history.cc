@@ -50,7 +50,7 @@ void DecodedFramesHistory::InsertDecoded(int64_t frame_id, uint32_t timestamp) {
   last_frame_id_ = frame_id;
 }
 
-bool DecodedFramesHistory::WasDecoded(int64_t frame_id) const {
+bool DecodedFramesHistory::WasDecoded(int64_t frame_id) {
   if (!last_frame_id_)
     return false;
 
@@ -74,12 +74,11 @@ void DecodedFramesHistory::Clear() {
   last_frame_id_.reset();
 }
 
-absl::optional<int64_t> DecodedFramesHistory::GetLastDecodedFrameId() const {
+absl::optional<int64_t> DecodedFramesHistory::GetLastDecodedFrameId() {
   return last_decoded_frame_;
 }
 
-absl::optional<uint32_t> DecodedFramesHistory::GetLastDecodedFrameTimestamp()
-    const {
+absl::optional<uint32_t> DecodedFramesHistory::GetLastDecodedFrameTimestamp() {
   return last_decoded_frame_timestamp_;
 }
 

@@ -10,13 +10,8 @@
 
 #include "rtc_base/async_resolver.h"
 
-#include <memory>
 #include <string>
 #include <utility>
-
-#include "api/ref_counted_base.h"
-#include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/thread_annotations.h"
 
 #if defined(WEBRTC_WIN)
 #include <ws2spi.h>
@@ -35,42 +30,17 @@
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/platform_thread.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"  // for signal_with_thread...
 
-#if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
-#include <dispatch/dispatch.h>
-#endif
-
 namespace rtc {
-
-#if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
-namespace {
-
-void GlobalGcdRunTask(void* context) {
-  std::unique_ptr<webrtc::QueuedTask> task(
-      static_cast<webrtc::QueuedTask*>(context));
-  task->Run();
-}
-
-// Post a task into the system-defined global concurrent queue.
-void PostTaskToGlobalQueue(std::unique_ptr<webrtc::QueuedTask> task) {
-  dispatch_queue_global_t global_queue =
-      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-  webrtc::QueuedTask* context = task.release();
-  dispatch_async_f(global_queue, context, &GlobalGcdRunTask);
-}
-
-}  // namespace
-#endif
 
 int ResolveHostname(const std::string& hostname,
                     int family,
                     std::vector<IPAddress>* addresses) {
 #ifdef __native_client__
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   RTC_LOG(LS_WARNING) << "ResolveHostname() is not implemented for NaCl";
   return -1;
 #else   // __native_client__
@@ -81,7 +51,7 @@ int ResolveHostname(const std::string& hostname,
   struct addrinfo* result = nullptr;
   struct addrinfo hints = {0};
   hints.ai_family = family;
-  // `family` here will almost always be AF_UNSPEC, because `family` comes from
+  // |family| here will almost always be AF_UNSPEC, because |family| comes from
   // AsyncResolver::addr_.family(), which comes from a SocketAddress constructed
   // with a hostname. When a SocketAddress is constructed with a hostname, its
   // family is AF_UNSPEC. However, if someday in the future we construct
@@ -117,65 +87,30 @@ int ResolveHostname(const std::string& hostname,
 #endif  // !__native_client__
 }
 
-struct AsyncResolver::State : public RefCountedBase {
-  webrtc::Mutex mutex;
-  enum class Status {
-    kLive,
-    kDead
-  } status RTC_GUARDED_BY(mutex) = Status::kLive;
-};
-
-AsyncResolver::AsyncResolver() : error_(-1), state_(new State) {}
+AsyncResolver::AsyncResolver() : error_(-1) {}
 
 AsyncResolver::~AsyncResolver() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
-
-  // Ensure the thread isn't using a stale reference to the current task queue,
-  // or calling into ResolveDone post destruction.
-  webrtc::MutexLock lock(&state_->mutex);
-  state_->status = State::Status::kDead;
-}
-
-void RunResolution(void* obj) {
-  std::function<void()>* function_ptr =
-      static_cast<std::function<void()>*>(obj);
-  (*function_ptr)();
-  delete function_ptr;
 }
 
 void AsyncResolver::Start(const SocketAddress& addr) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK(!destroy_called_);
   addr_ = addr;
-  auto thread_function =
-      [this, addr, caller_task_queue = webrtc::TaskQueueBase::Current(),
-       state = state_] {
+  webrtc::TaskQueueBase* current_task_queue = webrtc::TaskQueueBase::Current();
+  popup_thread_ = Thread::Create();
+  popup_thread_->Start();
+  popup_thread_->PostTask(webrtc::ToQueuedTask(
+      [this, flag = safety_.flag(), addr, current_task_queue] {
         std::vector<IPAddress> addresses;
         int error =
             ResolveHostname(addr.hostname().c_str(), addr.family(), &addresses);
-        webrtc::MutexLock lock(&state->mutex);
-        if (state->status == State::Status::kLive) {
-          caller_task_queue->PostTask(webrtc::ToQueuedTask(
-              [this, error, addresses = std::move(addresses), state] {
-                bool live;
-                {
-                  // ResolveDone can lead to instance destruction, so make sure
-                  // we don't deadlock.
-                  webrtc::MutexLock lock(&state->mutex);
-                  live = state->status == State::Status::kLive;
-                }
-                if (live) {
-                  RTC_DCHECK_RUN_ON(&sequence_checker_);
-                  ResolveDone(std::move(addresses), error);
-                }
-              }));
-        }
-      };
-#if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
-  PostTaskToGlobalQueue(webrtc::ToQueuedTask(std::move(thread_function)));
-#else
-  PlatformThread::SpawnDetached(std::move(thread_function), "AsyncResolver");
-#endif
+        current_task_queue->PostTask(webrtc::ToQueuedTask(
+            std::move(flag), [this, error, addresses = std::move(addresses)] {
+              RTC_DCHECK_RUN_ON(&sequence_checker_);
+              ResolveDone(std::move(addresses), error);
+            }));
+      }));
 }
 
 bool AsyncResolver::GetResolvedAddress(int family, SocketAddress* addr) const {
@@ -202,7 +137,7 @@ int AsyncResolver::GetError() const {
 
 void AsyncResolver::Destroy(bool wait) {
   // Some callers have trouble guaranteeing that Destroy is called on the
-  // sequence guarded by `sequence_checker_`.
+  // sequence guarded by |sequence_checker_|.
   // RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK(!destroy_called_);
   destroy_called_ = true;

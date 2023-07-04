@@ -36,11 +36,11 @@ class MultiplexDecoderAdapter::AdapterDecodedImageCallback
     adapter_->Decoded(stream_idx_, &decoded_image, decode_time_ms, qp);
   }
   int32_t Decoded(VideoFrame& decoded_image) override {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
     return WEBRTC_VIDEO_CODEC_OK;
   }
   int32_t Decoded(VideoFrame& decoded_image, int64_t decode_time_ms) override {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
     return WEBRTC_VIDEO_CODEC_OK;
   }
 
@@ -104,24 +104,24 @@ MultiplexDecoderAdapter::~MultiplexDecoderAdapter() {
   Release();
 }
 
-bool MultiplexDecoderAdapter::Configure(const Settings& settings) {
-  RTC_DCHECK_EQ(settings.codec_type(), kVideoCodecMultiplex);
-  Settings associated_settings = settings;
-  associated_settings.set_codec_type(
-      PayloadStringToCodecType(associated_format_.name));
+int32_t MultiplexDecoderAdapter::InitDecode(const VideoCodec* codec_settings,
+                                            int32_t number_of_cores) {
+  RTC_DCHECK_EQ(kVideoCodecMultiplex, codec_settings->codecType);
+  VideoCodec settings = *codec_settings;
+  settings.codecType = PayloadStringToCodecType(associated_format_.name);
   for (size_t i = 0; i < kAlphaCodecStreams; ++i) {
     std::unique_ptr<VideoDecoder> decoder =
         factory_->CreateVideoDecoder(associated_format_);
-    if (!decoder->Configure(associated_settings)) {
-      return false;
-    }
+    const int32_t rv = decoder->InitDecode(&settings, number_of_cores);
+    if (rv)
+      return rv;
     adapter_callbacks_.emplace_back(
         new MultiplexDecoderAdapter::AdapterDecodedImageCallback(
             this, static_cast<AlphaCodecStream>(i)));
     decoder->RegisterDecodeCompleteCallback(adapter_callbacks_.back().get());
     decoders_.emplace_back(std::move(decoder));
   }
-  return true;
+  return WEBRTC_VIDEO_CODEC_OK;
 }
 
 int32_t MultiplexDecoderAdapter::Decode(const EncodedImage& input_image,
@@ -248,8 +248,9 @@ void MultiplexDecoderAdapter::MergeAlphaImages(
         [yuv_buffer, alpha_buffer] {});
   }
   if (supports_augmenting_data_) {
-    merged_buffer = rtc::make_ref_counted<AugmentedVideoFrameBuffer>(
-        merged_buffer, std::move(augmenting_data), augmenting_data_length);
+    merged_buffer = rtc::scoped_refptr<webrtc::AugmentedVideoFrameBuffer>(
+        new rtc::RefCountedObject<AugmentedVideoFrameBuffer>(
+            merged_buffer, std::move(augmenting_data), augmenting_data_length));
   }
 
   VideoFrame merged_image = VideoFrame::Builder()

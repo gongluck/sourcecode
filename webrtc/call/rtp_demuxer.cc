@@ -36,23 +36,22 @@ size_t RemoveFromMultimapByValue(Container* multimap, const Value& value) {
 
 template <typename Map, typename Value>
 size_t RemoveFromMapByValue(Map* map, const Value& value) {
-  return EraseIf(*map, [&](const auto& elem) { return elem.second == value; });
+  size_t count = 0;
+  for (auto it = map->begin(); it != map->end();) {
+    if (it->second == value) {
+      it = map->erase(it);
+      ++count;
+    } else {
+      ++it;
+    }
+  }
+  return count;
 }
 
 }  // namespace
 
 RtpDemuxerCriteria::RtpDemuxerCriteria() = default;
 RtpDemuxerCriteria::~RtpDemuxerCriteria() = default;
-
-bool RtpDemuxerCriteria::operator==(const RtpDemuxerCriteria& other) const {
-  return this->mid == other.mid && this->rsid == other.rsid &&
-         this->ssrcs == other.ssrcs &&
-         this->payload_types == other.payload_types;
-}
-
-bool RtpDemuxerCriteria::operator!=(const RtpDemuxerCriteria& other) const {
-  return !(*this == other);
-}
 
 std::string RtpDemuxerCriteria::ToString() const {
   rtc::StringBuilder sb;

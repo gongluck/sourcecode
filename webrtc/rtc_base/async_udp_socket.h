@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/async_socket.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_factory.h"
@@ -26,16 +27,16 @@ namespace rtc {
 // buffered since it is acceptable to drop packets under high load.
 class AsyncUDPSocket : public AsyncPacketSocket {
  public:
-  // Binds `socket` and creates AsyncUDPSocket for it. Takes ownership
-  // of `socket`. Returns null if bind() fails (`socket` is destroyed
+  // Binds |socket| and creates AsyncUDPSocket for it. Takes ownership
+  // of |socket|. Returns null if bind() fails (|socket| is destroyed
   // in that case).
-  static AsyncUDPSocket* Create(Socket* socket,
+  static AsyncUDPSocket* Create(AsyncSocket* socket,
                                 const SocketAddress& bind_address);
   // Creates a new socket for sending asynchronous UDP packets using an
   // asynchronous socket from the given factory.
   static AsyncUDPSocket* Create(SocketFactory* factory,
                                 const SocketAddress& bind_address);
-  explicit AsyncUDPSocket(Socket* socket);
+  explicit AsyncUDPSocket(AsyncSocket* socket);
   ~AsyncUDPSocket() override;
 
   SocketAddress GetLocalAddress() const override;
@@ -57,11 +58,11 @@ class AsyncUDPSocket : public AsyncPacketSocket {
 
  private:
   // Called when the underlying socket is ready to be read from.
-  void OnReadEvent(Socket* socket);
+  void OnReadEvent(AsyncSocket* socket);
   // Called when the underlying socket is ready to send.
-  void OnWriteEvent(Socket* socket);
+  void OnWriteEvent(AsyncSocket* socket);
 
-  std::unique_ptr<Socket> socket_;
+  std::unique_ptr<AsyncSocket> socket_;
   char* buf_;
   size_t size_;
 };

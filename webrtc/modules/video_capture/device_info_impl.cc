@@ -10,6 +10,7 @@
 
 #include "modules/video_capture/device_info_impl.h"
 
+#include <assert.h>
 #include <stdlib.h>
 
 #include "absl/strings/match.h"
@@ -51,7 +52,7 @@ int32_t DeviceInfoImpl::NumberOfCapabilities(const char* deviceUniqueIdUTF8) {
 int32_t DeviceInfoImpl::GetCapability(const char* deviceUniqueIdUTF8,
                                       const uint32_t deviceCapabilityNumber,
                                       VideoCaptureCapability& capability) {
-  RTC_DCHECK(deviceUniqueIdUTF8);
+  assert(deviceUniqueIdUTF8 != NULL);
 
   MutexLock lock(&_apiLock);
 

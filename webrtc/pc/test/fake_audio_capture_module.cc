@@ -58,7 +58,8 @@ FakeAudioCaptureModule::~FakeAudioCaptureModule() {
 }
 
 rtc::scoped_refptr<FakeAudioCaptureModule> FakeAudioCaptureModule::Create() {
-  auto capture_module = rtc::make_ref_counted<FakeAudioCaptureModule>();
+  rtc::scoped_refptr<FakeAudioCaptureModule> capture_module(
+      new rtc::RefCountedObject<FakeAudioCaptureModule>());
   if (!capture_module->Initialize()) {
     return nullptr;
   }
@@ -72,7 +73,7 @@ int FakeAudioCaptureModule::frames_received() const {
 
 int32_t FakeAudioCaptureModule::ActiveAudioLayer(
     AudioLayer* /*audio_layer*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -94,17 +95,17 @@ int32_t FakeAudioCaptureModule::Terminate() {
 }
 
 bool FakeAudioCaptureModule::Initialized() const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int16_t FakeAudioCaptureModule::PlayoutDevices() {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int16_t FakeAudioCaptureModule::RecordingDevices() {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -112,7 +113,7 @@ int32_t FakeAudioCaptureModule::PlayoutDeviceName(
     uint16_t /*index*/,
     char /*name*/[webrtc::kAdmMaxDeviceNameSize],
     char /*guid*/[webrtc::kAdmMaxGuidSize]) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -120,7 +121,7 @@ int32_t FakeAudioCaptureModule::RecordingDeviceName(
     uint16_t /*index*/,
     char /*name*/[webrtc::kAdmMaxDeviceNameSize],
     char /*guid*/[webrtc::kAdmMaxGuidSize]) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -150,7 +151,7 @@ int32_t FakeAudioCaptureModule::SetRecordingDevice(
 }
 
 int32_t FakeAudioCaptureModule::PlayoutIsAvailable(bool* /*available*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -164,7 +165,7 @@ bool FakeAudioCaptureModule::PlayoutIsInitialized() const {
 }
 
 int32_t FakeAudioCaptureModule::RecordingIsAvailable(bool* /*available*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -241,7 +242,7 @@ int32_t FakeAudioCaptureModule::InitSpeaker() {
 }
 
 bool FakeAudioCaptureModule::SpeakerIsInitialized() const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -251,40 +252,40 @@ int32_t FakeAudioCaptureModule::InitMicrophone() {
 }
 
 bool FakeAudioCaptureModule::MicrophoneIsInitialized() const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SpeakerVolumeIsAvailable(bool* /*available*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SetSpeakerVolume(uint32_t /*volume*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SpeakerVolume(uint32_t* /*volume*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::MaxSpeakerVolume(
     uint32_t* /*max_volume*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::MinSpeakerVolume(
     uint32_t* /*min_volume*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::MicrophoneVolumeIsAvailable(
     bool* /*available*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -308,37 +309,37 @@ int32_t FakeAudioCaptureModule::MaxMicrophoneVolume(
 
 int32_t FakeAudioCaptureModule::MinMicrophoneVolume(
     uint32_t* /*min_volume*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SpeakerMuteIsAvailable(bool* /*available*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SetSpeakerMute(bool /*enable*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SpeakerMute(bool* /*enabled*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::MicrophoneMuteIsAvailable(bool* /*available*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::SetMicrophoneMute(bool /*enable*/) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
 int32_t FakeAudioCaptureModule::MicrophoneMute(bool* /*enabled*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -357,7 +358,7 @@ int32_t FakeAudioCaptureModule::SetStereoPlayout(bool /*enable*/) {
 }
 
 int32_t FakeAudioCaptureModule::StereoPlayout(bool* /*enabled*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -376,7 +377,7 @@ int32_t FakeAudioCaptureModule::SetStereoRecording(bool enable) {
 }
 
 int32_t FakeAudioCaptureModule::StereoRecording(bool* /*enabled*/) const {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return 0;
 }
 
@@ -397,7 +398,7 @@ void FakeAudioCaptureModule::OnMessage(rtc::Message* msg) {
     default:
       // All existing messages should be caught. Getting here should never
       // happen.
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
 }
 
@@ -506,7 +507,7 @@ void FakeAudioCaptureModule::ReceiveFrameP() {
                                         kNumberOfChannels, kSamplesPerSecond,
                                         rec_buffer_, nSamplesOut,
                                         &elapsed_time_ms, &ntp_time_ms) != 0) {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
   }
   RTC_CHECK(nSamplesOut == kNumberSamples);
 
@@ -532,7 +533,7 @@ void FakeAudioCaptureModule::SendFrameP() {
           send_buffer_, kNumberSamples, kNumberBytesPerSample,
           kNumberOfChannels, kSamplesPerSecond, kTotalDelayMs, kClockDriftMs,
           current_mic_level, key_pressed, current_mic_level) != 0) {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
   }
   current_mic_level_ = current_mic_level;
 }

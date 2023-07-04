@@ -16,7 +16,7 @@
 #include <ws2spi.h>
 #include <ws2tcpip.h>
 
-#include "rtc_base/win/windows_version.h"
+#include "rtc_base/win32.h"
 #endif
 #if defined(WEBRTC_POSIX) && !defined(__native_client__)
 #include <arpa/inet.h>
@@ -53,7 +53,7 @@ bool HasIPv4Enabled() {
     return false;
   }
   for (struct ifaddrs* cur = ifa; cur != nullptr; cur = cur->ifa_next) {
-    if (cur->ifa_addr != nullptr && cur->ifa_addr->sa_family == AF_INET) {
+    if (cur->ifa_addr->sa_family == AF_INET) {
       has_ipv4 = true;
       break;
     }
@@ -70,10 +70,10 @@ bool HasIPv6Enabled() {
   // WinUWP always has IPv6 capability.
   return true;
 #elif defined(WEBRTC_WIN)
-  if (rtc::rtc_win::GetVersion() >= rtc::rtc_win::Version::VERSION_VISTA) {
+  if (IsWindowsVistaOrLater()) {
     return true;
   }
-  if (rtc::rtc_win::GetVersion() < rtc::rtc_win::Version::VERSION_XP) {
+  if (!IsWindowsXpOrLater()) {
     return false;
   }
   DWORD protbuff_size = 4096;
@@ -112,7 +112,7 @@ bool HasIPv6Enabled() {
     return false;
   }
   for (struct ifaddrs* cur = ifa; cur != nullptr; cur = cur->ifa_next) {
-    if (cur->ifa_addr != nullptr && cur->ifa_addr->sa_family == AF_INET6) {
+    if (cur->ifa_addr->sa_family == AF_INET6) {
       has_ipv6 = true;
       break;
     }

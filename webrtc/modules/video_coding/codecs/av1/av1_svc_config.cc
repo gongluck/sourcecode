@@ -24,19 +24,17 @@ namespace webrtc {
 bool SetAv1SvcConfig(VideoCodec& video_codec) {
   RTC_DCHECK_EQ(video_codec.codecType, kVideoCodecAV1);
 
-  absl::string_view scalability_mode = video_codec.ScalabilityMode();
-  if (scalability_mode.empty()) {
-    RTC_LOG(LS_WARNING) << "Scalability mode is not set, using 'NONE'.";
-    scalability_mode = "NONE";
-  }
-
-  std::unique_ptr<ScalableVideoController> structure =
-      CreateScalabilityStructure(scalability_mode);
-  if (structure == nullptr) {
-    RTC_LOG(LS_WARNING) << "Failed to create structure " << scalability_mode;
+  if (video_codec.ScalabilityMode().empty()) {
+    RTC_LOG(LS_INFO) << "No scalability mode set.";
     return false;
   }
-
+  std::unique_ptr<ScalableVideoController> structure =
+      CreateScalabilityStructure(video_codec.ScalabilityMode());
+  if (structure == nullptr) {
+    RTC_LOG(LS_INFO) << "Failed to create structure "
+                     << video_codec.ScalabilityMode();
+    return false;
+  }
   ScalableVideoController::StreamLayersConfig info = structure->StreamConfig();
   for (int sl_idx = 0; sl_idx < info.num_spatial_layers; ++sl_idx) {
     SpatialLayer& spatial_layer = video_codec.spatialLayers[sl_idx];
@@ -53,9 +51,8 @@ bool SetAv1SvcConfig(VideoCodec& video_codec) {
   if (info.num_spatial_layers == 1) {
     SpatialLayer& spatial_layer = video_codec.spatialLayers[0];
     spatial_layer.minBitrate = video_codec.minBitrate;
+    spatial_layer.targetBitrate = video_codec.startBitrate;
     spatial_layer.maxBitrate = video_codec.maxBitrate;
-    spatial_layer.targetBitrate =
-        (video_codec.minBitrate + video_codec.maxBitrate) / 2;
     return true;
   }
 

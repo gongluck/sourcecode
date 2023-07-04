@@ -37,9 +37,8 @@ class ObjCVideoDecoder : public VideoDecoder {
   ObjCVideoDecoder(id<RTC_OBJC_TYPE(RTCVideoDecoder)> decoder)
       : decoder_(decoder), implementation_name_([decoder implementationName].stdString) {}
 
-  bool Configure(const Settings &settings) override {
-    return
-        [decoder_ startDecodeWithNumberOfCores:settings.number_of_cores()] == WEBRTC_VIDEO_CODEC_OK;
+  int32_t InitDecode(const VideoCodec *codec_settings, int32_t number_of_cores) override {
+    return [decoder_ startDecodeWithNumberOfCores:number_of_cores];
   }
 
   int32_t Decode(const EncodedImage &input_image,

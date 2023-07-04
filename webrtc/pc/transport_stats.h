@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 
-#include "api/dtls_transport_interface.h"
 #include "p2p/base/dtls_transport_internal.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/port.h"
@@ -29,9 +28,9 @@ struct TransportChannelStats {
 
   int component = 0;
   int ssl_version_bytes = 0;
-  int srtp_crypto_suite = rtc::kSrtpInvalidCryptoSuite;
-  int ssl_cipher_suite = rtc::kTlsNullWithNullNull;
-  webrtc::DtlsTransportState dtls_state = webrtc::DtlsTransportState::kNew;
+  int srtp_crypto_suite = rtc::SRTP_INVALID_CRYPTO_SUITE;
+  int ssl_cipher_suite = rtc::TLS_NULL_WITH_NULL_NULL;
+  DtlsTransportState dtls_state = DTLS_TRANSPORT_NEW;
   IceTransportStats ice_transport_stats;
 };
 

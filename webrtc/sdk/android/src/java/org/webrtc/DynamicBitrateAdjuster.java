@@ -31,24 +31,24 @@ class DynamicBitrateAdjuster extends BaseBitrateAdjuster {
   private int bitrateAdjustmentScaleExp;
 
   @Override
-  public void setTargets(int targetBitrateBps, double targetFramerateFps) {
+  public void setTargets(int targetBitrateBps, int targetFps) {
     if (this.targetBitrateBps > 0 && targetBitrateBps < this.targetBitrateBps) {
       // Rescale the accumulator level if the accumulator max decreases
       deviationBytes = deviationBytes * targetBitrateBps / this.targetBitrateBps;
     }
-    super.setTargets(targetBitrateBps, targetFramerateFps);
+    super.setTargets(targetBitrateBps, targetFps);
   }
 
   @Override
   public void reportEncodedFrame(int size) {
-    if (targetFramerateFps == 0) {
+    if (targetFps == 0) {
       return;
     }
 
     // Accumulate the difference between actual and expected frame sizes.
-    double expectedBytesPerFrame = (targetBitrateBps / BITS_PER_BYTE) / targetFramerateFps;
+    double expectedBytesPerFrame = (targetBitrateBps / BITS_PER_BYTE) / targetFps;
     deviationBytes += (size - expectedBytesPerFrame);
-    timeSinceLastAdjustmentMs += 1000.0 / targetFramerateFps;
+    timeSinceLastAdjustmentMs += 1000.0 / targetFps;
 
     // Adjust the bitrate when the encoder accumulates one second's worth of data in excess or
     // shortfall of the target.

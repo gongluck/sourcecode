@@ -57,7 +57,7 @@
 
 namespace rtc {
 namespace {
-// SRTP cipher suite table. `internal_name` is used to construct a
+// SRTP cipher suite table. |internal_name| is used to construct a
 // colon-separated profile strings which is needed by
 // SSL_CTX_set_tlsext_use_srtp().
 struct SrtpCipherMapEntry {
@@ -73,10 +73,10 @@ struct SslCipherMapEntry {
 
 // This isn't elegant, but it's better than an external reference
 constexpr SrtpCipherMapEntry kSrtpCipherMap[] = {
-    {"SRTP_AES128_CM_SHA1_80", kSrtpAes128CmSha1_80},
-    {"SRTP_AES128_CM_SHA1_32", kSrtpAes128CmSha1_32},
-    {"SRTP_AEAD_AES_128_GCM", kSrtpAeadAes128Gcm},
-    {"SRTP_AEAD_AES_256_GCM", kSrtpAeadAes256Gcm}};
+    {"SRTP_AES128_CM_SHA1_80", SRTP_AES128_CM_SHA1_80},
+    {"SRTP_AES128_CM_SHA1_32", SRTP_AES128_CM_SHA1_32},
+    {"SRTP_AEAD_AES_128_GCM", SRTP_AEAD_AES_128_GCM},
+    {"SRTP_AEAD_AES_256_GCM", SRTP_AEAD_AES_256_GCM}};
 
 #ifndef OPENSSL_IS_BORINGSSL
 // The "SSL_CIPHER_standard_name" function is only available in OpenSSL when
@@ -288,7 +288,7 @@ bool ShouldAllowLegacyTLSProtocols() {
 
 OpenSSLStreamAdapter::OpenSSLStreamAdapter(
     std::unique_ptr<StreamInterface> stream)
-    : stream_(std::move(stream)),
+    : SSLStreamAdapter(std::move(stream)),
       owner_(rtc::Thread::Current()),
       state_(SSL_NONE),
       role_(SSL_CLIENT),
@@ -300,9 +300,7 @@ OpenSSLStreamAdapter::OpenSSLStreamAdapter(
       ssl_max_version_(SSL_PROTOCOL_TLS_12),
       // Default is to support legacy TLS protocols.
       // This will be changed to default non-support in M82 or M83.
-      support_legacy_tls_protocols_flag_(ShouldAllowLegacyTLSProtocols()) {
-  stream_->SignalEvent.connect(this, &OpenSSLStreamAdapter::OnEvent);
-}
+      support_legacy_tls_protocols_flag_(ShouldAllowLegacyTLSProtocols()) {}
 
 OpenSSLStreamAdapter::~OpenSSLStreamAdapter() {
   timeout_task_.Stop();
@@ -521,7 +519,7 @@ int OpenSSLStreamAdapter::StartSSL() {
     return -1;
   }
 
-  if (stream_->GetState() != SS_OPEN) {
+  if (StreamAdapterInterface::GetState() != SS_OPEN) {
     state_ = SSL_WAIT;
     return 0;
   }
@@ -563,7 +561,7 @@ StreamResult OpenSSLStreamAdapter::Write(const void* data,
   switch (state_) {
     case SSL_NONE:
       // pass-through in clear text
-      return stream_->Write(data, data_len, written, error);
+      return StreamAdapterInterface::Write(data, data_len, written, error);
 
     case SSL_WAIT:
     case SSL_CONNECTING:
@@ -631,7 +629,7 @@ StreamResult OpenSSLStreamAdapter::Read(void* data,
   switch (state_) {
     case SSL_NONE:
       // pass-through in clear text
-      return stream_->Read(data, data_len, read, error);
+      return StreamAdapterInterface::Read(data, data_len, read, error);
     case SSL_WAIT:
     case SSL_CONNECTING:
       return SR_BLOCK;
@@ -735,7 +733,7 @@ void OpenSSLStreamAdapter::Close() {
   // When we're closed at SSL layer, also close the stream level which
   // performs necessary clean up. Otherwise, a new incoming packet after
   // this could overflow the stream buffer.
-  stream_->Close();
+  StreamAdapterInterface::Close();
 }
 
 StreamState OpenSSLStreamAdapter::GetState() const {
@@ -759,7 +757,7 @@ void OpenSSLStreamAdapter::OnEvent(StreamInterface* stream,
                                    int err) {
   int events_to_signal = 0;
   int signal_error = 0;
-  RTC_DCHECK(stream == stream_.get());
+  RTC_DCHECK(stream == this->stream());
 
   if ((events & SE_OPEN)) {
     RTC_DLOG(LS_VERBOSE) << "OpenSSLStreamAdapter::OnEvent SE_OPEN";
@@ -811,9 +809,7 @@ void OpenSSLStreamAdapter::OnEvent(StreamInterface* stream,
   }
 
   if (events_to_signal) {
-    // Note that the adapter presents itself as the origin of the stream events,
-    // since users of the adapter may not recognize the adapted object.
-    SignalEvent(this, events_to_signal, signal_error);
+    StreamAdapterInterface::OnEvent(stream, events_to_signal, signal_error);
   }
 }
 
@@ -834,15 +830,10 @@ void OpenSSLStreamAdapter::SetTimeout(int delay_ms) {
         if (flag->alive()) {
           RTC_DLOG(LS_INFO) << "DTLS timeout expired";
           timeout_task_.Stop();
-          int res = DTLSv1_handle_timeout(ssl_);
-          if (res > 0) {
-            RTC_LOG(LS_INFO) << "DTLS retransmission";
-          } else if (res < 0) {
-            RTC_LOG(LS_INFO) << "DTLSv1_handle_timeout() return -1";
-          }
+          DTLSv1_handle_timeout(ssl_);
           ContinueSSL();
         } else {
-          RTC_DCHECK_NOTREACHED();
+          RTC_NOTREACHED();
         }
         // This callback will never run again (stopped above).
         return webrtc::TimeDelta::PlusInfinity();
@@ -863,7 +854,7 @@ int OpenSSLStreamAdapter::BeginSSL() {
     return -1;
   }
 
-  bio = BIO_new_stream(stream_.get());
+  bio = BIO_new_stream(static_cast<StreamInterface*>(stream()));
   if (!bio) {
     return -1;
   }
@@ -921,7 +912,8 @@ int OpenSSLStreamAdapter::ContinueSSL() {
         // The caller of ContinueSSL may be the same object listening for these
         // events and may not be prepared for reentrancy.
         // PostEvent(SE_OPEN | SE_READ | SE_WRITE, 0);
-        SignalEvent(this, SE_OPEN | SE_READ | SE_WRITE, 0);
+        StreamAdapterInterface::OnEvent(stream(), SE_OPEN | SE_READ | SE_WRITE,
+                                        0);
       }
       break;
 
@@ -964,7 +956,7 @@ void OpenSSLStreamAdapter::Error(const char* context,
   ssl_error_code_ = err;
   Cleanup(alert);
   if (signal) {
-    SignalEvent(this, SE_CLOSE, err);
+    StreamAdapterInterface::OnEvent(stream(), SE_CLOSE, err);
   }
 }
 
@@ -1093,10 +1085,9 @@ SSL_CTX* OpenSSLStreamAdapter::SetupSSLContext() {
   // Select list of available ciphers. Note that !SHA256 and !SHA384 only
   // remove HMAC-SHA256 and HMAC-SHA384 cipher suites, not GCM cipher suites
   // with SHA256 or SHA384 as the handshake hash.
-  // This matches the list of SSLClientSocketImpl in Chromium.
+  // This matches the list of SSLClientSocketOpenSSL in Chromium.
   SSL_CTX_set_cipher_list(
-      ctx,
-      "DEFAULT:!NULL:!aNULL:!SHA256:!SHA384:!aECDH:!AESGCM+AES256:!aPSK:!3DES");
+      ctx, "DEFAULT:!NULL:!aNULL:!SHA256:!SHA384:!aECDH:!AESGCM+AES256:!aPSK");
 
   if (!srtp_ciphers_.empty()) {
     if (SSL_CTX_set_tlsext_use_srtp(ctx, srtp_ciphers_.c_str())) {

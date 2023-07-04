@@ -25,6 +25,7 @@
 #include "api/video_codecs/video_encoder_factory.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
+#include "test/pc/e2e/analyzer/video/id_generator.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {
@@ -54,7 +55,11 @@ constexpr int kAnalyzeAnySpatialStream = -1;
 class QualityAnalyzingVideoEncoder : public VideoEncoder,
                                      public EncodedImageCallback {
  public:
+  // Creates analyzing encoder. |id| is unique coding entity id, that will
+  // be used to distinguish all encoders and decoders inside
+  // EncodedImageDataInjector and EncodedImageIdExtracor.
   QualityAnalyzingVideoEncoder(
+      int id,
       absl::string_view peer_name,
       std::unique_ptr<VideoEncoder> delegate,
       double bitrate_multiplier,
@@ -132,15 +137,16 @@ class QualityAnalyzingVideoEncoder : public VideoEncoder,
   };
 
   bool ShouldDiscard(uint16_t frame_id, const EncodedImage& encoded_image)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
+  const int id_;
   const std::string peer_name_;
   std::unique_ptr<VideoEncoder> delegate_;
   const double bitrate_multiplier_;
   // Contains mapping from stream label to optional spatial index.
   // If we have stream label "Foo" and mapping contains
-  // 1. `absl::nullopt` means "Foo" isn't simulcast/SVC stream
-  // 2. `kAnalyzeAnySpatialStream` means all simulcast/SVC streams are required
+  // 1. |absl::nullopt| means "Foo" isn't simulcast/SVC stream
+  // 2. |kAnalyzeAnySpatialStream| means all simulcast/SVC streams are required
   // 3. Concrete value means that particular simulcast/SVC stream have to be
   //    analyzed.
   std::map<std::string, absl::optional<int>> stream_required_spatial_index_;
@@ -150,14 +156,14 @@ class QualityAnalyzingVideoEncoder : public VideoEncoder,
   // VideoEncoder interface assumes async delivery of encoded images.
   // This lock is used to protect shared state, that have to be propagated
   // from received VideoFrame to resulted EncodedImage.
-  Mutex mutex_;
+  Mutex lock_;
 
-  VideoCodec codec_settings_ RTC_GUARDED_BY(mutex_);
-  SimulcastMode mode_ RTC_GUARDED_BY(mutex_);
-  EncodedImageCallback* delegate_callback_ RTC_GUARDED_BY(mutex_);
+  VideoCodec codec_settings_;
+  SimulcastMode mode_ RTC_GUARDED_BY(lock_);
+  EncodedImageCallback* delegate_callback_ RTC_GUARDED_BY(lock_);
   std::list<std::pair<uint32_t, uint16_t>> timestamp_to_frame_id_list_
-      RTC_GUARDED_BY(mutex_);
-  VideoBitrateAllocation bitrate_allocation_ RTC_GUARDED_BY(mutex_);
+      RTC_GUARDED_BY(lock_);
+  VideoBitrateAllocation bitrate_allocation_ RTC_GUARDED_BY(lock_);
 };
 
 // Produces QualityAnalyzingVideoEncoder, which hold decoders, produced by
@@ -170,12 +176,15 @@ class QualityAnalyzingVideoEncoderFactory : public VideoEncoderFactory {
       std::unique_ptr<VideoEncoderFactory> delegate,
       double bitrate_multiplier,
       std::map<std::string, absl::optional<int>> stream_required_spatial_index,
+      IdGenerator<int>* id_generator,
       EncodedImageDataInjector* injector,
       VideoQualityAnalyzerInterface* analyzer);
   ~QualityAnalyzingVideoEncoderFactory() override;
 
   // Methods of VideoEncoderFactory interface.
   std::vector<SdpVideoFormat> GetSupportedFormats() const override;
+  VideoEncoderFactory::CodecInfo QueryVideoEncoder(
+      const SdpVideoFormat& format) const override;
   std::unique_ptr<VideoEncoder> CreateVideoEncoder(
       const SdpVideoFormat& format) override;
 
@@ -184,6 +193,7 @@ class QualityAnalyzingVideoEncoderFactory : public VideoEncoderFactory {
   std::unique_ptr<VideoEncoderFactory> delegate_;
   const double bitrate_multiplier_;
   std::map<std::string, absl::optional<int>> stream_required_spatial_index_;
+  IdGenerator<int>* const id_generator_;
   EncodedImageDataInjector* const injector_;
   VideoQualityAnalyzerInterface* const analyzer_;
 };

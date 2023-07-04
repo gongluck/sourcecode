@@ -43,7 +43,7 @@ absl::InlinedVector<DecodeTargetIndication, 10> StringToDecodeTargetIndications(
         indication = DecodeTargetIndication::kSwitch;
         break;
       default:
-        RTC_DCHECK_NOTREACHED();
+        RTC_NOTREACHED();
     }
     dtis.push_back(indication);
   }

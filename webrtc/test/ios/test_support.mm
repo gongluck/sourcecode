@@ -11,7 +11,6 @@
 #import <UIKit/UIKit.h>
 
 #include "test/ios/coverage_util_ios.h"
-#include "test/ios/google_test_runner_delegate.h"
 #include "test/ios/test_support.h"
 #include "test/testsupport/perf_test.h"
 
@@ -31,21 +30,17 @@
 // window displaying the app name. If a bunch of apps using MainHook are being
 // run in a row, this provides an indication of which one is currently running.
 
-// If enabled, runs unittests using the XCTest test runner.
-const char kEnableRunIOSUnittestsWithXCTest[] = "enable-run-ios-unittests-with-xctest";
-
 static int (*g_test_suite)(void) = NULL;
 static int g_argc;
 static char **g_argv;
 static bool g_write_perf_output;
-static absl::optional<bool> g_is_xctest;
 static absl::optional<std::vector<std::string>> g_metrics_to_plot;
 
 @interface UIApplication (Testing)
 - (void)_terminateWithStatus:(int)status;
 @end
 
-@interface WebRtcUnitTestDelegate : NSObject <GoogleTestRunnerDelegate> {
+@interface WebRtcUnitTestDelegate : NSObject {
   UIWindow *_window;
 }
 - (void)runTests;
@@ -71,20 +66,12 @@ static absl::optional<std::vector<std::string>> g_metrics_to_plot;
   // root view controller. Set an empty one here.
   [_window setRootViewController:[[UIViewController alloc] init]];
 
-  if (!rtc::test::ShouldRunIOSUnittestsWithXCTest()) {
-    // When running in XCTest mode, XCTest will invoke `runGoogleTest` directly.
-    // Otherwise, schedule a call to `runTests`.
-    [self performSelector:@selector(runTests) withObject:nil afterDelay:0.1];
-  }
-
+  // Queue up the test run.
+  [self performSelector:@selector(runTests) withObject:nil afterDelay:0.1];
   return YES;
 }
 
-- (BOOL)supportsRunningGoogleTests {
-  return rtc::test::ShouldRunIOSUnittestsWithXCTest();
-}
-
-- (int)runGoogleTests {
+- (void)runTests {
   rtc::test::ConfigureCoverageReportPath();
 
   int exitStatus = g_test_suite();
@@ -92,28 +79,20 @@ static absl::optional<std::vector<std::string>> g_metrics_to_plot;
   if (g_write_perf_output) {
     // Stores data into a proto file under the app's document directory.
     NSString *fileName = @"perftest-output.pb";
-    NSArray<NSString *> *outputDirectories =
-        NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSArray<NSString*>* outputDirectories = NSSearchPathForDirectoriesInDomains(
+        NSDocumentDirectory, NSUserDomainMask, YES);
     if ([outputDirectories count] != 0) {
-      NSString *outputPath = [outputDirectories[0] stringByAppendingPathComponent:fileName];
+      NSString* outputPath =
+          [outputDirectories[0] stringByAppendingPathComponent:fileName];
 
       if (!webrtc::test::WritePerfResults([NSString stdStringForString:outputPath])) {
-        return 1;
+        exit(1);
       }
     }
   }
   if (g_metrics_to_plot) {
     webrtc::test::PrintPlottableResults(*g_metrics_to_plot);
   }
-
-  return exitStatus;
-}
-
-- (void)runTests {
-  RTC_DCHECK(!rtc::test::ShouldRunIOSUnittestsWithXCTest());
-  rtc::test::ConfigureCoverageReportPath();
-
-  int exitStatus = [self runGoogleTests];
 
   // If a test app is too fast, it will exit before Instruments has has a
   // a chance to initialize and no test results will be seen.
@@ -152,23 +131,5 @@ void RunTestsFromIOSApp() {
     exit(UIApplicationMain(g_argc, g_argv, nil, @"WebRtcUnitTestDelegate"));
   }
 }
-
-bool ShouldRunIOSUnittestsWithXCTest() {
-  if (g_is_xctest.has_value()) {
-    return g_is_xctest.value();
-  }
-
-  char **argv = g_argv;
-  while (*argv != nullptr) {
-    if (strstr(*argv, kEnableRunIOSUnittestsWithXCTest) != nullptr) {
-      g_is_xctest = absl::optional<bool>(true);
-      return true;
-    }
-    argv++;
-  }
-  g_is_xctest = absl::optional<bool>(false);
-  return false;
-}
-
 }  // namespace test
 }  // namespace rtc

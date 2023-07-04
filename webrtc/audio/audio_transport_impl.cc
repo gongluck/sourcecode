@@ -64,8 +64,8 @@ void ProcessCaptureFrame(uint32_t delay_ms,
   }
 }
 
-// Resample audio in `frame` to given sample rate preserving the
-// channel count and place the result in `destination`.
+// Resample audio in |frame| to given sample rate preserving the
+// channel count and place the result in |destination|.
 int Resample(const AudioFrame& frame,
              const int destination_sample_rate,
              PushResampler<int16_t>* resampler,
@@ -102,7 +102,6 @@ AudioTransportImpl::AudioTransportImpl(
 
 AudioTransportImpl::~AudioTransportImpl() {}
 
-//处理采集音频数据
 // Not used in Chromium. Process captured audio and distribute to all sending
 // streams, and try to do this at the lowest possible sample rate.
 int32_t AudioTransportImpl::RecordedDataIsAvailable(
@@ -136,11 +135,9 @@ int32_t AudioTransportImpl::RecordedDataIsAvailable(
     swap_stereo_channels = swap_stereo_channels_;
   }
 
-  //初始化音频帧
   std::unique_ptr<AudioFrame> audio_frame(new AudioFrame());
   InitializeCaptureFrame(sample_rate, send_sample_rate_hz, number_of_channels,
                          send_num_channels, audio_frame.get());
-  //重采样音频帧
   voe::RemixAndResample(static_cast<const int16_t*>(audio_data),
                         number_of_frames, number_of_channels, sample_rate,
                         &capture_resampler_, audio_frame.get());
@@ -168,7 +165,6 @@ int32_t AudioTransportImpl::RecordedDataIsAvailable(
   }
 
   RTC_DCHECK_GT(audio_frame->samples_per_channel_, 0);
-  //处理音频
   if (async_audio_processing_)
     async_audio_processing_->Process(std::move(audio_frame));
   else

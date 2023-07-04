@@ -99,13 +99,7 @@ ACTION_P(SaveUniquePtrArg, dest) {
   *dest = std::move(*arg1);
 }
 
-// TODO(bugs.webrtc.org/12950): Re-enable when libc++ issue is fixed.
-#if defined(WEBRTC_LINUX) && defined(MEMORY_SANITIZER)
-#define MAYBE_GetScreenListAndSelectScreen DISABLED_GetScreenListAndSelectScreen
-#else
-#define MAYBE_GetScreenListAndSelectScreen GetScreenListAndSelectScreen
-#endif
-TEST_F(ScreenCapturerTest, MAYBE_GetScreenListAndSelectScreen) {
+TEST_F(ScreenCapturerTest, GetScreenListAndSelectScreen) {
   webrtc::DesktopCapturer::SourceList screens;
   EXPECT_TRUE(capturer_->GetSourceList(&screens));
   for (const auto& screen : screens) {

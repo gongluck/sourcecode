@@ -18,9 +18,7 @@
 #include <vector>
 
 #include "api/peer_connection_interface.h"
-#include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
-#include "rtc_base/ref_counted_object.h"
 #include "test/gmock.h"
 
 namespace webrtc {
@@ -28,10 +26,6 @@ namespace webrtc {
 class MockPeerConnectionInterface
     : public rtc::RefCountedObject<webrtc::PeerConnectionInterface> {
  public:
-  static rtc::scoped_refptr<MockPeerConnectionInterface> Create() {
-    return new MockPeerConnectionInterface();
-  }
-
   // PeerConnectionInterface
   MOCK_METHOD(rtc::scoped_refptr<StreamCollectionInterface>,
               local_streams,
@@ -106,8 +100,8 @@ class MockPeerConnectionInterface
               GetSctpTransport,
               (),
               (const override));
-  MOCK_METHOD(RTCErrorOr<rtc::scoped_refptr<DataChannelInterface>>,
-              CreateDataChannelOrError,
+  MOCK_METHOD(rtc::scoped_refptr<DataChannelInterface>,
+              CreateDataChannel,
               (const std::string&, const DataChannelInit*),
               (override));
   MOCK_METHOD(const SessionDescriptionInterface*,

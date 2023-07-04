@@ -108,12 +108,12 @@ void SuppressionFilter::ApplyGain(
 
     for (size_t i = 0; i < kFftLengthBy2Plus1; ++i) {
       // Apply suppression gains.
-      float E_real = E.re[i] * suppression_gain[i];
-      float E_imag = E.im[i] * suppression_gain[i];
+      E.re[i] *= suppression_gain[i];
+      E.im[i] *= suppression_gain[i];
 
       // Scale and add the comfort noise.
-      E.re[i] = E_real + noise_gain[i] * comfort_noise[ch].re[i];
-      E.im[i] = E_imag + noise_gain[i] * comfort_noise[ch].im[i];
+      E.re[i] += noise_gain[i] * comfort_noise[ch].re[i];
+      E.im[i] += noise_gain[i] * comfort_noise[ch].im[i];
     }
 
     // Synthesis filterbank.
@@ -121,25 +121,24 @@ void SuppressionFilter::ApplyGain(
     constexpr float kIfftNormalization = 2.f / kFftLength;
     fft_.Ifft(E, &e_extended);
 
-    float* e0 = (*e)[0][ch].data();
-    float* e0_old = e_output_old_[0][ch].data();
+    auto& e0 = (*e)[0][ch];
+    auto& e0_old = e_output_old_[0][ch];
 
     // Window and add the first half of e_extended with the second half of
     // e_extended from the previous block.
     for (size_t i = 0; i < kFftLengthBy2; ++i) {
-      float e0_i = e0_old[i] * kSqrtHanning[kFftLengthBy2 + i];
-      e0_i += e_extended[i] * kSqrtHanning[i];
-      e0[i] = e0_i * kIfftNormalization;
+      e0[i] = e0_old[i] * kSqrtHanning[kFftLengthBy2 + i];
+      e0[i] += e_extended[i] * kSqrtHanning[i];
+      e0[i] *= kIfftNormalization;
     }
 
     // The second half of e_extended is stored for the succeeding frame.
     std::copy(e_extended.begin() + kFftLengthBy2,
-              e_extended.begin() + kFftLength,
-              std::begin(e_output_old_[0][ch]));
+              e_extended.begin() + kFftLength, std::begin(e0_old));
 
     // Apply suppression gain to upper bands.
     for (size_t b = 1; b < e->size(); ++b) {
-      float* e_band = (*e)[b][ch].data();
+      auto& e_band = (*e)[b][ch];
       for (size_t i = 0; i < kFftLengthBy2; ++i) {
         e_band[i] *= high_bands_gain;
       }
@@ -151,7 +150,7 @@ void SuppressionFilter::ApplyGain(
       std::array<float, kFftLength> time_domain_high_band_noise;
       fft_.Ifft(E, &time_domain_high_band_noise);
 
-      float* e1 = (*e)[1][ch].data();
+      auto& e1 = (*e)[1][ch];
       const float gain = high_bands_noise_scaling * kIfftNormalization;
       for (size_t i = 0; i < kFftLengthBy2; ++i) {
         e1[i] += time_domain_high_band_noise[i] * gain;
@@ -160,8 +159,8 @@ void SuppressionFilter::ApplyGain(
 
     // Delay upper bands to match the delay of the filter bank.
     for (size_t b = 1; b < e->size(); ++b) {
-      float* e_band = (*e)[b][ch].data();
-      float* e_band_old = e_output_old_[b][ch].data();
+      auto& e_band = (*e)[b][ch];
+      auto& e_band_old = e_output_old_[b][ch];
       for (size_t i = 0; i < kFftLengthBy2; ++i) {
         std::swap(e_band[i], e_band_old[i]);
       }
@@ -169,7 +168,7 @@ void SuppressionFilter::ApplyGain(
 
     // Clamp output of all bands.
     for (size_t b = 0; b < e->size(); ++b) {
-      float* e_band = (*e)[b][ch].data();
+      auto& e_band = (*e)[b][ch];
       for (size_t i = 0; i < kFftLengthBy2; ++i) {
         e_band[i] = rtc::SafeClamp(e_band[i], -32768.f, 32767.f);
       }

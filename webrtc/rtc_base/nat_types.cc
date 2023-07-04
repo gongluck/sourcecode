@@ -53,7 +53,7 @@ NAT* NAT::Create(NATType type) {
     case NAT_SYMMETRIC:
       return new SymmetricNAT();
     default:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
       return 0;
   }
 }

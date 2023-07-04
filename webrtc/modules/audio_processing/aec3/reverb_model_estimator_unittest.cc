@@ -56,9 +56,7 @@ class ReverbModelEstimatorTest {
     CreateImpulseResponseWithDecay();
   }
   void RunEstimator();
-  float GetDecay(bool mild) {
-    return mild ? mild_estimated_decay_ : estimated_decay_;
-  }
+  float GetDecay() { return estimated_decay_; }
   float GetTrueDecay() { return kTruePowerDecay; }
   float GetPowerTailDb() { return 10.f * std::log10(estimated_power_tail_); }
   float GetTruePowerTailDb() { return 10.f * std::log10(true_power_tail_); }
@@ -69,7 +67,6 @@ class ReverbModelEstimatorTest {
   static constexpr float kTruePowerDecay = 0.5f;
   const EchoCanceller3Config aec3_config_;
   float estimated_decay_;
-  float mild_estimated_decay_;
   float estimated_power_tail_ = 0.f;
   float true_power_tail_ = 0.f;
   std::vector<std::vector<float>> h_;
@@ -124,8 +121,7 @@ void ReverbModelEstimatorTest::RunEstimator() {
     estimator.Update(h_, H2_, quality_linear_, filter_delay_blocks,
                      usable_linear_estimates, kStationaryBlock);
   }
-  estimated_decay_ = estimator.ReverbDecay(/*mild=*/false);
-  mild_estimated_decay_ = estimator.ReverbDecay(/*mild=*/true);
+  estimated_decay_ = estimator.ReverbDecay();
   auto freq_resp_tail = estimator.GetReverbFrequencyResponse();
   estimated_power_tail_ =
       std::accumulate(freq_resp_tail.begin(), freq_resp_tail.end(), 0.f);
@@ -136,9 +132,7 @@ TEST(ReverbModelEstimatorTests, NotChangingDecay) {
   for (size_t num_capture_channels : {1, 2, 4, 8}) {
     ReverbModelEstimatorTest test(kDefaultDecay, num_capture_channels);
     test.RunEstimator();
-    EXPECT_EQ(test.GetDecay(/*mild=*/false), kDefaultDecay);
-    EXPECT_EQ(test.GetDecay(/*mild=*/true),
-              EchoCanceller3Config().ep_strength.nearend_len);
+    EXPECT_EQ(test.GetDecay(), kDefaultDecay);
     EXPECT_NEAR(test.GetPowerTailDb(), test.GetTruePowerTailDb(), 5.f);
   }
 }
@@ -148,8 +142,7 @@ TEST(ReverbModelEstimatorTests, ChangingDecay) {
   for (size_t num_capture_channels : {1, 2, 4, 8}) {
     ReverbModelEstimatorTest test(kDefaultDecay, num_capture_channels);
     test.RunEstimator();
-    EXPECT_NEAR(test.GetDecay(/*mild=*/false), test.GetTrueDecay(), 0.1f);
-    EXPECT_NEAR(test.GetDecay(/*mild=*/true), test.GetTrueDecay(), 0.1f);
+    EXPECT_NEAR(test.GetDecay(), test.GetTrueDecay(), 0.1);
     EXPECT_NEAR(test.GetPowerTailDb(), test.GetTruePowerTailDb(), 5.f);
   }
 }

@@ -44,13 +44,12 @@ const NSString * const kRTCH264CodecName = @(cricket::kH264CodecName);
 @synthesize parameters = _parameters;
 
 - (instancetype)init {
-  webrtc::RtpCodecParameters nativeParameters;
-  return [self initWithNativeParameters:nativeParameters];
+  return [super init];
 }
 
 - (instancetype)initWithNativeParameters:
     (const webrtc::RtpCodecParameters &)nativeParameters {
-  if (self = [super init]) {
+  if (self = [self init]) {
     _payloadType = nativeParameters.payload_type;
     _name = [NSString stringForStdString:nativeParameters.name];
     switch (nativeParameters.kind) {
@@ -61,10 +60,10 @@ const NSString * const kRTCH264CodecName = @(cricket::kH264CodecName);
         _kind = kRTCMediaStreamTrackKindVideo;
         break;
       case cricket::MEDIA_TYPE_DATA:
-        RTC_DCHECK_NOTREACHED();
+        RTC_NOTREACHED();
         break;
       case cricket::MEDIA_TYPE_UNSUPPORTED:
-        RTC_DCHECK_NOTREACHED();
+        RTC_NOTREACHED();
         break;
     }
     if (nativeParameters.clock_rate) {
@@ -94,7 +93,7 @@ const NSString * const kRTCH264CodecName = @(cricket::kH264CodecName);
   } else if (_kind == kRTCMediaStreamTrackKindVideo) {
     parameters.kind = cricket::MEDIA_TYPE_VIDEO;
   } else {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
   }
   if (_clockRate != nil) {
     parameters.clock_rate = absl::optional<int>(_clockRate.intValue);

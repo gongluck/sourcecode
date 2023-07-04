@@ -30,16 +30,12 @@ class DriftingClock : public Clock {
     return 1.0f - percent / 100.0f;
   }
 
-  Timestamp CurrentTime() override { return Drift(clock_->CurrentTime()); }
-  NtpTime CurrentNtpTime() override { return Drift(clock_->CurrentNtpTime()); }
-  NtpTime ConvertTimestampToNtpTime(Timestamp timestamp) override {
-    return Drift(clock_->ConvertTimestampToNtpTime(timestamp));
-  }
+  Timestamp CurrentTime() override;
+  NtpTime CurrentNtpTime() override;
+  int64_t CurrentNtpInMilliseconds() override;
 
  private:
   TimeDelta Drift() const;
-  Timestamp Drift(Timestamp timestamp) const;
-  NtpTime Drift(NtpTime ntp_time) const;
 
   Clock* const clock_;
   const float drift_;

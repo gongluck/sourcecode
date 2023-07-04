@@ -83,7 +83,7 @@ void AudioEncoder::OnReceivedUplinkPacketLossFraction(
 
 void AudioEncoder::OnReceivedUplinkRecoverablePacketLossFraction(
     float uplink_recoverable_packet_loss_fraction) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
 }
 
 void AudioEncoder::OnReceivedTargetAudioBitrate(int target_audio_bitrate_bps) {
@@ -110,5 +110,4 @@ ANAStats AudioEncoder::GetANAStats() const {
   return ANAStats();
 }
 
-constexpr int AudioEncoder::kMaxNumberOfChannels;
 }  // namespace webrtc

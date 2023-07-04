@@ -35,7 +35,7 @@
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
               nativeMediaSource:(rtc::scoped_refptr<webrtc::MediaSourceInterface>)nativeMediaSource
                            type:(RTCMediaSourceType)type {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return nil;
 }
 

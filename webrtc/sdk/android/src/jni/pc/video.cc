@@ -46,8 +46,9 @@ void* CreateVideoSource(JNIEnv* env,
                         rtc::Thread* worker_thread,
                         jboolean is_screencast,
                         jboolean align_timestamps) {
-  auto source = rtc::make_ref_counted<AndroidVideoTrackSource>(
-      signaling_thread, env, is_screencast, align_timestamps);
+  rtc::scoped_refptr<AndroidVideoTrackSource> source(
+      new rtc::RefCountedObject<AndroidVideoTrackSource>(
+          signaling_thread, env, is_screencast, align_timestamps));
   return source.release();
 }
 

@@ -10,8 +10,6 @@
 
 package org.webrtc;
 
-import org.webrtc.VideoEncoder;
-
 /**
  * An implementation of VideoEncoder that is used for testing of functionalities of
  * VideoEncoderWrapper.

@@ -24,7 +24,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/type_traits.h"
 
 namespace rtc {
 
@@ -70,17 +69,6 @@ class RTC_EXPORT CopyOnWriteBuffer {
                 internal::BufferCompat<uint8_t, T>::value>::type* = nullptr>
   CopyOnWriteBuffer(const T (&array)[N])  // NOLINT: runtime/explicit
       : CopyOnWriteBuffer(array, N) {}
-
-  // Construct a buffer from a vector like type.
-  template <typename VecT,
-            typename ElemT = typename std::remove_pointer_t<
-                decltype(std::declval<VecT>().data())>,
-            typename std::enable_if_t<
-                !std::is_same<VecT, CopyOnWriteBuffer>::value &&
-                HasDataAndSize<VecT, ElemT>::value &&
-                internal::BufferCompat<uint8_t, ElemT>::value>* = nullptr>
-  explicit CopyOnWriteBuffer(const VecT& v)
-      : CopyOnWriteBuffer(v.data(), v.size()) {}
 
   ~CopyOnWriteBuffer();
 
@@ -233,14 +221,8 @@ class RTC_EXPORT CopyOnWriteBuffer {
     AppendData(array, N);
   }
 
-  template <typename VecT,
-            typename ElemT = typename std::remove_pointer_t<
-                decltype(std::declval<VecT>().data())>,
-            typename std::enable_if_t<
-                HasDataAndSize<VecT, ElemT>::value &&
-                internal::BufferCompat<uint8_t, ElemT>::value>* = nullptr>
-  void AppendData(const VecT& v) {
-    AppendData(v.data(), v.size());
+  void AppendData(const CopyOnWriteBuffer& buf) {
+    AppendData(buf.data(), buf.size());
   }
 
   // Sets the size of the buffer. If the new size is smaller than the old, the

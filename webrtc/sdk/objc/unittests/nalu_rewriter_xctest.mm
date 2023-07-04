@@ -352,7 +352,6 @@ static const uint8_t SPS_PPS_BUFFER[] = {
                                               cmsampleSize,
                                               kCMBlockBufferAssureMemoryNowFlag,
                                               &block_buffer);
-  XCTAssertEqual(kCMBlockBufferNoErr, status);
 
   status = CMSampleBufferCreate(nullptr,
                                 block_buffer,
@@ -366,7 +365,6 @@ static const uint8_t SPS_PPS_BUFFER[] = {
                                 0,
                                 nullptr,
                                 &sample_buffer);
-  XCTAssertEqual(noErr, status);
 
   return sample_buffer;
 }

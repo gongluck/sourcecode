@@ -10,6 +10,7 @@
 
 #include "modules/rtp_rtcp/source/rtp_format_video_generic.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "absl/types/optional.h"

@@ -163,15 +163,7 @@ absl::optional<Timestamp> PacedSender::FirstSentPacketTime() const {
 
 TimeDelta PacedSender::OldestPacketWaitTime() const {
   MutexLock lock(&mutex_);
-  Timestamp oldest_packet = pacing_controller_.OldestPacketEnqueueTime();
-  if (oldest_packet.IsInfinite())
-    return TimeDelta::Zero();
-
-  // (webrtc:9716): The clock is not always monotonic.
-  Timestamp current = clock_->CurrentTime();
-  if (current < oldest_packet)
-    return TimeDelta::Zero();
-  return current - oldest_packet;
+  return pacing_controller_.OldestPacketWaitTime();
 }
 
 int64_t PacedSender::TimeUntilNextProcess() {

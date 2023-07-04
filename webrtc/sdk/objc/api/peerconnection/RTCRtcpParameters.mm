@@ -18,12 +18,11 @@
 @synthesize isReducedSize = _isReducedSize;
 
 - (instancetype)init {
-  webrtc::RtcpParameters nativeParameters;
-  return [self initWithNativeParameters:nativeParameters];
+  return [super init];
 }
 
 - (instancetype)initWithNativeParameters:(const webrtc::RtcpParameters &)nativeParameters {
-  if (self = [super init]) {
+  if (self = [self init]) {
     _cname = [NSString stringForStdString:nativeParameters.cname];
     _isReducedSize = nativeParameters.reduced_size;
   }

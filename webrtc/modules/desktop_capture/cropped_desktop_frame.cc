@@ -36,9 +36,7 @@ std::unique_ptr<DesktopFrame> CreateCroppedDesktopFrame(
     const DesktopRect& rect) {
   RTC_DCHECK(frame);
 
-  DesktopRect intersection = DesktopRect::MakeSize(frame->size());
-  intersection.IntersectWith(rect);
-  if (intersection.is_empty()) {
+  if (!DesktopRect::MakeSize(frame->size()).ContainsRect(rect)) {
     return nullptr;
   }
 
@@ -47,7 +45,7 @@ std::unique_ptr<DesktopFrame> CreateCroppedDesktopFrame(
   }
 
   return std::unique_ptr<DesktopFrame>(
-      new CroppedDesktopFrame(std::move(frame), intersection));
+      new CroppedDesktopFrame(std::move(frame), rect));
 }
 
 CroppedDesktopFrame::CroppedDesktopFrame(std::unique_ptr<DesktopFrame> frame,

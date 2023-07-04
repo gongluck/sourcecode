@@ -33,7 +33,6 @@
 #include "rtc_base/string_utils.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/third_party/base64/base64.h"
-#include "rtc_base/trace_event.h"
 #include "system_wrappers/include/field_trial.h"
 
 namespace {
@@ -105,6 +104,16 @@ std::string Port::ComputeFoundation(const std::string& type,
   return rtc::ToString(rtc::ComputeCrc32(sb.Release()));
 }
 
+CandidateStats::CandidateStats() = default;
+
+CandidateStats::CandidateStats(const CandidateStats&) = default;
+
+CandidateStats::CandidateStats(Candidate candidate) {
+  this->candidate = candidate;
+}
+
+CandidateStats::~CandidateStats() = default;
+
 Port::Port(rtc::Thread* thread,
            const std::string& type,
            rtc::PacketSocketFactory* factory,
@@ -128,7 +137,6 @@ Port::Port(rtc::Thread* thread,
       tiebreaker_(0),
       shared_socket_(true),
       weak_factory_(this) {
-  RTC_DCHECK(factory_ != NULL);
   Construct();
 }
 
@@ -655,7 +663,7 @@ bool Port::MaybeIceRoleConflict(const rtc::SocketAddress& addr,
     remote_tiebreaker = stun_attr->value();
   }
 
-  // If `remote_ufrag` is same as port local username fragment and
+  // If |remote_ufrag| is same as port local username fragment and
   // tie breaker value received in the ping message matches port
   // tiebreaker value this must be a loopback call.
   // We will treat this as valid scenario.
@@ -697,7 +705,7 @@ bool Port::MaybeIceRoleConflict(const rtc::SocketAddress& addr,
       }
       break;
     default:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
   return ret;
 }
@@ -715,7 +723,7 @@ bool Port::HandleIncomingPacket(rtc::AsyncPacketSocket* socket,
                                 size_t size,
                                 const rtc::SocketAddress& remote_addr,
                                 int64_t packet_time_us) {
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return false;
 }
 
@@ -827,7 +835,6 @@ void Port::Prune() {
 
 // Call to stop any currently pending operations from running.
 void Port::CancelPendingTasks() {
-  TRACE_EVENT0("webrtc", "Port::CancelPendingTasks");
   RTC_DCHECK_RUN_ON(thread_);
   thread_->Clear(this);
 }

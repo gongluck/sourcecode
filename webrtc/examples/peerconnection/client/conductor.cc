@@ -61,10 +61,10 @@ class DummySetSessionDescriptionObserver
   static DummySetSessionDescriptionObserver* Create() {
     return new rtc::RefCountedObject<DummySetSessionDescriptionObserver>();
   }
-  virtual void OnSuccess() { RTC_LOG(LS_INFO) << __FUNCTION__; }
+  virtual void OnSuccess() { RTC_LOG(INFO) << __FUNCTION__; }
   virtual void OnFailure(webrtc::RTCError error) {
-    RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
-                     << error.message();
+    RTC_LOG(INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
+                  << error.message();
   }
 };
 
@@ -130,15 +130,9 @@ bool Conductor::InitializePeerConnection() {
   RTC_DCHECK(!peer_connection_factory_);
   RTC_DCHECK(!peer_connection_);
 
-  if (!signaling_thread_.get()) {
-    signaling_thread_ = rtc::Thread::CreateWithSocketServer();
-    signaling_thread_->Start();
-  }
-
-  // CreatePeerConnectionFactory
   peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
       nullptr /* network_thread */, nullptr /* worker_thread */,
-      signaling_thread_.get(), nullptr /* default_adm */,
+      nullptr /* signaling_thread */, nullptr /* default_adm */,
       webrtc::CreateBuiltinAudioEncoderFactory(),
       webrtc::CreateBuiltinAudioDecoderFactory(),
       webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -152,13 +146,11 @@ bool Conductor::InitializePeerConnection() {
     return false;
   }
 
-  // CreatePeerConnection
-  if (!CreatePeerConnection()) {
+  if (!CreatePeerConnection(/*dtls=*/true)) {
     main_wnd_->MessageBox("Error", "CreatePeerConnection failed", true);
     DeletePeerConnection();
   }
 
-  //添加媒体轨
   AddTracks();
 
   return peer_connection_ != nullptr;
@@ -169,33 +161,27 @@ bool Conductor::ReinitializePeerConnectionForLoopback() {
   std::vector<rtc::scoped_refptr<webrtc::RtpSenderInterface>> senders =
       peer_connection_->GetSenders();
   peer_connection_ = nullptr;
-  // Loopback is only possible if encryption is disabled.
-  webrtc::PeerConnectionFactoryInterface::Options options;
-  options.disable_encryption = true;
-  peer_connection_factory_->SetOptions(options);
-  if (CreatePeerConnection()) {
+  if (CreatePeerConnection(/*dtls=*/false)) {
     for (const auto& sender : senders) {
       peer_connection_->AddTrack(sender->track(), sender->stream_ids());
     }
     peer_connection_->CreateOffer(
         this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
   }
-  options.disable_encryption = false;
-  peer_connection_factory_->SetOptions(options);
   return peer_connection_ != nullptr;
 }
 
-bool Conductor::CreatePeerConnection() {
+bool Conductor::CreatePeerConnection(bool dtls) {
   RTC_DCHECK(peer_connection_factory_);
   RTC_DCHECK(!peer_connection_);
 
   webrtc::PeerConnectionInterface::RTCConfiguration config;
   config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
+  config.enable_dtls_srtp = dtls;
   webrtc::PeerConnectionInterface::IceServer server;
   server.uri = GetPeerConnectionString();
   config.servers.push_back(server);
 
-  // CreatePeerConnection
   peer_connection_ = peer_connection_factory_->CreatePeerConnection(
       config, nullptr, nullptr, this);
   return peer_connection_ != nullptr;
@@ -226,24 +212,23 @@ void Conductor::OnAddTrack(
     rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
     const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>&
         streams) {
-  RTC_LOG(LS_INFO) << __FUNCTION__ << " " << receiver->id();
+  RTC_LOG(INFO) << __FUNCTION__ << " " << receiver->id();
   main_wnd_->QueueUIThreadCallback(NEW_TRACK_ADDED,
                                    receiver->track().release());
 }
 
 void Conductor::OnRemoveTrack(
     rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) {
-  RTC_LOG(LS_INFO) << __FUNCTION__ << " " << receiver->id();
+  RTC_LOG(INFO) << __FUNCTION__ << " " << receiver->id();
   main_wnd_->QueueUIThreadCallback(TRACK_REMOVED, receiver->track().release());
 }
 
-// ICE候选消息
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
-  RTC_LOG(LS_INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
+  RTC_LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
   // For loopback test. To save some connecting delay.
   if (loopback_) {
     if (!peer_connection_->AddIceCandidate(candidate)) {
-      RTC_LOG(LS_WARNING) << "Failed to apply the received candidate";
+      RTC_LOG(WARNING) << "Failed to apply the received candidate";
     }
     return;
   }
@@ -266,14 +251,13 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
 // PeerConnectionClientObserver implementation.
 //
 
-//登录成功
 void Conductor::OnSignedIn() {
-  RTC_LOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(INFO) << __FUNCTION__;
   main_wnd_->SwitchToPeerList(client_->peers());
 }
 
 void Conductor::OnDisconnected() {
-  RTC_LOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(INFO) << __FUNCTION__;
 
   DeletePeerConnection();
 
@@ -281,18 +265,17 @@ void Conductor::OnDisconnected() {
     main_wnd_->SwitchToConnectUI();
 }
 
-//检测到已有对端登录
 void Conductor::OnPeerConnected(int id, const std::string& name) {
-  RTC_LOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(INFO) << __FUNCTION__;
   // Refresh the list if we're showing it.
   if (main_wnd_->current_ui() == MainWindow::LIST_PEERS)
     main_wnd_->SwitchToPeerList(client_->peers());
 }
 
 void Conductor::OnPeerDisconnected(int id) {
-  RTC_LOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(INFO) << __FUNCTION__;
   if (id == peer_id_) {
-    RTC_LOG(LS_INFO) << "Our peer disconnected";
+    RTC_LOG(INFO) << "Our peer disconnected";
     main_wnd_->QueueUIThreadCallback(PEER_CONNECTION_CLOSED, NULL);
   } else {
     // Refresh the list if we're showing it.
@@ -301,7 +284,6 @@ void Conductor::OnPeerDisconnected(int id) {
   }
 }
 
-//收到对端消息
 void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
   RTC_DCHECK(peer_id_ == peer_id || peer_id_ == -1);
   RTC_DCHECK(!message.empty());
@@ -310,7 +292,6 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
     RTC_DCHECK(peer_id_ == -1);
     peer_id_ = peer_id;
 
-    //初始化PeerConnection
     if (!InitializePeerConnection()) {
       RTC_LOG(LS_ERROR) << "Failed to initialize our PeerConnection instance";
       client_->SignOut();
@@ -318,7 +299,7 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
     }
   } else if (peer_id != peer_id_) {
     RTC_DCHECK(peer_id_ != -1);
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(WARNING)
         << "Received a message from unknown peer while already in a "
            "conversation with a different peer.";
     return;
@@ -327,7 +308,7 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
   Json::Reader reader;
   Json::Value jmessage;
   if (!reader.parse(message, jmessage)) {
-    RTC_LOG(LS_WARNING) << "Received unknown message. " << message;
+    RTC_LOG(WARNING) << "Received unknown message. " << message;
     return;
   }
   std::string type_str;
@@ -356,28 +337,23 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
     std::string sdp;
     if (!rtc::GetStringFromJsonObject(jmessage, kSessionDescriptionSdpName,
                                       &sdp)) {
-      RTC_LOG(LS_WARNING)
-          << "Can't parse received session description message.";
+      RTC_LOG(WARNING) << "Can't parse received session description message.";
       return;
     }
     webrtc::SdpParseError error;
-    //创建SDP
     std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
         webrtc::CreateSessionDescription(type, sdp, &error);
     if (!session_description) {
-      RTC_LOG(LS_WARNING)
-          << "Can't parse received session description message. "
-             "SdpParseError was: "
-          << error.description;
+      RTC_LOG(WARNING) << "Can't parse received session description message. "
+                          "SdpParseError was: "
+                       << error.description;
       return;
     }
-    RTC_LOG(LS_INFO) << " Received session description :" << message;
-    //设置对端SDP
+    RTC_LOG(INFO) << " Received session description :" << message;
     peer_connection_->SetRemoteDescription(
         DummySetSessionDescriptionObserver::Create(),
         session_description.release());
     if (type == webrtc::SdpType::kOffer) {
-      //创建ANSWER
       peer_connection_->CreateAnswer(
           this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
     }
@@ -390,25 +366,23 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
         !rtc::GetIntFromJsonObject(jmessage, kCandidateSdpMlineIndexName,
                                    &sdp_mlineindex) ||
         !rtc::GetStringFromJsonObject(jmessage, kCandidateSdpName, &sdp)) {
-      RTC_LOG(LS_WARNING) << "Can't parse received message.";
+      RTC_LOG(WARNING) << "Can't parse received message.";
       return;
     }
     webrtc::SdpParseError error;
-    //创建候选信息
     std::unique_ptr<webrtc::IceCandidateInterface> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error));
     if (!candidate.get()) {
-      RTC_LOG(LS_WARNING) << "Can't parse received candidate message. "
-                             "SdpParseError was: "
-                          << error.description;
+      RTC_LOG(WARNING) << "Can't parse received candidate message. "
+                          "SdpParseError was: "
+                       << error.description;
       return;
     }
-    //添加对端候选信息
     if (!peer_connection_->AddIceCandidate(candidate.get())) {
-      RTC_LOG(LS_WARNING) << "Failed to apply the received candidate";
+      RTC_LOG(WARNING) << "Failed to apply the received candidate";
       return;
     }
-    RTC_LOG(LS_INFO) << " Received candidate :" << message;
+    RTC_LOG(INFO) << " Received candidate :" << message;
   }
 }
 
@@ -426,12 +400,10 @@ void Conductor::OnServerConnectionFailure() {
 // MainWndCallback implementation.
 //
 
-//登录
 void Conductor::StartLogin(const std::string& server, int port) {
   if (client_->is_connected())
     return;
   server_ = server;
-  //连接服务器
   client_->Connect(server, port, GetPeerName());
 }
 
@@ -452,7 +424,6 @@ void Conductor::ConnectToPeer(int peer_id) {
 
   if (InitializePeerConnection()) {
     peer_id_ = peer_id;
-    //创建OFFER
     peer_connection_->CreateOffer(
         this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
   } else {
@@ -460,18 +431,15 @@ void Conductor::ConnectToPeer(int peer_id) {
   }
 }
 
-//添加媒体轨
 void Conductor::AddTracks() {
   if (!peer_connection_->GetSenders().empty()) {
     return;  // Already added tracks.
   }
 
-  // CreateAudioSource CreateAudioTrack
   rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
       peer_connection_factory_->CreateAudioTrack(
           kAudioLabel, peer_connection_factory_->CreateAudioSource(
                            cricket::AudioOptions())));
-  // AddTrack
   auto result_or_error = peer_connection_->AddTrack(audio_track, {kStreamId});
   if (!result_or_error.ok()) {
     RTC_LOG(LS_ERROR) << "Failed to add audio track to PeerConnection: "
@@ -481,14 +449,10 @@ void Conductor::AddTracks() {
   rtc::scoped_refptr<CapturerTrackSource> video_device =
       CapturerTrackSource::Create();
   if (video_device) {
-    // CreateVideoTrack
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
         peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
-
-    //本地预览
     main_wnd_->StartLocalRenderer(video_track_);
 
-    // AddTrack
     result_or_error = peer_connection_->AddTrack(video_track_, {kStreamId});
     if (!result_or_error.ok()) {
       RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
@@ -502,7 +466,7 @@ void Conductor::AddTracks() {
 }
 
 void Conductor::DisconnectFromCurrentPeer() {
-  RTC_LOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(INFO) << __FUNCTION__;
   if (peer_connection_.get()) {
     client_->SendHangUp(peer_id_);
     DeletePeerConnection();
@@ -515,7 +479,7 @@ void Conductor::DisconnectFromCurrentPeer() {
 void Conductor::UIThreadCallback(int msg_id, void* data) {
   switch (msg_id) {
     case PEER_CONNECTION_CLOSED:
-      RTC_LOG(LS_INFO) << "PEER_CONNECTION_CLOSED";
+      RTC_LOG(INFO) << "PEER_CONNECTION_CLOSED";
       DeletePeerConnection();
 
       if (main_wnd_->IsWindow()) {
@@ -530,7 +494,7 @@ void Conductor::UIThreadCallback(int msg_id, void* data) {
       break;
 
     case SEND_MESSAGE_TO_PEER: {
-      RTC_LOG(LS_INFO) << "SEND_MESSAGE_TO_PEER";
+      RTC_LOG(INFO) << "SEND_MESSAGE_TO_PEER";
       std::string* msg = reinterpret_cast<std::string*>(data);
       if (msg) {
         // For convenience, we always run the message through the queue.
@@ -574,14 +538,12 @@ void Conductor::UIThreadCallback(int msg_id, void* data) {
     }
 
     default:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
       break;
   }
 }
 
-//获取SDP
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
-  //设置本地SDP
   peer_connection_->SetLocalDescription(
       DummySetSessionDescriptionObserver::Create(), desc);
 
@@ -608,7 +570,7 @@ void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 }
 
 void Conductor::OnFailure(webrtc::RTCError error) {
-  RTC_LOG(LS_ERROR) << ToString(error.type()) << ": " << error.message();
+  RTC_LOG(LERROR) << ToString(error.type()) << ": " << error.message();
 }
 
 void Conductor::SendMessage(const std::string& json_object) {

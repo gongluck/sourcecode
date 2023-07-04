@@ -21,12 +21,12 @@
 namespace webrtc {
 namespace jni {
 
-class JavaMediaStream {
+class JavaMediaStream : public sigslot::has_slots<> {
  public:
   explicit JavaMediaStream(
       JNIEnv* env,
       rtc::scoped_refptr<MediaStreamInterface> media_stream);
-  ~JavaMediaStream();
+  ~JavaMediaStream() override;
 
   const ScopedJavaGlobalRef<jobject>& j_media_stream() {
     return j_media_stream_;

@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <memory>
@@ -55,7 +56,7 @@ int main(int argc, char* argv[]) {
   printf("Input file: %s\n", args[1]);
   std::unique_ptr<webrtc::test::RtpFileSource> file_source(
       webrtc::test::RtpFileSource::Create(args[1]));
-  RTC_DCHECK(file_source.get());
+  assert(file_source.get());
   // Set RTP extension IDs.
   bool print_audio_level = false;
   if (absl::GetFlag(FLAGS_audio_level) != -1) {
@@ -150,7 +151,7 @@ int main(int argc, char* argv[]) {
       packet->ExtractRedHeaders(&red_headers);
       while (!red_headers.empty()) {
         webrtc::RTPHeader* red = red_headers.front();
-        RTC_DCHECK(red);
+        assert(red);
         fprintf(out_file, "* %5u %10u %10u %5i\n", red->sequenceNumber,
                 red->timestamp, static_cast<unsigned int>(packet->time_ms()),
                 red->payloadType);

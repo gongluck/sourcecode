@@ -119,7 +119,7 @@ class AcmReceiverTestOldApi : public AudioPacketizationCallback,
         rtp_header_,
         rtc::ArrayView<const uint8_t>(payload_data, payload_len_bytes));
     if (ret_val < 0) {
-      RTC_DCHECK_NOTREACHED();
+      assert(false);
       return -1;
     }
     rtp_header_.sequenceNumber++;

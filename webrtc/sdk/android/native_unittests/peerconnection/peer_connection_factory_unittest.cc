@@ -19,8 +19,6 @@
 #include "media/engine/webrtc_media_engine.h"
 #include "media/engine/webrtc_media_engine_defaults.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/physical_socket_server.h"
-#include "rtc_base/thread.h"
 #include "sdk/android/generated_native_unittests_jni/PeerConnectionFactoryInitializationHelper_jni.h"
 #include "sdk/android/native_api/audio_device_module/audio_device_android.h"
 #include "sdk/android/native_api/jni/jvm.h"
@@ -77,15 +75,14 @@ rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> CreateTestPCF(
 TEST(PeerConnectionFactoryTest, NativeToJavaPeerConnectionFactory) {
   JNIEnv* jni = AttachCurrentThreadIfNeeded();
 
-  RTC_LOG(LS_INFO) << "Initializing java peer connection factory.";
+  RTC_LOG(INFO) << "Initializing java peer connection factory.";
   jni::Java_PeerConnectionFactoryInitializationHelper_initializeFactoryForTests(
       jni);
-  RTC_LOG(LS_INFO) << "Java peer connection factory initialized.";
-
-  auto socket_server = std::make_unique<rtc::PhysicalSocketServer>();
+  RTC_LOG(INFO) << "Java peer connection factory initialized.";
 
   // Create threads.
-  auto network_thread = std::make_unique<rtc::Thread>(socket_server.get());
+  std::unique_ptr<rtc::Thread> network_thread =
+      rtc::Thread::CreateWithSocketServer();
   network_thread->SetName("network_thread", nullptr);
   RTC_CHECK(network_thread->Start()) << "Failed to start thread";
 
@@ -102,10 +99,10 @@ TEST(PeerConnectionFactoryTest, NativeToJavaPeerConnectionFactory) {
                     signaling_thread.get());
 
   jobject java_factory = NativeToJavaPeerConnectionFactory(
-      jni, factory, std::move(socket_server), std::move(network_thread),
-      std::move(worker_thread), std::move(signaling_thread));
+      jni, factory, std::move(network_thread), std::move(worker_thread),
+      std::move(signaling_thread));
 
-  RTC_LOG(LS_INFO) << java_factory;
+  RTC_LOG(INFO) << java_factory;
 
   EXPECT_NE(java_factory, nullptr);
 }

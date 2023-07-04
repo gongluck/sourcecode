@@ -15,6 +15,7 @@
 #include "rtc_base/logging.h"
 
 namespace webrtc {
+namespace video_coding {
 
 RtpFrameReferenceFinder::ReturnVector RtpVp8RefFinder::ManageFrame(
     std::unique_ptr<RtpFrameObject> frame) {
@@ -65,7 +66,7 @@ RtpVp8RefFinder::FrameDecision RtpVp8RefFinder::ManageFrameInternal(
     last_picture_id_ = old_picture_id;
   }
   // Find if there has been a gap in fully received frames and save the picture
-  // id of those frames in `not_yet_received_frames_`.
+  // id of those frames in |not_yet_received_frames_|.
   if (AheadOf<uint16_t, kFrameIdLength>(frame->Id(), last_picture_id_)) {
     do {
       last_picture_id_ = Add<kFrameIdLength>(last_picture_id_, 1);
@@ -243,4 +244,5 @@ void RtpVp8RefFinder::ClearTo(uint16_t seq_num) {
   }
 }
 
+}  // namespace video_coding
 }  // namespace webrtc

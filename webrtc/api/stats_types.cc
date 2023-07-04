@@ -15,13 +15,14 @@
 #include "absl/algorithm/container.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ref_counted_object.h"
-#include "rtc_base/string_encode.h"
 
 // TODO(tommi): Could we have a static map of value name -> expected type
 // and use this to RTC_DCHECK on correct usage (somewhat strongly typed values)?
 // Alternatively, we could define the names+type in a separate document and
 // generate strongly typed inline C++ code that forces the correct type to be
 // used for a given name at compile time.
+
+using rtc::RefCountedObject;
 
 namespace webrtc {
 namespace {
@@ -58,7 +59,7 @@ const char* InternalTypeToString(StatsReport::StatsType type) {
     case StatsReport::kStatsReportTypeDataChannel:
       return "datachannel";
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return nullptr;
 }
 
@@ -291,7 +292,7 @@ bool StatsReport::Value::Equals(const Value& other) const {
     case kId:
       return (*value_.id_)->Equals(*other.value_.id_);
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return false;
 }
 
@@ -654,8 +655,6 @@ const char* StatsReport::Value::display_name() const {
       return "googWritable";
     case kStatsValueNameAudioDeviceUnderrunCounter:
       return "googAudioDeviceUnderrunCounter";
-    case kStatsValueNameLocalCandidateRelayProtocol:
-      return "googLocalCandidateRelayProtocol";
   }
 
   return nullptr;
@@ -678,7 +677,7 @@ std::string StatsReport::Value::ToString() const {
     case kId:
       return (*value_.id_)->ToString();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return std::string();
 }
 
@@ -690,17 +689,17 @@ StatsReport::~StatsReport() = default;
 
 // static
 StatsReport::Id StatsReport::NewBandwidthEstimationId() {
-  return rtc::make_ref_counted<BandwidthEstimationId>();
+  return Id(new RefCountedObject<BandwidthEstimationId>());
 }
 
 // static
 StatsReport::Id StatsReport::NewTypedId(StatsType type, const std::string& id) {
-  return rtc::make_ref_counted<TypedId>(type, id);
+  return Id(new RefCountedObject<TypedId>(type, id));
 }
 
 // static
 StatsReport::Id StatsReport::NewTypedIntId(StatsType type, int id) {
-  return rtc::make_ref_counted<TypedIntId>(type, id);
+  return Id(new RefCountedObject<TypedIntId>(type, id));
 }
 
 // static
@@ -708,25 +707,26 @@ StatsReport::Id StatsReport::NewIdWithDirection(
     StatsType type,
     const std::string& id,
     StatsReport::Direction direction) {
-  return rtc::make_ref_counted<IdWithDirection>(type, id, direction);
+  return Id(new RefCountedObject<IdWithDirection>(type, id, direction));
 }
 
 // static
 StatsReport::Id StatsReport::NewCandidateId(bool local, const std::string& id) {
-  return rtc::make_ref_counted<CandidateId>(local, id);
+  return Id(new RefCountedObject<CandidateId>(local, id));
 }
 
 // static
 StatsReport::Id StatsReport::NewComponentId(const std::string& content_name,
                                             int component) {
-  return rtc::make_ref_counted<ComponentId>(content_name, component);
+  return Id(new RefCountedObject<ComponentId>(content_name, component));
 }
 
 // static
 StatsReport::Id StatsReport::NewCandidatePairId(const std::string& content_name,
                                                 int component,
                                                 int index) {
-  return rtc::make_ref_counted<CandidatePairId>(content_name, component, index);
+  return Id(
+      new RefCountedObject<CandidatePairId>(content_name, component, index));
 }
 
 const char* StatsReport::TypeToString() const {
@@ -834,7 +834,7 @@ StatsReport* StatsCollection::ReplaceOrAddNew(const StatsReport::Id& id) {
   return InsertNew(id);
 }
 
-// Looks for a report with the given `id`.  If one is not found, null
+// Looks for a report with the given |id|.  If one is not found, null
 // will be returned.
 StatsReport* StatsCollection::Find(const StatsReport::Id& id) {
   RTC_DCHECK(thread_checker_.IsCurrent());

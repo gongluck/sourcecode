@@ -300,7 +300,7 @@ TEST_P(RtpPacketHistoryTest, RemovesLowestPrioPaddingWhenAtMaxCapacity) {
 
   // Tests the absolute upper bound on number of packets in the prioritized
   // set of potential padding packets.
-  const size_t kMaxNumPackets = RtpPacketHistory::kMaxPaddingHistory;
+  const size_t kMaxNumPackets = RtpPacketHistory::kMaxPaddingtHistory;
   hist_.SetStorePacketsStatus(StorageMode::kStoreAndCull, kMaxNumPackets * 2);
   hist_.SetRtt(1);
 

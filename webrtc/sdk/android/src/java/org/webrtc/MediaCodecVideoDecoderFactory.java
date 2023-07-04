@@ -17,21 +17,17 @@ import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecList;
 import android.os.Build;
-import androidx.annotation.Nullable;
+import android.support.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 /** Factory for decoders backed by Android MediaCodec API. */
 @SuppressWarnings("deprecation") // API level 16 requires use of deprecated methods.
 class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
-
   private static final String TAG = "MediaCodecVideoDecoderFactory";
 
-  @Nullable
-  private final EglBase.Context sharedContext;
-
-  @Nullable
-  private final Predicate<MediaCodecInfo> codecAllowedPredicate;
+  private final @Nullable EglBase.Context sharedContext;
+  private final @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate;
 
   /**
    * MediaCodecVideoDecoderFactory with support of codecs filtering.
@@ -41,10 +37,8 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
    * @param codecAllowedPredicate optional predicate to test if codec allowed. All codecs are
    *                              allowed when predicate is not provided.
    */
-  public MediaCodecVideoDecoderFactory(
-    @Nullable EglBase.Context sharedContext,
-    @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate
-  ) {
+  public MediaCodecVideoDecoderFactory(@Nullable EglBase.Context sharedContext,
+      @Nullable Predicate<MediaCodecInfo> codecAllowedPredicate) {
     this.sharedContext = sharedContext;
     this.codecAllowedPredicate = codecAllowedPredicate;
   }
@@ -59,19 +53,10 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
       return null;
     }
 
-    CodecCapabilities capabilities = info.getCapabilitiesForType(
-      type.mimeType()
-    );
-    return new AndroidVideoDecoder(
-      new MediaCodecWrapperFactoryImpl(),
-      info.getName(),
-      type,
-      MediaCodecUtils.selectColorFormat(
-        MediaCodecUtils.DECODER_COLOR_FORMATS,
-        capabilities
-      ),
-      sharedContext
-    );
+    CodecCapabilities capabilities = info.getCapabilitiesForType(type.mimeType());
+    return new AndroidVideoDecoder(new MediaCodecWrapperFactoryImpl(), info.getName(), type,
+        MediaCodecUtils.selectColorFormat(MediaCodecUtils.DECODER_COLOR_FORMATS, capabilities),
+        sharedContext);
   }
 
   @Override
@@ -80,37 +65,21 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
     // Generate a list of supported codecs in order of preference:
     // VP8, VP9, H264 (high profile), and H264 (baseline profile).
     for (VideoCodecMimeType type : new VideoCodecMimeType[] {
-      VideoCodecMimeType.VP8,
-      VideoCodecMimeType.VP9,
-      VideoCodecMimeType.H264,
-      VideoCodecMimeType.AV1,
-    }) {
+             VideoCodecMimeType.VP8, VideoCodecMimeType.VP9, VideoCodecMimeType.H264}) {
       MediaCodecInfo codec = findCodecForType(type);
       if (codec != null) {
         String name = type.name();
-        if (
-          type == VideoCodecMimeType.H264 && isH264HighProfileSupported(codec)
-        ) {
-          supportedCodecInfos.add(
-            new VideoCodecInfo(
-              name,
-              MediaCodecUtils.getCodecProperties(type, /* highProfile= */true)
-            )
-          );
+        if (type == VideoCodecMimeType.H264 && isH264HighProfileSupported(codec)) {
+          supportedCodecInfos.add(new VideoCodecInfo(
+              name, MediaCodecUtils.getCodecProperties(type, /* highProfile= */ true)));
         }
 
-        supportedCodecInfos.add(
-          new VideoCodecInfo(
-            name,
-            MediaCodecUtils.getCodecProperties(type, /* highProfile= */false)
-          )
-        );
+        supportedCodecInfos.add(new VideoCodecInfo(
+            name, MediaCodecUtils.getCodecProperties(type, /* highProfile= */ false)));
       }
     }
 
-    return supportedCodecInfos.toArray(
-      new VideoCodecInfo[supportedCodecInfos.size()]
-    );
+    return supportedCodecInfos.toArray(new VideoCodecInfo[supportedCodecInfos.size()]);
   }
 
   private @Nullable MediaCodecInfo findCodecForType(VideoCodecMimeType type) {
@@ -119,7 +88,6 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
       return null;
     }
 
-    //遍历所有编解码器
     for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
       MediaCodecInfo info = null;
       try {
@@ -141,21 +109,15 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
   }
 
   // Returns true if the given MediaCodecInfo indicates a supported encoder for the given type.
-  private boolean isSupportedCodec(
-    MediaCodecInfo info,
-    VideoCodecMimeType type
-  ) {
+  private boolean isSupportedCodec(MediaCodecInfo info, VideoCodecMimeType type) {
+    String name = info.getName();
     if (!MediaCodecUtils.codecSupportsType(info, type)) {
       return false;
     }
     // Check for a supported color format.
-    if (
-      MediaCodecUtils.selectColorFormat(
-        MediaCodecUtils.DECODER_COLOR_FORMATS,
-        info.getCapabilitiesForType(type.mimeType())
-      ) ==
-      null
-    ) {
+    if (MediaCodecUtils.selectColorFormat(
+            MediaCodecUtils.DECODER_COLOR_FORMATS, info.getCapabilitiesForType(type.mimeType()))
+        == null) {
       return false;
     }
     return isCodecAllowed(info);
@@ -171,17 +133,11 @@ class MediaCodecVideoDecoderFactory implements VideoDecoderFactory {
   private boolean isH264HighProfileSupported(MediaCodecInfo info) {
     String name = info.getName();
     // Support H.264 HP decoding on QCOM chips for Android L and above.
-    if (
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP &&
-      name.startsWith(QCOM_PREFIX)
-    ) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && name.startsWith(QCOM_PREFIX)) {
       return true;
     }
     // Support H.264 HP decoding on Exynos chips for Android M and above.
-    if (
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-      name.startsWith(EXYNOS_PREFIX)
-    ) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && name.startsWith(EXYNOS_PREFIX)) {
       return true;
     }
     return false;

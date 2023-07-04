@@ -12,7 +12,6 @@
 #define MODULES_VIDEO_CODING_VIDEO_RECEIVER2_H_
 
 #include "api/sequence_checker.h"
-#include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/decoder_database.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "modules/video_coding/generic_decoder.h"
@@ -31,8 +30,9 @@ class VideoReceiver2 {
   VideoReceiver2(Clock* clock, VCMTiming* timing);
   ~VideoReceiver2();
 
-  void RegisterReceiveCodec(uint8_t payload_type,
-                            const VideoDecoder::Settings& decoder_settings);
+  int32_t RegisterReceiveCodec(uint8_t payload_type,
+                               const VideoCodec* receiveCodec,
+                               int32_t numberOfCores);
 
   void RegisterExternalDecoder(VideoDecoder* externalDecoder,
                                uint8_t payloadType);
@@ -43,7 +43,7 @@ class VideoReceiver2 {
 
   // Notification methods that are used to check our internal state and validate
   // threading assumptions. These are called by VideoReceiveStream.
-  // See `IsDecoderThreadRunning()` for more details.
+  // See |IsDecoderThreadRunning()| for more details.
   void DecoderThreadStarting();
   void DecoderThreadStopped();
 
@@ -62,7 +62,7 @@ class VideoReceiver2 {
   VCMDecodedFrameCallback decodedFrameCallback_;
 
   // Callbacks are set before the decoder thread starts.
-  // Once the decoder thread has been started, usage of `_codecDataBase` moves
+  // Once the decoder thread has been started, usage of |_codecDataBase| moves
   // over to the decoder thread.
   VCMDecoderDataBase codecDataBase_;
 

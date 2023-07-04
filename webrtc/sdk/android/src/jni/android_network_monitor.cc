@@ -104,7 +104,7 @@ static NetworkType GetNetworkTypeFromJava(
   if (enum_name == "CONNECTION_NONE") {
     return NetworkType::NETWORK_NONE;
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return NetworkType::NETWORK_UNKNOWN;
 }
 
@@ -138,7 +138,7 @@ static rtc::AdapterType AdapterTypeFromNetworkType(
       // Map it to VPN for now.
       return rtc::ADAPTER_TYPE_VPN;
     default:
-      RTC_DCHECK_NOTREACHED() << "Invalid network type " << network_type;
+      RTC_NOTREACHED() << "Invalid network type " << network_type;
       return rtc::ADAPTER_TYPE_UNKNOWN;
   }
 }
@@ -229,7 +229,8 @@ AndroidNetworkMonitor::AndroidNetworkMonitor(
     : android_sdk_int_(Java_NetworkMonitor_androidSdkInt(env)),
       j_application_context_(env, j_application_context),
       j_network_monitor_(env, Java_NetworkMonitor_getInstance(env)),
-      network_thread_(rtc::Thread::Current()) {}
+      network_thread_(rtc::Thread::Current()),
+      safety_flag_(PendingTaskSafetyFlag::Create()) {}
 
 AndroidNetworkMonitor::~AndroidNetworkMonitor() {
   RTC_DCHECK(!started_);
@@ -246,13 +247,14 @@ void AndroidNetworkMonitor::Start() {
   find_network_handle_without_ipv6_temporary_part_ =
       webrtc::field_trial::IsEnabled(
           "WebRTC-FindNetworkHandleWithoutIpv6TemporaryPart");
-  bind_using_ifname_ =
-      !webrtc::field_trial::IsDisabled("WebRTC-BindUsingInterfaceName");
 
-  // This pointer is also accessed by the methods called from java threads.
-  // Assigning it here is safe, because the java monitor is in a stopped state,
-  // and will not make any callbacks.
-  safety_flag_ = PendingTaskSafetyFlag::Create();
+  // This is kind of magic behavior, but doing this allows the SocketServer to
+  // use this as a NetworkBinder to bind sockets on a particular network when
+  // it creates sockets.
+  network_thread_->socketserver()->set_network_binder(this);
+
+  // Needed for restart after Stop().
+  safety_flag_->SetAlive();
 
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_NetworkMonitor_startMonitoring(
@@ -267,8 +269,8 @@ void AndroidNetworkMonitor::Stop() {
   started_ = false;
   find_network_handle_without_ipv6_temporary_part_ = false;
 
-  // Cancel any pending tasks. We should not call
-  // `InvokeNetworksChangedCallback()` when the monitor is stopped.
+  // Cancel any pending tasks. We should not call SignalNetworksChanged when the
+  // monitor is stopped.
   safety_flag_->SetNotAlive();
 
   JNIEnv* env = AttachCurrentThreadIfNeeded();
@@ -283,8 +285,7 @@ void AndroidNetworkMonitor::Stop() {
 // https://cs.chromium.org/chromium/src/net/udp/udp_socket_posix.cc
 rtc::NetworkBindingResult AndroidNetworkMonitor::BindSocketToNetwork(
     int socket_fd,
-    const rtc::IPAddress& address,
-    const std::string& if_name) {
+    const rtc::IPAddress& address) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   // Android prior to Lollipop didn't have support for binding sockets to
@@ -302,18 +303,12 @@ rtc::NetworkBindingResult AndroidNetworkMonitor::BindSocketToNetwork(
   }
 
   absl::optional<NetworkHandle> network_handle =
-      FindNetworkHandleFromAddressOrName(address, if_name);
+      FindNetworkHandleFromAddress(address);
   if (!network_handle) {
-    RTC_LOG(LS_WARNING)
-        << "BindSocketToNetwork unable to find network handle for"
-        << " addr: " << address.ToSensitiveString() << " ifname: " << if_name;
     return rtc::NetworkBindingResult::ADDRESS_NOT_FOUND;
   }
 
   if (*network_handle == 0 /* NETWORK_UNSPECIFIED */) {
-    RTC_LOG(LS_WARNING) << "BindSocketToNetwork 0 network handle for"
-                        << " addr: " << address.ToSensitiveString()
-                        << " ifname: " << if_name;
     return rtc::NetworkBindingResult::NOT_IMPLEMENTED;
   }
 
@@ -376,23 +371,15 @@ rtc::NetworkBindingResult AndroidNetworkMonitor::BindSocketToNetwork(
     rv = lollipopSetNetworkForSocket(*network_handle, socket_fd);
   }
 
-  // If `network` has since disconnected, `rv` will be ENONET. Surface this as
+  // If |network| has since disconnected, |rv| will be ENONET. Surface this as
   // ERR_NETWORK_CHANGED, rather than MapSystemError(ENONET) which gives back
   // the less descriptive ERR_FAILED.
   if (rv == 0) {
-    RTC_LOG(LS_VERBOSE) << "BindSocketToNetwork bound network handle for"
-                        << " addr: " << address.ToSensitiveString()
-                        << " ifname: " << if_name;
     return rtc::NetworkBindingResult::SUCCESS;
   }
-
-  RTC_LOG(LS_WARNING) << "BindSocketToNetwork got error: " << rv
-                      << " addr: " << address.ToSensitiveString()
-                      << " ifname: " << if_name;
   if (rv == ENONET) {
     return rtc::NetworkBindingResult::NETWORK_CHANGED;
   }
-
   return rtc::NetworkBindingResult::FAILURE;
 }
 
@@ -411,13 +398,12 @@ void AndroidNetworkMonitor::OnNetworkConnected_n(
   for (const rtc::IPAddress& address : network_info.ip_addresses) {
     network_handle_by_address_[address] = network_info.handle;
   }
-  InvokeNetworksChangedCallback();
+  SignalNetworksChanged();
 }
 
 absl::optional<NetworkHandle>
-AndroidNetworkMonitor::FindNetworkHandleFromAddressOrName(
-    const rtc::IPAddress& ip_address,
-    const std::string& if_name) const {
+AndroidNetworkMonitor::FindNetworkHandleFromAddress(
+    const rtc::IPAddress& ip_address) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_LOG(LS_INFO) << "Find network handle.";
   if (find_network_handle_without_ipv6_temporary_part_) {
@@ -431,31 +417,14 @@ AndroidNetworkMonitor::FindNetworkHandleFromAddressOrName(
         return absl::make_optional(iter.first);
       }
     }
+    return absl::nullopt;
   } else {
     auto iter = network_handle_by_address_.find(ip_address);
-    if (iter != network_handle_by_address_.end()) {
-      return absl::make_optional(iter->second);
+    if (iter == network_handle_by_address_.end()) {
+      return absl::nullopt;
     }
+    return absl::make_optional(iter->second);
   }
-
-  return FindNetworkHandleFromIfname(if_name);
-}
-
-absl::optional<NetworkHandle>
-AndroidNetworkMonitor::FindNetworkHandleFromIfname(
-    const std::string& if_name) const {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  if (bind_using_ifname_) {
-    for (auto const& iter : network_info_by_handle_) {
-      if (if_name.find(iter.second.interface_name) != std::string::npos) {
-        // Use partial match so that e.g if_name="v4-wlan0" is matched
-        // agains iter.first="wlan0"
-        return absl::make_optional(iter.first);
-      }
-    }
-  }
-
-  return absl::nullopt;
 }
 
 void AndroidNetworkMonitor::OnNetworkDisconnected_n(NetworkHandle handle) {
@@ -479,7 +448,7 @@ void AndroidNetworkMonitor::OnNetworkPreference_n(
                    << rtc::NetworkPreferenceToString(preference);
   auto adapter_type = AdapterTypeFromNetworkType(type, surface_cellular_types_);
   network_preference_by_adapter_type_[adapter_type] = preference;
-  InvokeNetworksChangedCallback();
+  SignalNetworksChanged();
 }
 
 void AndroidNetworkMonitor::SetNetworkInfos(
@@ -501,18 +470,6 @@ rtc::AdapterType AndroidNetworkMonitor::GetAdapterType(
   rtc::AdapterType type = (iter == adapter_type_by_name_.end())
                               ? rtc::ADAPTER_TYPE_UNKNOWN
                               : iter->second;
-
-  if (type == rtc::ADAPTER_TYPE_UNKNOWN && bind_using_ifname_) {
-    for (auto const& iter : adapter_type_by_name_) {
-      // Use partial match so that e.g if_name="v4-wlan0" is matched
-      // agains iter.first="wlan0"
-      if (if_name.find(iter.first) != std::string::npos) {
-        type = iter.second;
-        break;
-      }
-    }
-  }
-
   if (type == rtc::ADAPTER_TYPE_UNKNOWN) {
     RTC_LOG(LS_WARNING) << "Get an unknown type for the interface " << if_name;
   }
@@ -526,17 +483,6 @@ rtc::AdapterType AndroidNetworkMonitor::GetVpnUnderlyingAdapterType(
   rtc::AdapterType type = (iter == vpn_underlying_adapter_type_by_name_.end())
                               ? rtc::ADAPTER_TYPE_UNKNOWN
                               : iter->second;
-  if (type == rtc::ADAPTER_TYPE_UNKNOWN && bind_using_ifname_) {
-    // Use partial match so that e.g if_name="v4-wlan0" is matched
-    // agains iter.first="wlan0"
-    for (auto const& iter : vpn_underlying_adapter_type_by_name_) {
-      if (if_name.find(iter.first) != std::string::npos) {
-        type = iter.second;
-        break;
-      }
-    }
-  }
-
   return type;
 }
 
@@ -586,7 +532,7 @@ void AndroidNetworkMonitor::NotifyConnectionTypeChanged(
   network_thread_->PostTask(ToQueuedTask(safety_flag_, [this] {
     RTC_LOG(LS_INFO)
         << "Android network monitor detected connection type change.";
-    InvokeNetworksChangedCallback();
+    SignalNetworksChanged();
   }));
 }
 

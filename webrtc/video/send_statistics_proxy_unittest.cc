@@ -64,7 +64,9 @@ class SendStatisticsProxyTest : public ::testing::Test {
   explicit SendStatisticsProxyTest(const std::string& field_trials)
       : override_field_trials_(field_trials),
         fake_clock_(1234),
-        config_(GetTestConfig()) {}
+        config_(GetTestConfig()),
+        avg_delay_ms_(0),
+        max_delay_ms_(0) {}
   virtual ~SendStatisticsProxyTest() {}
 
  protected:
@@ -159,19 +161,11 @@ class SendStatisticsProxyTest : public ::testing::Test {
                 b.rtp_stats.retransmitted.packets);
       EXPECT_EQ(a.rtp_stats.fec.packets, b.rtp_stats.fec.packets);
 
-      EXPECT_EQ(a.report_block_data.has_value(),
-                b.report_block_data.has_value());
-      if (a.report_block_data.has_value()) {
-        const RTCPReportBlock& a_rtcp_stats =
-            a.report_block_data->report_block();
-        const RTCPReportBlock& b_rtcp_stats =
-            b.report_block_data->report_block();
-        EXPECT_EQ(a_rtcp_stats.fraction_lost, b_rtcp_stats.fraction_lost);
-        EXPECT_EQ(a_rtcp_stats.packets_lost, b_rtcp_stats.packets_lost);
-        EXPECT_EQ(a_rtcp_stats.extended_highest_sequence_number,
-                  b_rtcp_stats.extended_highest_sequence_number);
-        EXPECT_EQ(a_rtcp_stats.jitter, b_rtcp_stats.jitter);
-      }
+      EXPECT_EQ(a.rtcp_stats.fraction_lost, b.rtcp_stats.fraction_lost);
+      EXPECT_EQ(a.rtcp_stats.packets_lost, b.rtcp_stats.packets_lost);
+      EXPECT_EQ(a.rtcp_stats.extended_highest_sequence_number,
+                b.rtcp_stats.extended_highest_sequence_number);
+      EXPECT_EQ(a.rtcp_stats.jitter, b.rtcp_stats.jitter);
     }
   }
 
@@ -179,40 +173,36 @@ class SendStatisticsProxyTest : public ::testing::Test {
   SimulatedClock fake_clock_;
   std::unique_ptr<SendStatisticsProxy> statistics_proxy_;
   VideoSendStream::Config config_;
+  int avg_delay_ms_;
+  int max_delay_ms_;
   VideoSendStream::Stats expected_;
+  typedef std::map<uint32_t, VideoSendStream::StreamStats>::const_iterator
+      StreamIterator;
 };
 
-TEST_F(SendStatisticsProxyTest, ReportBlockDataObserver) {
-  ReportBlockDataObserver* callback = statistics_proxy_.get();
-  for (uint32_t ssrc : config_.rtp.ssrcs) {
-    // Add statistics with some arbitrary, but unique, numbers.
-    uint32_t offset = ssrc * 4;
-    RTCPReportBlock report_block;
-    report_block.source_ssrc = ssrc;
-    report_block.packets_lost = offset;
-    report_block.extended_highest_sequence_number = offset + 1;
-    report_block.fraction_lost = offset + 2;
-    report_block.jitter = offset + 3;
-    ReportBlockData data;
-    data.SetReportBlock(report_block, 0);
-    expected_.substreams[ssrc].report_block_data = data;
+TEST_F(SendStatisticsProxyTest, RtcpStatistics) {
+  RtcpStatisticsCallback* callback = statistics_proxy_.get();
+  for (const auto& ssrc : config_.rtp.ssrcs) {
+    VideoSendStream::StreamStats& ssrc_stats = expected_.substreams[ssrc];
 
-    callback->OnReportBlockDataUpdated(data);
+    // Add statistics with some arbitrary, but unique, numbers.
+    uint32_t offset = ssrc * sizeof(RtcpStatistics);
+    ssrc_stats.rtcp_stats.packets_lost = offset;
+    ssrc_stats.rtcp_stats.extended_highest_sequence_number = offset + 1;
+    ssrc_stats.rtcp_stats.fraction_lost = offset + 2;
+    ssrc_stats.rtcp_stats.jitter = offset + 3;
+    callback->StatisticsUpdated(ssrc_stats.rtcp_stats, ssrc);
   }
-  for (uint32_t ssrc : config_.rtp.rtx.ssrcs) {
-    // Add statistics with some arbitrary, but unique, numbers.
-    uint32_t offset = ssrc * 4;
-    RTCPReportBlock report_block;
-    report_block.source_ssrc = ssrc;
-    report_block.packets_lost = offset;
-    report_block.extended_highest_sequence_number = offset + 1;
-    report_block.fraction_lost = offset + 2;
-    report_block.jitter = offset + 3;
-    ReportBlockData data;
-    data.SetReportBlock(report_block, 0);
-    expected_.substreams[ssrc].report_block_data = data;
+  for (const auto& ssrc : config_.rtp.rtx.ssrcs) {
+    VideoSendStream::StreamStats& ssrc_stats = expected_.substreams[ssrc];
 
-    callback->OnReportBlockDataUpdated(data);
+    // Add statistics with some arbitrary, but unique, numbers.
+    uint32_t offset = ssrc * sizeof(RtcpStatistics);
+    ssrc_stats.rtcp_stats.packets_lost = offset;
+    ssrc_stats.rtcp_stats.extended_highest_sequence_number = offset + 1;
+    ssrc_stats.rtcp_stats.fraction_lost = offset + 2;
+    ssrc_stats.rtcp_stats.jitter = offset + 3;
+    callback->StatisticsUpdated(ssrc_stats.rtcp_stats, ssrc);
   }
   VideoSendStream::Stats stats = statistics_proxy_->GetStats();
   ExpectEqual(expected_, stats);
@@ -294,17 +284,21 @@ TEST_F(SendStatisticsProxyTest, DataCounters) {
 TEST_F(SendStatisticsProxyTest, Bitrate) {
   BitrateStatisticsObserver* observer = statistics_proxy_.get();
   for (const auto& ssrc : config_.rtp.ssrcs) {
+    uint32_t total;
+    uint32_t retransmit;
     // Use ssrc as bitrate_bps to get a unique value for each stream.
-    uint32_t total = ssrc;
-    uint32_t retransmit = ssrc + 1;
+    total = ssrc;
+    retransmit = ssrc + 1;
     observer->Notify(total, retransmit, ssrc);
     expected_.substreams[ssrc].total_bitrate_bps = total;
     expected_.substreams[ssrc].retransmit_bitrate_bps = retransmit;
   }
   for (const auto& ssrc : config_.rtp.rtx.ssrcs) {
+    uint32_t total;
+    uint32_t retransmit;
     // Use ssrc as bitrate_bps to get a unique value for each stream.
-    uint32_t total = ssrc;
-    uint32_t retransmit = ssrc + 1;
+    total = ssrc;
+    retransmit = ssrc + 1;
     observer->Notify(total, retransmit, ssrc);
     expected_.substreams[ssrc].total_bitrate_bps = total;
     expected_.substreams[ssrc].retransmit_bitrate_bps = retransmit;
@@ -411,7 +405,7 @@ TEST_F(SendStatisticsProxyTest, TotalEncodedBytesTargetFirstFrame) {
   statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
   // On the first frame we don't know the frame rate yet, calculation yields
   // zero. Our estimate assumes at least 1 FPS, so we expect the frame size to
-  // increment by a full `kTargetBytesPerSecond`.
+  // increment by a full |kTargetBytesPerSecond|.
   EXPECT_EQ(kTargetBytesPerSecond,
             statistics_proxy_->GetStats().total_encoded_bytes_target);
 }
@@ -422,7 +416,7 @@ TEST_F(SendStatisticsProxyTest,
   const int kInterframeDelayMs = 100;
 
   // SendStatisticsProxy uses a RateTracker internally. SendStatisticsProxy uses
-  // `fake_clock_` for testing, but the RateTracker relies on a global clock.
+  // |fake_clock_| for testing, but the RateTracker relies on a global clock.
   // This test relies on rtc::ScopedFakeClock to synchronize these two clocks.
   // TODO(https://crbug.com/webrtc/10640): When the RateTracker uses a Clock
   // this test can stop relying on rtc::ScopedFakeClock.
@@ -447,7 +441,7 @@ TEST_F(SendStatisticsProxyTest,
 
   auto stats = statistics_proxy_->GetStats();
   // By the time the second frame arrives, one frame has previously arrived
-  // during a `kInterframeDelayMs` interval. The estimated encode frame rate at
+  // during a |kInterframeDelayMs| interval. The estimated encode frame rate at
   // the second frame's arrival should be 10 FPS.
   uint64_t delta_encoded_bytes_target =
       stats.total_encoded_bytes_target - first_total_encoded_bytes_target;
@@ -456,116 +450,25 @@ TEST_F(SendStatisticsProxyTest,
 
 TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStream) {
   const int kInterframeDelayMs = 100;
-  const auto ssrc = config_.rtp.ssrcs[0];
+  auto ssrc = config_.rtp.ssrcs[0];
   rtc::ScopedFakeClock fake_global_clock;
   fake_global_clock.SetTime(
       Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
 
-  // First frame
   EncodedImage encoded_image;
+
+  // First frame
   statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
+  // Second frame
   fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
   fake_global_clock.SetTime(
       Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  // Second frame
   encoded_image.SetTimestamp(encoded_image.Timestamp() +
                              90 * kInterframeDelayMs);
   statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
-  fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
 
   auto stats = statistics_proxy_->GetStats();
   EXPECT_EQ(stats.substreams[ssrc].encode_frame_rate, 10);
-}
-
-TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp8Simulcast) {
-  const int kInterframeDelayMs = 100;
-  rtc::ScopedFakeClock fake_global_clock;
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  EncodedImage encoded_image;
-  CodecSpecificInfo codec_info;
-  codec_info.codecType = kVideoCodecVP8;
-
-  for (int i = 0; i < 10; ++i) {
-    encoded_image.SetTimestamp(encoded_image.Timestamp() +
-                               90 * kInterframeDelayMs);
-    encoded_image.SetSpatialIndex(0);
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    encoded_image.SetSpatialIndex(1);
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  }
-
-  VideoSendStream::Stats stats = statistics_proxy_->GetStats();
-  EXPECT_EQ(2u, stats.substreams.size());
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[0]].encode_frame_rate, 10);
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[1]].encode_frame_rate, 10);
-
-  // Stop encoding second stream, expect framerate to be zero.
-  for (int i = 0; i < 10; ++i) {
-    encoded_image.SetTimestamp(encoded_image.Timestamp() +
-                               90 * kInterframeDelayMs);
-    encoded_image.SetSpatialIndex(0);
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  }
-
-  stats = statistics_proxy_->GetStats();
-  EXPECT_EQ(2u, stats.substreams.size());
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[0]].encode_frame_rate, 10);
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[1]].encode_frame_rate, 0);
-
-  // Start encoding second stream.
-  for (int i = 0; i < 10; ++i) {
-    encoded_image.SetTimestamp(encoded_image.Timestamp() +
-                               90 * kInterframeDelayMs);
-    encoded_image.SetSpatialIndex(0);
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    encoded_image.SetSpatialIndex(1);
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  }
-
-  stats = statistics_proxy_->GetStats();
-  EXPECT_EQ(2u, stats.substreams.size());
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[0]].encode_frame_rate, 10);
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[1]].encode_frame_rate, 10);
-}
-
-TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp9Svc) {
-  const int kInterframeDelayMs = 100;
-  rtc::ScopedFakeClock fake_global_clock;
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  EncodedImage encoded_image;
-  CodecSpecificInfo codec_info;
-  codec_info.codecType = kVideoCodecVP9;
-
-  for (int i = 0; i < 10; ++i) {
-    encoded_image.SetTimestamp(encoded_image.Timestamp() +
-                               90 * kInterframeDelayMs);
-    encoded_image.SetSpatialIndex(0);
-    codec_info.end_of_picture = false;
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    encoded_image.SetSpatialIndex(1);
-    codec_info.end_of_picture = true;
-    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
-    fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
-  }
-
-  VideoSendStream::Stats stats = statistics_proxy_->GetStats();
-  EXPECT_EQ(1u, stats.substreams.size());
-  EXPECT_EQ(stats.substreams[config_.rtp.ssrcs[0]].encode_frame_rate, 10);
 }
 
 TEST_F(SendStatisticsProxyTest, GetCpuAdaptationStats) {
@@ -2278,13 +2181,10 @@ TEST_F(SendStatisticsProxyTest, NoSubstreams) {
       std::max(*absl::c_max_element(config_.rtp.ssrcs),
                *absl::c_max_element(config_.rtp.rtx.ssrcs)) +
       1;
-  // From ReportBlockDataObserver.
-  ReportBlockDataObserver* rtcp_callback = statistics_proxy_.get();
-  RTCPReportBlock report_block;
-  report_block.source_ssrc = excluded_ssrc;
-  ReportBlockData data;
-  data.SetReportBlock(report_block, 0);
-  rtcp_callback->OnReportBlockDataUpdated(data);
+  // From RtcpStatisticsCallback.
+  RtcpStatistics rtcp_stats;
+  RtcpStatisticsCallback* rtcp_callback = statistics_proxy_.get();
+  rtcp_callback->StatisticsUpdated(rtcp_stats, excluded_ssrc);
 
   // From BitrateStatisticsObserver.
   uint32_t total = 0;
@@ -2331,12 +2231,9 @@ TEST_F(SendStatisticsProxyTest, EncodedResolutionTimesOut) {
 
   // Update the first SSRC with bogus RTCP stats to make sure that encoded
   // resolution still times out (no global timeout for all stats).
-  ReportBlockDataObserver* rtcp_callback = statistics_proxy_.get();
-  RTCPReportBlock report_block;
-  report_block.source_ssrc = config_.rtp.ssrcs[0];
-  ReportBlockData data;
-  data.SetReportBlock(report_block, 0);
-  rtcp_callback->OnReportBlockDataUpdated(data);
+  RtcpStatistics rtcp_statistics;
+  RtcpStatisticsCallback* rtcp_stats = statistics_proxy_.get();
+  rtcp_stats->StatisticsUpdated(rtcp_statistics, config_.rtp.ssrcs[0]);
 
   // Report stats for second SSRC to make sure it's not outdated along with the
   // first SSRC.

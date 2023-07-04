@@ -52,7 +52,6 @@ ScalabilityStructureFullSvc::StreamConfig() const {
     result.scaling_factor_den[sid - 1] =
         resolution_factor_.den * result.scaling_factor_den[sid];
   }
-  result.uses_reference_scaling = num_spatial_layers_ > 1;
   return result;
 }
 
@@ -123,7 +122,7 @@ ScalabilityStructureFullSvc::NextPattern() const {
       }
       return kDeltaT0;
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return kNone;
 }
 
@@ -173,6 +172,7 @@ ScalabilityStructureFullSvc::NextFrameConfig(bool restart) {
           config.Update(BufferIndex(sid, /*tid=*/0));
         }
 
+        can_reference_t0_frame_for_spatial_id_.set(sid);
         spatial_dependency_buffer_id = BufferIndex(sid, /*tid=*/0);
       }
       break;
@@ -227,7 +227,7 @@ ScalabilityStructureFullSvc::NextFrameConfig(bool restart) {
       }
       break;
     case kNone:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
       break;
   }
 
@@ -255,9 +255,6 @@ GenericFrameInfo ScalabilityStructureFullSvc::OnEncodeDone(
   // pattern defered here from the `NextFrameConfig`.
   // In particular creating VP9 references rely on this behavior.
   last_pattern_ = static_cast<FramePattern>(config.Id());
-  if (config.TemporalId() == 0) {
-    can_reference_t0_frame_for_spatial_id_.set(config.SpatialId());
-  }
   if (config.TemporalId() == 1) {
     can_reference_t1_frame_for_spatial_id_.set(config.SpatialId());
   }

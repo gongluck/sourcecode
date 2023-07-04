@@ -122,8 +122,8 @@ def _WaitForUploadConfirmation(url, upload_token, wait_timeout,
 # failed. Check it, so it doesn't increase flakiness of our tests.
 # TODO(crbug.com/1145904): Remove check after fixed.
 def _CheckFullUploadInfo(url, upload_token,
-                         min_measurements_amount=50,
-                         max_failed_measurements_percent=0.03):
+                         min_measurements_amount=100,
+                         max_failed_measurements_amount=1):
     """Make a HTTP GET requests to the Performance Dashboard to get full info
     about upload (including measurements). Checks if upload is correct despite
     not having status "COMPLETED".
@@ -135,8 +135,8 @@ def _CheckFullUploadInfo(url, upload_token,
         for the status check.
       min_measurements_amount: minimal amount of measurements that the upload
         should have to start tolerating failures in particular measurements.
-      max_failed_measurements_percent: maximal percent of failured measurements
-        to tolerate.
+      max_failed_measurements_amount: maximal amount of failured measurements to
+        tolerate.
     """
     headers = _CreateHeaders(_GenerateOauthToken())
     http = httplib2.Http()
@@ -145,13 +145,13 @@ def _CheckFullUploadInfo(url, upload_token,
                                      '?additional_info=measurements',
                                      method='GET', headers=headers)
 
+    print 'Full upload info: %r.' % content
+
     if response.status != 200:
         print 'Failed to reach the dashboard to get full upload info.'
         return False
 
     resp_json = json.loads(content)
-    print 'Full upload info: %s.' % json.dumps(resp_json, indent=4)
-
     if 'measurements' in resp_json:
         measurements_cnt = len(resp_json['measurements'])
         not_completed_state_cnt = len([
@@ -160,10 +160,9 @@ def _CheckFullUploadInfo(url, upload_token,
         ])
 
         if (measurements_cnt >= min_measurements_amount and
-            (not_completed_state_cnt / (measurements_cnt * 1.0) <=
-                max_failed_measurements_percent)):
-            print('Not all measurements were confirmed to upload. '
-                  'Measurements count: %d, failed to upload or timed out: %d' %
+            not_completed_state_cnt <= max_failed_measurements_amount):
+            print('Not all measurements were uploaded. Measurements count: %d, '
+                  'failed to upload: %d' %
                   (measurements_cnt, not_completed_state_cnt))
             return True
 
@@ -248,13 +247,10 @@ def UploadToDashboard(options):
         print 'Upload completed.'
         return 0
 
-    if response.status != 200:
-        print('Upload status poll failed with %d: %s' % (response.status,
-                                                         response.reason))
-        return 1
-
-    if resp_json['state'] == 'FAILED':
-        print 'Upload failed.'
+    if response.status != 200 or resp_json['state'] == 'FAILED':
+        print('Upload failed with %d: %s\n\n%s' % (response.status,
+                                                  response.reason,
+                                                  str(resp_json)))
         return 1
 
     print('Upload wasn\'t completed in a given time: %d seconds.' %

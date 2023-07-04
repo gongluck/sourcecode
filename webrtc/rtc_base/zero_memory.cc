@@ -19,7 +19,6 @@
 
 namespace rtc {
 
-//缓冲区置0
 // Code and comment taken from "OPENSSL_cleanse" of BoringSSL.
 void ExplicitZeroMemory(void* ptr, size_t len) {
   RTC_DCHECK(ptr || !len);

@@ -65,7 +65,6 @@ ScalabilityStructureSimulcast::StreamConfig() const {
     result.scaling_factor_num[sid - 1] = 1;
     result.scaling_factor_den[sid - 1] = 2 * result.scaling_factor_den[sid];
   }
-  result.uses_reference_scaling = false;
   return result;
 }
 
@@ -106,7 +105,7 @@ ScalabilityStructureSimulcast::NextPattern() const {
       }
       return kDeltaT0;
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return kDeltaT0;
 }
 
@@ -138,7 +137,7 @@ ScalabilityStructureSimulcast::NextFrameConfig(bool restart) {
         }
         configs.emplace_back();
         ScalableVideoController::LayerFrameConfig& config = configs.back();
-        config.Id(current_pattern).S(sid).T(0);
+        config.S(sid).T(0);
 
         if (can_reference_t0_frame_for_spatial_id_[sid]) {
           config.ReferenceAndUpdate(BufferIndex(sid, /*tid=*/0));
@@ -156,10 +155,7 @@ ScalabilityStructureSimulcast::NextFrameConfig(bool restart) {
         }
         configs.emplace_back();
         ScalableVideoController::LayerFrameConfig& config = configs.back();
-        config.Id(current_pattern)
-            .S(sid)
-            .T(1)
-            .Reference(BufferIndex(sid, /*tid=*/0));
+        config.S(sid).T(1).Reference(BufferIndex(sid, /*tid=*/0));
         // Save frame only if there is a higher temporal layer that may need it.
         if (num_temporal_layers_ > 2) {
           config.Update(BufferIndex(sid, /*tid=*/1));
@@ -175,7 +171,7 @@ ScalabilityStructureSimulcast::NextFrameConfig(bool restart) {
         }
         configs.emplace_back();
         ScalableVideoController::LayerFrameConfig& config = configs.back();
-        config.Id(current_pattern).S(sid).T(2);
+        config.S(sid).T(2);
         if (can_reference_t1_frame_for_spatial_id_[sid]) {
           config.Reference(BufferIndex(sid, /*tid=*/1));
         } else {
@@ -184,16 +180,16 @@ ScalabilityStructureSimulcast::NextFrameConfig(bool restart) {
       }
       break;
     case kNone:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
       break;
   }
 
+  last_pattern_ = current_pattern;
   return configs;
 }
 
 GenericFrameInfo ScalabilityStructureSimulcast::OnEncodeDone(
     const LayerFrameConfig& config) {
-  last_pattern_ = static_cast<FramePattern>(config.Id());
   if (config.TemporalId() == 1) {
     can_reference_t1_frame_for_spatial_id_.set(config.SpatialId());
   }

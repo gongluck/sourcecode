@@ -27,7 +27,7 @@ ProxyServer::ProxyServer(SocketFactory* int_factory,
     : ext_factory_(ext_factory),
       ext_ip_(ext_ip.ipaddr(), 0),  // strip off port
       server_socket_(
-          int_factory->CreateSocket(int_addr.family(), SOCK_STREAM)) {
+          int_factory->CreateAsyncSocket(int_addr.family(), SOCK_STREAM)) {
   RTC_DCHECK(server_socket_.get() != nullptr);
   RTC_DCHECK(int_addr.family() == AF_INET || int_addr.family() == AF_INET6);
   server_socket_->Bind(int_addr);
@@ -41,13 +41,13 @@ SocketAddress ProxyServer::GetServerAddress() {
   return server_socket_->GetLocalAddress();
 }
 
-void ProxyServer::OnAcceptEvent(Socket* socket) {
+void ProxyServer::OnAcceptEvent(AsyncSocket* socket) {
   RTC_DCHECK(socket);
   RTC_DCHECK_EQ(socket, server_socket_.get());
-  Socket* int_socket = socket->Accept(nullptr);
+  AsyncSocket* int_socket = socket->Accept(nullptr);
   AsyncProxyServerSocket* wrapped_socket = WrapSocket(int_socket);
-  Socket* ext_socket =
-      ext_factory_->CreateSocket(ext_ip_.family(), SOCK_STREAM);
+  AsyncSocket* ext_socket =
+      ext_factory_->CreateAsyncSocket(ext_ip_.family(), SOCK_STREAM);
   if (ext_socket) {
     ext_socket->Bind(ext_ip_);
     bindings_.emplace_back(
@@ -60,7 +60,7 @@ void ProxyServer::OnAcceptEvent(Socket* socket) {
 
 // ProxyBinding
 ProxyBinding::ProxyBinding(AsyncProxyServerSocket* int_socket,
-                           Socket* ext_socket)
+                           AsyncSocket* ext_socket)
     : int_socket_(int_socket),
       ext_socket_(ext_socket),
       connected_(false),
@@ -88,42 +88,42 @@ void ProxyBinding::OnConnectRequest(AsyncProxyServerSocket* socket,
   // TODO: handle errors here
 }
 
-void ProxyBinding::OnInternalRead(Socket* socket) {
+void ProxyBinding::OnInternalRead(AsyncSocket* socket) {
   Read(int_socket_.get(), &out_buffer_);
   Write(ext_socket_.get(), &out_buffer_);
 }
 
-void ProxyBinding::OnInternalWrite(Socket* socket) {
+void ProxyBinding::OnInternalWrite(AsyncSocket* socket) {
   Write(int_socket_.get(), &in_buffer_);
 }
 
-void ProxyBinding::OnInternalClose(Socket* socket, int err) {
+void ProxyBinding::OnInternalClose(AsyncSocket* socket, int err) {
   Destroy();
 }
 
-void ProxyBinding::OnExternalConnect(Socket* socket) {
+void ProxyBinding::OnExternalConnect(AsyncSocket* socket) {
   RTC_DCHECK(socket != nullptr);
   connected_ = true;
   int_socket_->SendConnectResult(0, socket->GetRemoteAddress());
 }
 
-void ProxyBinding::OnExternalRead(Socket* socket) {
+void ProxyBinding::OnExternalRead(AsyncSocket* socket) {
   Read(ext_socket_.get(), &in_buffer_);
   Write(int_socket_.get(), &in_buffer_);
 }
 
-void ProxyBinding::OnExternalWrite(Socket* socket) {
+void ProxyBinding::OnExternalWrite(AsyncSocket* socket) {
   Write(ext_socket_.get(), &out_buffer_);
 }
 
-void ProxyBinding::OnExternalClose(Socket* socket, int err) {
+void ProxyBinding::OnExternalClose(AsyncSocket* socket, int err) {
   if (!connected_) {
     int_socket_->SendConnectResult(err, SocketAddress());
   }
   Destroy();
 }
 
-void ProxyBinding::Read(Socket* socket, FifoBuffer* buffer) {
+void ProxyBinding::Read(AsyncSocket* socket, FifoBuffer* buffer) {
   // Only read if the buffer is empty.
   RTC_DCHECK(socket != nullptr);
   size_t size;
@@ -135,7 +135,7 @@ void ProxyBinding::Read(Socket* socket, FifoBuffer* buffer) {
   }
 }
 
-void ProxyBinding::Write(Socket* socket, FifoBuffer* buffer) {
+void ProxyBinding::Write(AsyncSocket* socket, FifoBuffer* buffer) {
   RTC_DCHECK(socket != nullptr);
   size_t size;
   int written;
@@ -148,7 +148,7 @@ void ProxyBinding::Destroy() {
   SignalDestroyed(this);
 }
 
-AsyncProxyServerSocket* SocksProxyServer::WrapSocket(Socket* socket) {
+AsyncProxyServerSocket* SocksProxyServer::WrapSocket(AsyncSocket* socket) {
   return new AsyncSocksProxyServerSocket(socket);
 }
 

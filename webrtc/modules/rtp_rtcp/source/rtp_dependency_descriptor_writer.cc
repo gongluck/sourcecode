@@ -66,9 +66,6 @@ RtpDependencyDescriptorWriter::RtpDependencyDescriptorWriter(
 }
 
 bool RtpDependencyDescriptorWriter::Write() {
-  if (build_failed_) {
-    return false;
-  }
   WriteMandatoryFields();
   if (HasExtendedFields()) {
     WriteExtendedFields();
@@ -86,9 +83,6 @@ bool RtpDependencyDescriptorWriter::Write() {
 }
 
 int RtpDependencyDescriptorWriter::ValueSizeBits() const {
-  if (build_failed_) {
-    return 0;
-  }
   static constexpr int kMandatoryFields = 1 + 1 + 6 + 16;
   int value_size_bits = kMandatoryFields + best_template_.extra_size_bits;
   if (HasExtendedFields()) {
@@ -178,10 +172,7 @@ void RtpDependencyDescriptorWriter::FindBestTemplate() {
                frame_template.temporal_id;
   };
   auto first = absl::c_find_if(templates, same_layer);
-  if (first == templates.end()) {
-    build_failed_ = true;
-    return;
-  }
+  RTC_CHECK(first != templates.end());
   auto last = std::find_if_not(first, templates.end(), same_layer);
 
   best_template_ = CalculateMatch(first);

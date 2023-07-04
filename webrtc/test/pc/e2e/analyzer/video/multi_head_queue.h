@@ -19,6 +19,7 @@
 #include "rtc_base/checks.h"
 
 namespace webrtc {
+namespace webrtc_pc_e2e {
 
 // A queue that allows more than one reader. Readers are independent, and all
 // readers will see all elements; an inserted element stays in the queue until
@@ -27,7 +28,7 @@ namespace webrtc {
 template <typename T>
 class MultiHeadQueue {
  public:
-  // Creates queue with exactly `readers_count` readers.
+  // Creates queue with exactly |readers_count| readers.
   explicit MultiHeadQueue(size_t readers_count) {
     for (size_t i = 0; i < readers_count; ++i) {
       queues_.push_back(std::deque<T>());
@@ -35,8 +36,6 @@ class MultiHeadQueue {
   }
 
   // Creates a copy of an existing head. Complexity O(MultiHeadQueue::size()).
-  // `copy_index` - index of the queue that will be used as a source for
-  //     copying.
   void AddHead(size_t copy_index) { queues_.push_back(queues_[copy_index]); }
 
   // Add value to the end of the queue. Complexity O(readers_count).
@@ -97,6 +96,7 @@ class MultiHeadQueue {
   std::vector<std::deque<T>> queues_;
 };
 
+}  // namespace webrtc_pc_e2e
 }  // namespace webrtc
 
 #endif  // TEST_PC_E2E_ANALYZER_VIDEO_MULTI_HEAD_QUEUE_H_

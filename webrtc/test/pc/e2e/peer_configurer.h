@@ -43,12 +43,9 @@ class PeerConfigurerImpl final
                     PeerConnectionE2EQualityTestFixture::CapturingDeviceIndex>;
 
   PeerConfigurerImpl(rtc::Thread* network_thread,
-                     rtc::NetworkManager* network_manager,
-                     rtc::PacketSocketFactory* packet_socket_factory)
-      : components_(
-            std::make_unique<InjectableComponents>(network_thread,
-                                                   network_manager,
-                                                   packet_socket_factory)),
+                     rtc::NetworkManager* network_manager)
+      : components_(std::make_unique<InjectableComponents>(network_thread,
+                                                           network_manager)),
         params_(std::make_unique<Params>()) {}
 
   PeerConfigurer* SetName(absl::string_view name) override {
@@ -169,12 +166,6 @@ class PeerConfigurerImpl final
   PeerConfigurer* SetBitrateSettings(
       BitrateSettings bitrate_settings) override {
     params_->bitrate_settings = bitrate_settings;
-    return this;
-  }
-  PeerConfigurer* SetVideoCodecs(
-      std::vector<PeerConnectionE2EQualityTestFixture::VideoCodecConfig>
-          video_codecs) override {
-    params_->video_codecs = std::move(video_codecs);
     return this;
   }
 

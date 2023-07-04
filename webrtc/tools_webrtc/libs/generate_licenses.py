@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 #  Copyright 2016 The WebRTC project authors. All Rights Reserved.
 #
@@ -23,16 +23,12 @@ Libraries are mapped to licenses via LIB_TO_LICENSES_DICT dictionary.
 import sys
 
 import argparse
+import cgi
 import json
 import logging
 import os
 import re
 import subprocess
-try:
-    # python 3.2+
-    from html import escape
-except ImportError:
-    from cgi import escape
 
 # Third_party library to licences mapping. Keys are names of the libraries
 # (right after the `third_party/` prefix)
@@ -46,7 +42,6 @@ LIB_TO_LICENSES_DICT = {
     ],
     'bazel': ['third_party/bazel/LICENSE'],
     'boringssl': ['third_party/boringssl/src/LICENSE'],
-    'crc32c': ['third_party/crc32c/src/LICENSE'],
     'errorprone': [
         'third_party/android_deps/libs/'
         'com_google_errorprone_error_prone_core/LICENSE'
@@ -61,7 +56,6 @@ LIB_TO_LICENSES_DICT = {
     'libevent': ['base/third_party/libevent/LICENSE'],
     'libjpeg_turbo': ['third_party/libjpeg_turbo/LICENSE.md'],
     'libsrtp': ['third_party/libsrtp/LICENSE'],
-    'libunwind': ['buildtools/third_party/libunwind/trunk/LICENSE.TXT'],
     'libvpx': ['third_party/libvpx/source/libvpx/LICENSE'],
     'libyuv': ['third_party/libyuv/LICENSE'],
     'nasm': ['third_party/nasm/LICENSE'],
@@ -187,7 +181,7 @@ class LicenseBuilder(object):
             target,
         ]
         logging.debug('Running: %r', cmd)
-        output_json = subprocess.check_output(cmd, cwd=WEBRTC_ROOT).decode('UTF-8')
+        output_json = subprocess.check_output(cmd, cwd=WEBRTC_ROOT)
         logging.debug('Output: %s', output_json)
         return output_json
 
@@ -214,7 +208,7 @@ class LicenseBuilder(object):
             self.common_licenses_dict.keys())
         if missing_licenses:
             error_msg = 'Missing licenses for following third_party targets: %s' % \
-                        ', '.join(sorted(missing_licenses))
+                        ', '.join(missing_licenses)
             logging.error(error_msg)
             raise Exception(error_msg)
 
@@ -239,7 +233,7 @@ class LicenseBuilder(object):
             for path in self.common_licenses_dict[license_lib]:
                 license_path = os.path.join(WEBRTC_ROOT, path)
                 with open(license_path, 'r') as license_file:
-                    license_text = escape(license_file.read(), quote=True)
+                    license_text = cgi.escape(license_file.read(), quote=True)
                     output_license_file.write(license_text)
                     output_license_file.write('\n')
             output_license_file.write('```\n\n')

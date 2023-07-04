@@ -60,7 +60,7 @@ class DtlsTransport : public DtlsTransportInterface {
 
  private:
   void OnInternalDtlsState(cricket::DtlsTransportInternal* transport,
-                           DtlsTransportState state);
+                           cricket::DtlsTransportState state);
   void UpdateInformation();
 
   DtlsTransportObserverInterface* observer_ = nullptr;

@@ -279,7 +279,6 @@ TEST(VideoRtpDepacketizerVp9Test, ParseFirstPacketInKeyFrame) {
 
   EXPECT_EQ(video_header.frame_type, VideoFrameType::kVideoFrameKey);
   EXPECT_TRUE(video_header.is_first_packet_in_frame);
-  EXPECT_FALSE(video_header.is_last_packet_in_frame);
 }
 
 TEST(VideoRtpDepacketizerVp9Test, ParseLastPacketInDeltaFrame) {
@@ -291,7 +290,6 @@ TEST(VideoRtpDepacketizerVp9Test, ParseLastPacketInDeltaFrame) {
 
   EXPECT_EQ(video_header.frame_type, VideoFrameType::kVideoFrameDelta);
   EXPECT_FALSE(video_header.is_first_packet_in_frame);
-  EXPECT_TRUE(video_header.is_last_packet_in_frame);
 }
 
 TEST(VideoRtpDepacketizerVp9Test, ParseResolution) {

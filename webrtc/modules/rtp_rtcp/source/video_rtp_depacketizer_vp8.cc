@@ -19,34 +19,29 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
-// VP8 payload descriptor
-// https://datatracker.ietf.org/doc/html/rfc7741#section-4.2
+// VP8 format:
 //
+// Payload descriptor
 //       0 1 2 3 4 5 6 7
 //      +-+-+-+-+-+-+-+-+
-//      |X|R|N|S|R| PID | (REQUIRED)
+//      |X|R|N|S|PartID | (REQUIRED)
 //      +-+-+-+-+-+-+-+-+
-// X:   |I|L|T|K| RSV   | (OPTIONAL)
+// X:   |I|L|T|K|  RSV  | (OPTIONAL)
 //      +-+-+-+-+-+-+-+-+
-// I:   |M| PictureID   | (OPTIONAL)
-//      +-+-+-+-+-+-+-+-+
-//      |   PictureID   |
+// I:   |   PictureID   | (OPTIONAL)
 //      +-+-+-+-+-+-+-+-+
 // L:   |   TL0PICIDX   | (OPTIONAL)
 //      +-+-+-+-+-+-+-+-+
-// T/K: |TID|Y| KEYIDX  | (OPTIONAL)
+// T/K: |TID:Y| KEYIDX  | (OPTIONAL)
 //      +-+-+-+-+-+-+-+-+
 //
-// VP8 payload header. Considered part of the actual payload, sent to decoder.
-// https://datatracker.ietf.org/doc/html/rfc7741#section-4.3
-//
+// Payload header (considered part of the actual payload, sent to decoder)
 //       0 1 2 3 4 5 6 7
 //      +-+-+-+-+-+-+-+-+
 //      |Size0|H| VER |P|
 //      +-+-+-+-+-+-+-+-+
-//      :      ...      :
-//      +-+-+-+-+-+-+-+-+
-
+//      |      ...      |
+//      +               +
 namespace webrtc {
 namespace {
 
@@ -61,7 +56,7 @@ int ParseVP8Descriptor(RTPVideoHeaderVP8* vp8,
   bool extension = (*data & 0x80) ? true : false;             // X bit
   vp8->nonReference = (*data & 0x20) ? true : false;          // N bit
   vp8->beginningOfPartition = (*data & 0x10) ? true : false;  // S bit
-  vp8->partitionId = (*data & 0x07);                          // PID field
+  vp8->partitionId = (*data & 0x0F);                          // PartID field
 
   data++;
   parsed_bytes++;
@@ -165,8 +160,10 @@ int VideoRtpDepacketizerVp8::ParseRtpPayload(
   if (descriptor_size == kFailedToParse)
     return kFailedToParse;
 
-  RTC_DCHECK_LT(vp8_header.partitionId, 8);
-
+  if (vp8_header.partitionId > 8) {
+    // Weak check for corrupt payload_data: PartID MUST NOT be larger than 8.
+    return kFailedToParse;
+  }
   video_header->is_first_packet_in_frame =
       vp8_header.beginningOfPartition && vp8_header.partitionId == 0;
 

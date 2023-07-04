@@ -11,11 +11,11 @@
 #ifndef COMMON_VIDEO_H264_PPS_PARSER_H_
 #define COMMON_VIDEO_H264_PPS_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "absl/types/optional.h"
-#include "api/array_view.h"
+
+namespace rtc {
+class BitBuffer;
+}
 
 namespace webrtc {
 
@@ -49,10 +49,12 @@ class PpsParser {
                                                       size_t length);
 
  protected:
-  // Parse the PPS state, for a buffer where RBSP decoding has already been
+  // Parse the PPS state, for a bit buffer where RBSP decoding has already been
   // performed.
-  static absl::optional<PpsState> ParseInternal(
-      rtc::ArrayView<const uint8_t> buffer);
+  static absl::optional<PpsState> ParseInternal(rtc::BitBuffer* bit_buffer);
+  static bool ParsePpsIdsInternal(rtc::BitBuffer* bit_buffer,
+                                  uint32_t* pps_id,
+                                  uint32_t* sps_id);
 };
 
 }  // namespace webrtc

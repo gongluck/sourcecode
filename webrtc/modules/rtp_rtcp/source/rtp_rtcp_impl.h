@@ -27,7 +27,6 @@
 #include "modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"  // RTCPPacketType
 #include "modules/rtp_rtcp/source/deprecated/deprecated_rtp_sender_egress.h"
-#include "modules/rtp_rtcp/source/packet_sequencer.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/tmmb_item.h"
 #include "modules/rtp_rtcp/source/rtcp_receiver.h"
 #include "modules/rtp_rtcp/source/rtcp_sender.h"
@@ -64,7 +63,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
                           size_t incoming_packet_length) override;
 
   void SetRemoteSSRC(uint32_t ssrc) override;
-  void SetLocalSsrc(uint32_t ssrc) override;
 
   // Sender part.
   void RegisterSendPayloadFrequency(int payload_type,
@@ -76,6 +74,7 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
 
   // Register RTP header extension.
   void RegisterRtpHeaderExtension(absl::string_view uri, int id) override;
+  int32_t DeregisterSendRtpHeaderExtension(RTPExtensionType type) override;
   void DeregisterSendRtpHeaderExtension(absl::string_view uri) override;
 
   bool SupportsPadding() const override;
@@ -96,8 +95,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
   void SetRtxState(const RtpState& rtp_state) override;
   RtpState GetRtpState() const override;
   RtpState GetRtxState() const override;
-
-  void SetNonSenderRttMeasurement(bool enabled) override {}
 
   uint32_t SSRC() const override { return rtcp_sender_.SSRC(); }
 
@@ -156,8 +153,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
 
   size_t ExpectedPerPacketOverhead() const override;
 
-  void OnPacketSendingThreadSwitched() override;
-
   // RTCP part.
 
   // Get RTCP status.
@@ -193,15 +188,15 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
       StreamDataCounters* rtp_counters,
       StreamDataCounters* rtx_counters) const override;
 
+  // Get received RTCP report, report block.
+  int32_t RemoteRTCPStat(
+      std::vector<RTCPReportBlock>* receive_blocks) const override;
   // A snapshot of the most recent Report Block with additional data of
   // interest to statistics. Used to implement RTCRemoteInboundRtpStreamStats.
   // Within this list, the ReportBlockData::RTCPReportBlock::source_ssrc(),
   // which is the SSRC of the corresponding outbound RTP stream, is unique.
   std::vector<ReportBlockData> GetLatestReportBlockData() const override;
   absl::optional<SenderReportStats> GetSenderReportStats() const override;
-  // Round trip time statistics computed from the XR block contained in the last
-  // report.
-  absl::optional<NonSenderRttStats> GetNonSenderRttStats() const override;
 
   // (REMB) Receiver Estimated Max Bitrate.
   void SetRemb(int64_t bitrate_bps, std::vector<uint32_t> ssrcs) override;
@@ -278,13 +273,10 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
     explicit RtpSenderContext(const RtpRtcpInterface::Configuration& config);
     // Storage of packets, for retransmissions and padding, if applicable.
     RtpPacketHistory packet_history;
-    // Handles sequence number assignment and padding timestamp generation.
-    mutable Mutex sequencer_mutex;
-    PacketSequencer sequencer_ RTC_GUARDED_BY(sequencer_mutex);
     // Handles final time timestamping/stats/etc and handover to Transport.
     DEPRECATED_RtpSenderEgress packet_sender;
     // If no paced sender configured, this class will be used to pass packets
-    // from `packet_generator_` to `packet_sender_`.
+    // from |packet_generator_| to |packet_sender_|.
     DEPRECATED_RtpSenderEgress::NonPacedPacketSender non_paced_sender;
     // Handles creation of RTP packets to be sent.
     RTPSender packet_generator;

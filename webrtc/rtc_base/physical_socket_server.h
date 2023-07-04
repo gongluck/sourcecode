@@ -61,7 +61,6 @@ class Dispatcher {
 #endif
 };
 
-//处理网络消息的套接字服务
 // A socket server that provides the real sockets of the underlying OS.
 class RTC_EXPORT PhysicalSocketServer : public SocketServer {
  public:
@@ -70,9 +69,10 @@ class RTC_EXPORT PhysicalSocketServer : public SocketServer {
 
   // SocketFactory:
   Socket* CreateSocket(int family, int type) override;
+  AsyncSocket* CreateAsyncSocket(int family, int type) override;
 
   // Internal Factory for Accept (virtual so it can be overwritten in tests).
-  virtual Socket* WrapSocket(SOCKET s);
+  virtual AsyncSocket* WrapSocket(SOCKET s);
 
   // SocketServer:
   bool Wait(int cms, bool process_io) override;
@@ -130,7 +130,7 @@ class RTC_EXPORT PhysicalSocketServer : public SocketServer {
   bool waiting_ = false;
 };
 
-class PhysicalSocket : public Socket, public sigslot::has_slots<> {
+class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
  public:
   PhysicalSocket(PhysicalSocketServer* ss, SOCKET s = INVALID_SOCKET);
   ~PhysicalSocket() override;
@@ -164,7 +164,7 @@ class PhysicalSocket : public Socket, public sigslot::has_slots<> {
                int64_t* timestamp) override;
 
   int Listen(int backlog) override;
-  Socket* Accept(SocketAddress* out_addr) override;
+  AsyncSocket* Accept(SocketAddress* out_addr) override;
 
   int Close() override;
 

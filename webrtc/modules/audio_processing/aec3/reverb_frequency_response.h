@@ -23,8 +23,7 @@ namespace webrtc {
 // Class for updating the frequency response for the reverb.
 class ReverbFrequencyResponse {
  public:
-  explicit ReverbFrequencyResponse(
-      bool use_conservative_tail_frequency_response);
+  ReverbFrequencyResponse();
   ~ReverbFrequencyResponse();
 
   // Updates the frequency response estimate of the reverb.
@@ -45,7 +44,6 @@ class ReverbFrequencyResponse {
               int filter_delay_blocks,
               float linear_filter_quality);
 
-  const bool use_conservative_tail_frequency_response_;
   float average_decay_ = 0.f;
   std::array<float, kFftLengthBy2Plus1> tail_response_;
 };

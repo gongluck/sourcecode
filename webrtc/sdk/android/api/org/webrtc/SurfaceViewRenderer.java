@@ -21,15 +21,14 @@ import android.view.SurfaceView;
 /**
  * Display the video stream on a SurfaceView.
  */
-public class SurfaceViewRenderer
-  extends SurfaceView
-  implements SurfaceHolder.Callback, VideoSink, RendererCommon.RendererEvents {
-
+public class SurfaceViewRenderer extends SurfaceView
+    implements SurfaceHolder.Callback, VideoSink, RendererCommon.RendererEvents {
   private static final String TAG = "SurfaceViewRenderer";
 
   // Cached resource name.
   private final String resourceName;
-  private final RendererCommon.VideoLayoutMeasure videoLayoutMeasure = new RendererCommon.VideoLayoutMeasure();
+  private final RendererCommon.VideoLayoutMeasure videoLayoutMeasure =
+      new RendererCommon.VideoLayoutMeasure();
   private final SurfaceEglRenderer eglRenderer;
 
   // Callback for reporting renderer events. Read-only after initialization so no lock required.
@@ -65,43 +64,27 @@ public class SurfaceViewRenderer
   }
 
   /**
-   * Initialize this class, sharing resources with `sharedContext`. It is allowed to call init() to
+   * Initialize this class, sharing resources with |sharedContext|. It is allowed to call init() to
    * reinitialize the renderer after a previous init()/release() cycle.
    */
-  public void init(
-    EglBase.Context sharedContext,
-    RendererCommon.RendererEvents rendererEvents
-  ) {
-    init(
-      sharedContext,
-      rendererEvents,
-      EglBase.CONFIG_PLAIN,
-      new GlRectDrawer()
-    );
+  public void init(EglBase.Context sharedContext, RendererCommon.RendererEvents rendererEvents) {
+    init(sharedContext, rendererEvents, EglBase.CONFIG_PLAIN, new GlRectDrawer());
   }
 
   /**
-   * Initialize this class, sharing resources with `sharedContext`. The custom `drawer` will be used
+   * Initialize this class, sharing resources with |sharedContext|. The custom |drawer| will be used
    * for drawing frames on the EGLSurface. This class is responsible for calling release() on
-   * `drawer`. It is allowed to call init() to reinitialize the renderer after a previous
+   * |drawer|. It is allowed to call init() to reinitialize the renderer after a previous
    * init()/release() cycle.
    */
-  public void init(
-    final EglBase.Context sharedContext,
-    RendererCommon.RendererEvents rendererEvents,
-    final int[] configAttributes,
-    RendererCommon.GlDrawer drawer
-  ) {
+  public void init(final EglBase.Context sharedContext,
+      RendererCommon.RendererEvents rendererEvents, final int[] configAttributes,
+      RendererCommon.GlDrawer drawer) {
     ThreadUtils.checkIsOnMainThread();
     this.rendererEvents = rendererEvents;
     rotatedFrameWidth = 0;
     rotatedFrameHeight = 0;
-    eglRenderer.init(
-      sharedContext,
-      this/* rendererEvents */,
-      configAttributes,
-      drawer
-    );
+    eglRenderer.init(sharedContext, this /* rendererEvents */, configAttributes, drawer);
   }
 
   /**
@@ -124,10 +107,7 @@ public class SurfaceViewRenderer
    * @param drawer   Custom drawer to use for this frame listener.
    */
   public void addFrameListener(
-    EglRenderer.FrameListener listener,
-    float scale,
-    RendererCommon.GlDrawer drawerParam
-  ) {
+      EglRenderer.FrameListener listener, float scale, RendererCommon.GlDrawer drawerParam) {
     eglRenderer.addFrameListener(listener, scale, drawerParam);
   }
 
@@ -140,10 +120,7 @@ public class SurfaceViewRenderer
    * @param scale    The scale of the Bitmap passed to the callback, or 0 if no Bitmap is
    *                 required.
    */
-  public void addFrameListener(
-    EglRenderer.FrameListener listener,
-    float scale
-  ) {
+  public void addFrameListener(EglRenderer.FrameListener listener, float scale) {
     eglRenderer.addFrameListener(listener, scale);
   }
 
@@ -177,15 +154,10 @@ public class SurfaceViewRenderer
     requestLayout();
   }
 
-  public void setScalingType(
-    RendererCommon.ScalingType scalingTypeMatchOrientation,
-    RendererCommon.ScalingType scalingTypeMismatchOrientation
-  ) {
+  public void setScalingType(RendererCommon.ScalingType scalingTypeMatchOrientation,
+      RendererCommon.ScalingType scalingTypeMismatchOrientation) {
     ThreadUtils.checkIsOnMainThread();
-    videoLayoutMeasure.setScalingType(
-      scalingTypeMatchOrientation,
-      scalingTypeMismatchOrientation
-    );
+    videoLayoutMeasure.setScalingType(scalingTypeMatchOrientation, scalingTypeMismatchOrientation);
     requestLayout();
   }
 
@@ -217,24 +189,14 @@ public class SurfaceViewRenderer
   @Override
   protected void onMeasure(int widthSpec, int heightSpec) {
     ThreadUtils.checkIsOnMainThread();
-    Point size = videoLayoutMeasure.measure(
-      widthSpec,
-      heightSpec,
-      rotatedFrameWidth,
-      rotatedFrameHeight
-    );
+    Point size =
+        videoLayoutMeasure.measure(widthSpec, heightSpec, rotatedFrameWidth, rotatedFrameHeight);
     setMeasuredDimension(size.x, size.y);
     logD("onMeasure(). New size: " + size.x + "x" + size.y);
   }
 
   @Override
-  protected void onLayout(
-    boolean changed,
-    int left,
-    int top,
-    int right,
-    int bottom
-  ) {
+  protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
     ThreadUtils.checkIsOnMainThread();
     eglRenderer.setLayoutAspectRatio((right - left) / (float) (bottom - top));
     updateSurfaceSize();
@@ -242,16 +204,10 @@ public class SurfaceViewRenderer
 
   private void updateSurfaceSize() {
     ThreadUtils.checkIsOnMainThread();
-    if (
-      enableFixedSize &&
-      rotatedFrameWidth != 0 &&
-      rotatedFrameHeight != 0 &&
-      getWidth() != 0 &&
-      getHeight() != 0
-    ) {
+    if (enableFixedSize && rotatedFrameWidth != 0 && rotatedFrameHeight != 0 && getWidth() != 0
+        && getHeight() != 0) {
       final float layoutAspectRatio = getWidth() / (float) getHeight();
-      final float frameAspectRatio =
-        rotatedFrameWidth / (float) rotatedFrameHeight;
+      final float frameAspectRatio = rotatedFrameWidth / (float) rotatedFrameHeight;
       final int drawnFrameWidth;
       final int drawnFrameHeight;
       if (frameAspectRatio > layoutAspectRatio) {
@@ -264,24 +220,9 @@ public class SurfaceViewRenderer
       // Aspect ratio of the drawn frame and the view is the same.
       final int width = Math.min(getWidth(), drawnFrameWidth);
       final int height = Math.min(getHeight(), drawnFrameHeight);
-      logD(
-        "updateSurfaceSize. Layout size: " +
-        getWidth() +
-        "x" +
-        getHeight() +
-        ", frame size: " +
-        rotatedFrameWidth +
-        "x" +
-        rotatedFrameHeight +
-        ", requested surface size: " +
-        width +
-        "x" +
-        height +
-        ", old surface size: " +
-        surfaceWidth +
-        "x" +
-        surfaceHeight
-      );
+      logD("updateSurfaceSize. Layout size: " + getWidth() + "x" + getHeight() + ", frame size: "
+          + rotatedFrameWidth + "x" + rotatedFrameHeight + ", requested surface size: " + width
+          + "x" + height + ", old surface size: " + surfaceWidth + "x" + surfaceHeight);
       if (width != surfaceWidth || height != surfaceHeight) {
         surfaceWidth = width;
         surfaceHeight = height;
@@ -305,12 +246,7 @@ public class SurfaceViewRenderer
   public void surfaceDestroyed(SurfaceHolder holder) {}
 
   @Override
-  public void surfaceChanged(
-    SurfaceHolder holder,
-    int format,
-    int width,
-    int height
-  ) {}
+  public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
 
   private String getResourceName() {
     try {
@@ -335,33 +271,19 @@ public class SurfaceViewRenderer
   }
 
   @Override
-  public void onFrameResolutionChanged(
-    int videoWidth,
-    int videoHeight,
-    int rotation
-  ) {
+  public void onFrameResolutionChanged(int videoWidth, int videoHeight, int rotation) {
     if (rendererEvents != null) {
-      rendererEvents.onFrameResolutionChanged(
-        videoWidth,
-        videoHeight,
-        rotation
-      );
+      rendererEvents.onFrameResolutionChanged(videoWidth, videoHeight, rotation);
     }
-    int rotatedWidth = rotation == 0 || rotation == 180
-      ? videoWidth
-      : videoHeight;
-    int rotatedHeight = rotation == 0 || rotation == 180
-      ? videoHeight
-      : videoWidth;
+    int rotatedWidth = rotation == 0 || rotation == 180 ? videoWidth : videoHeight;
+    int rotatedHeight = rotation == 0 || rotation == 180 ? videoHeight : videoWidth;
     // run immediately if possible for ui thread tests
-    postOrRun(
-      () -> {
-        rotatedFrameWidth = rotatedWidth;
-        rotatedFrameHeight = rotatedHeight;
-        updateSurfaceSize();
-        requestLayout();
-      }
-    );
+    postOrRun(() -> {
+      rotatedFrameWidth = rotatedWidth;
+      rotatedFrameHeight = rotatedHeight;
+      updateSurfaceSize();
+      requestLayout();
+    });
   }
 
   private void postOrRun(Runnable r) {

@@ -31,10 +31,9 @@ constexpr float kTargetUtilizationFraction = 0.95f;
 INSTANTIATE_TEST_SUITE_P(
     ,
     DelayBasedBweTest,
-    ::testing::Values("", "WebRTC-Bwe-NewInterArrivalDelta/Disabled/"),
+    ::testing::Values("", "WebRTC-Bwe-NewInterArrivalDelta/Enabled/"),
     [](::testing::TestParamInfo<std::string> info) {
-      return info.param.empty() ? "SafetypedInterArrival"
-                                : "LegacyInterArrival";
+      return info.param == "" ? "Default" : "NewInterArrival";
     });
 
 TEST_P(DelayBasedBweTest, ProbeDetection) {

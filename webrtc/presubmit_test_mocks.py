@@ -24,18 +24,13 @@ class MockInputApi(object):
         self.change = MockChange([], [])
         self.files = []
         self.presubmit_local_path = os.path.dirname(__file__)
-        self.re = re  # pylint: disable=invalid-name
 
     def AffectedSourceFiles(self, file_filter=None):
         return self.AffectedFiles(file_filter=file_filter)
 
     def AffectedFiles(self, file_filter=None, include_deletes=False):
-        for f in self.files:
-            if file_filter and not file_filter(f):
-                continue
-            if not include_deletes and f.Action() == 'D':
-                continue
-            yield f
+        # pylint: disable=unused-argument
+        return self.files
 
     @classmethod
     def FilterSourceFile(cls,

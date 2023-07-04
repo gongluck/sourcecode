@@ -17,8 +17,8 @@ namespace webrtc {
 namespace {
 
 // Find the highest-priority instance of the T-valued constraint named by
-// `key` and return its value as `value`. `constraints` can be null.
-// If `mandatory_constraints` is non-null, it is incremented if the key appears
+// |key| and return its value as |value|. |constraints| can be null.
+// If |mandatory_constraints| is non-null, it is incremented if the key appears
 // among the mandatory constraints.
 // Returns true if the key was found and has a valid value for type T.
 // If the key appears multiple times as an optional constraint, appearances
@@ -117,6 +117,8 @@ const char MediaConstraints::kIceRestart[] = "IceRestart";
 const char MediaConstraints::kUseRtpMux[] = "googUseRtpMUX";
 
 // Below constraints should be used during PeerConnection construction.
+const char MediaConstraints::kEnableDtlsSrtp[] = "DtlsSrtpKeyAgreement";
+const char MediaConstraints::kEnableRtpDataChannels[] = "RtpDataChannels";
 // Google-specific constraint keys.
 const char MediaConstraints::kEnableDscp[] = "googDscp";
 const char MediaConstraints::kEnableIPv6[] = "googIPv6";
@@ -134,13 +136,8 @@ const char MediaConstraints::kRawPacketizationForVideoEnabled[] =
 
 const char MediaConstraints::kNumSimulcastLayers[] = "googNumSimulcastLayers";
 
-// gongluck begin add port constraints
-const char MediaConstraints::kMinPort[] = "gMinPort";
-const char MediaConstraints::kMaxPort[] = "gMaxPort";
-// gongluck end add port constraints
-
-// Set `value` to the value associated with the first appearance of `key`, or
-// return false if `key` is not found.
+// Set |value| to the value associated with the first appearance of |key|, or
+// return false if |key| is not found.
 bool MediaConstraints::Constraints::FindFirst(const std::string& key,
                                               std::string* value) const {
   for (Constraints::const_iterator iter = begin(); iter != end(); ++iter) {
@@ -170,6 +167,8 @@ void CopyConstraintsIntoRtcConfiguration(
   FindConstraint(constraints, MediaConstraints::kCpuOveruseDetection,
                  &configuration->media_config.video.enable_cpu_adaptation,
                  nullptr);
+  FindConstraint(constraints, MediaConstraints::kEnableRtpDataChannels,
+                 &configuration->enable_rtp_data_channel, nullptr);
   // Find Suspend Below Min Bitrate constraint.
   FindConstraint(
       constraints, MediaConstraints::kEnableVideoSuspendBelowMinBitrate,
@@ -180,15 +179,8 @@ void CopyConstraintsIntoRtcConfiguration(
   ConstraintToOptional<bool>(constraints,
                              MediaConstraints::kCombinedAudioVideoBwe,
                              &configuration->combined_audio_video_bwe);
-
-  // gongluck begin add port constraints
-  //添加端口约束
-  FindConstraint(constraints, kMinPort,
-                 &configuration->port_allocator_config.min_port, nullptr);
-  FindConstraint(constraints, kMaxPort,
-                 &configuration->port_allocator_config.max_port, nullptr);
-  configuration->set_port_allocator_flags(cricket::kDefaultPortAllocatorFlags);
-  // gongluck end add port constraints
+  ConstraintToOptional<bool>(constraints, MediaConstraints::kEnableDtlsSrtp,
+                             &configuration->enable_dtls_srtp);
 }
 
 void CopyConstraintsIntoAudioOptions(const MediaConstraints* constraints,
@@ -220,7 +212,7 @@ void CopyConstraintsIntoAudioOptions(const MediaConstraints* constraints,
   ConstraintToOptional<std::string>(
       constraints, MediaConstraints::kAudioNetworkAdaptorConfig,
       &options->audio_network_adaptor_config);
-  // When `kAudioNetworkAdaptorConfig` is defined, it both means that audio
+  // When |kAudioNetworkAdaptorConfig| is defined, it both means that audio
   // network adaptor is desired, and provides the config string.
   if (options->audio_network_adaptor_config) {
     options->audio_network_adaptor = true;

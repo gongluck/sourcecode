@@ -15,16 +15,16 @@
 namespace webrtc {
 namespace {
 
-class TransformableOutgoingAudioFrame : public TransformableFrameInterface {
+class TransformableAudioFrame : public TransformableFrameInterface {
  public:
-  TransformableOutgoingAudioFrame(AudioFrameType frame_type,
-                                  uint8_t payload_type,
-                                  uint32_t rtp_timestamp,
-                                  uint32_t rtp_start_timestamp,
-                                  const uint8_t* payload_data,
-                                  size_t payload_size,
-                                  int64_t absolute_capture_timestamp_ms,
-                                  uint32_t ssrc)
+  TransformableAudioFrame(AudioFrameType frame_type,
+                          uint8_t payload_type,
+                          uint32_t rtp_timestamp,
+                          uint32_t rtp_start_timestamp,
+                          const uint8_t* payload_data,
+                          size_t payload_size,
+                          int64_t absolute_capture_timestamp_ms,
+                          uint32_t ssrc)
       : frame_type_(frame_type),
         payload_type_(payload_type),
         rtp_timestamp_(rtp_timestamp),
@@ -32,7 +32,7 @@ class TransformableOutgoingAudioFrame : public TransformableFrameInterface {
         payload_(payload_data, payload_size),
         absolute_capture_timestamp_ms_(absolute_capture_timestamp_ms),
         ssrc_(ssrc) {}
-  ~TransformableOutgoingAudioFrame() override = default;
+  ~TransformableAudioFrame() override = default;
   rtc::ArrayView<const uint8_t> GetData() const override { return payload_; }
   void SetData(rtc::ArrayView<const uint8_t> data) override {
     payload_.SetData(data.data(), data.size());
@@ -44,11 +44,10 @@ class TransformableOutgoingAudioFrame : public TransformableFrameInterface {
   uint32_t GetSsrc() const override { return ssrc_; }
 
   AudioFrameType GetFrameType() const { return frame_type_; }
-  uint8_t GetPayloadType() const override { return payload_type_; }
+  uint8_t GetPayloadType() const { return payload_type_; }
   int64_t GetAbsoluteCaptureTimestampMs() const {
     return absolute_capture_timestamp_ms_;
   }
-  Direction GetDirection() const override { return Direction::kSender; }
 
  private:
   AudioFrameType frame_type_;
@@ -91,10 +90,9 @@ void ChannelSendFrameTransformerDelegate::Transform(
     size_t payload_size,
     int64_t absolute_capture_timestamp_ms,
     uint32_t ssrc) {
-  frame_transformer_->Transform(
-      std::make_unique<TransformableOutgoingAudioFrame>(
-          frame_type, payload_type, rtp_timestamp, rtp_start_timestamp,
-          payload_data, payload_size, absolute_capture_timestamp_ms, ssrc));
+  frame_transformer_->Transform(std::make_unique<TransformableAudioFrame>(
+      frame_type, payload_type, rtp_timestamp, rtp_start_timestamp,
+      payload_data, payload_size, absolute_capture_timestamp_ms, ssrc));
 }
 
 void ChannelSendFrameTransformerDelegate::OnTransformedFrame(
@@ -113,12 +111,9 @@ void ChannelSendFrameTransformerDelegate::SendFrame(
     std::unique_ptr<TransformableFrameInterface> frame) const {
   MutexLock lock(&send_lock_);
   RTC_DCHECK_RUN_ON(encoder_queue_);
-  RTC_CHECK_EQ(frame->GetDirection(),
-               TransformableFrameInterface::Direction::kSender);
   if (!send_frame_callback_)
     return;
-  auto* transformed_frame =
-      static_cast<TransformableOutgoingAudioFrame*>(frame.get());
+  auto* transformed_frame = static_cast<TransformableAudioFrame*>(frame.get());
   send_frame_callback_(transformed_frame->GetFrameType(),
                        transformed_frame->GetPayloadType(),
                        transformed_frame->GetTimestamp() -

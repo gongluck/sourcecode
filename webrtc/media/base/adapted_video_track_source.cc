@@ -114,9 +114,4 @@ bool AdaptedVideoTrackSource::AdaptFrame(int width,
   return true;
 }
 
-void AdaptedVideoTrackSource::ProcessConstraints(
-    const webrtc::VideoTrackSourceConstraints& constraints) {
-  broadcaster_.ProcessConstraints(constraints);
-}
-
 }  // namespace rtc

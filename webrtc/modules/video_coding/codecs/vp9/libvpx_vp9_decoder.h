@@ -30,7 +30,7 @@ class LibvpxVp9Decoder : public VP9Decoder {
 
   virtual ~LibvpxVp9Decoder();
 
-  bool Configure(const Settings& settings) override;
+  int InitDecode(const VideoCodec* inst, int number_of_cores) override;
 
   int Decode(const EncodedImage& input_image,
              bool missing_frames,
@@ -57,7 +57,8 @@ class LibvpxVp9Decoder : public VP9Decoder {
   bool inited_;
   vpx_codec_ctx_t* decoder_;
   bool key_frame_required_;
-  Settings current_settings_;
+  VideoCodec current_codec_;
+  int num_cores_;
 
   // Decoder should produce this format if possible.
   const VideoFrameBuffer::Type preferred_output_format_;

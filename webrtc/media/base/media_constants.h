@@ -20,6 +20,8 @@
 namespace cricket {
 
 extern const int kVideoCodecClockrate;
+extern const int kDataCodecClockrate;
+extern const int kRtpDataMaxBandwidth;  // bps
 
 extern const int kVideoMtu;
 extern const int kVideoRtpSendBufferSize;
@@ -30,6 +32,7 @@ extern const float kHighSystemCpuThreshold;
 extern const float kLowSystemCpuThreshold;
 extern const float kProcessCpuThreshold;
 
+extern const char kRtxCodecName[];
 extern const char kRedCodecName[];
 extern const char kUlpfecCodecName[];
 extern const char kFlexfecCodecName[];
@@ -37,12 +40,9 @@ extern const char kMultiplexCodecName[];
 
 extern const char kFlexfecFmtpRepairWindow[];
 
-extern const char kRtxCodecName[];
-extern const char kCodecParamRtxTime[];
+// Codec parameters
 extern const char kCodecParamAssociatedPayloadType[];
-
 extern const char kCodecParamAssociatedCodecName[];
-extern const char kCodecParamNotInNameValueFormat[];
 
 extern const char kOpusCodecName[];
 extern const char kIsacCodecName[];
@@ -68,7 +68,7 @@ extern const char kCodecParamMaxPlaybackRate[];
 
 extern const char kParamValueTrue[];
 // Parameters are stored as parameter/value pairs. For parameters who do not
-// have a value, `kParamValueEmpty` should be used as value.
+// have a value, |kParamValueEmpty| should be used as value.
 extern const char kParamValueEmpty[];
 
 // opus parameters.
@@ -117,6 +117,12 @@ extern const char kCodecParamMaxBitrate[];
 extern const char kCodecParamMinBitrate[];
 extern const char kCodecParamStartBitrate[];
 extern const char kCodecParamMaxQuantization[];
+
+// We put the data codec names here so callers of DataEngine::CreateChannel
+// don't have to import rtpdataengine.h to get the codec names they want to
+// pass in.
+extern const int kGoogleRtpDataCodecPlType;
+extern const char kGoogleRtpDataCodecName[];
 
 extern const char kComfortNoiseCodecName[];
 

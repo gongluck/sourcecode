@@ -26,13 +26,12 @@
 @synthesize degradationPreference = _degradationPreference;
 
 - (instancetype)init {
-  webrtc::RtpParameters nativeParameters;
-  return [self initWithNativeParameters:nativeParameters];
+  return [super init];
 }
 
 - (instancetype)initWithNativeParameters:
     (const webrtc::RtpParameters &)nativeParameters {
-  if (self = [super init]) {
+  if (self = [self init]) {
     _transactionId = [NSString stringForStdString:nativeParameters.transaction_id];
     _rtcp =
         [[RTC_OBJC_TYPE(RTCRtcpParameters) alloc] initWithNativeParameters:nativeParameters.rtcp];

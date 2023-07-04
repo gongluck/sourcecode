@@ -44,6 +44,41 @@ bool FifoBuffer::GetBuffered(size_t* size) const {
   return true;
 }
 
+bool FifoBuffer::SetCapacity(size_t size) {
+  webrtc::MutexLock lock(&mutex_);
+  if (data_length_ > size) {
+    return false;
+  }
+
+  if (size != buffer_length_) {
+    char* buffer = new char[size];
+    const size_t copy = data_length_;
+    const size_t tail_copy = std::min(copy, buffer_length_ - read_position_);
+    memcpy(buffer, &buffer_[read_position_], tail_copy);
+    memcpy(buffer + tail_copy, &buffer_[0], copy - tail_copy);
+    buffer_.reset(buffer);
+    read_position_ = 0;
+    buffer_length_ = size;
+  }
+  return true;
+}
+
+StreamResult FifoBuffer::ReadOffset(void* buffer,
+                                    size_t bytes,
+                                    size_t offset,
+                                    size_t* bytes_read) {
+  webrtc::MutexLock lock(&mutex_);
+  return ReadOffsetLocked(buffer, bytes, offset, bytes_read);
+}
+
+StreamResult FifoBuffer::WriteOffset(const void* buffer,
+                                     size_t bytes,
+                                     size_t offset,
+                                     size_t* bytes_written) {
+  webrtc::MutexLock lock(&mutex_);
+  return WriteOffsetLocked(buffer, bytes, offset, bytes_written);
+}
+
 StreamState FifoBuffer::GetState() const {
   webrtc::MutexLock lock(&mutex_);
   return state_;
@@ -56,7 +91,7 @@ StreamResult FifoBuffer::Read(void* buffer,
   webrtc::MutexLock lock(&mutex_);
   const bool was_writable = data_length_ < buffer_length_;
   size_t copy = 0;
-  StreamResult result = ReadLocked(buffer, bytes, &copy);
+  StreamResult result = ReadOffsetLocked(buffer, bytes, 0, &copy);
 
   if (result == SR_SUCCESS) {
     // If read was successful then adjust the read position and number of
@@ -83,7 +118,7 @@ StreamResult FifoBuffer::Write(const void* buffer,
 
   const bool was_readable = (data_length_ > 0);
   size_t copy = 0;
-  StreamResult result = WriteLocked(buffer, bytes, &copy);
+  StreamResult result = WriteOffsetLocked(buffer, bytes, 0, &copy);
 
   if (result == SR_SUCCESS) {
     // If write was successful then adjust the number of readable bytes.
@@ -154,15 +189,22 @@ void FifoBuffer::ConsumeWriteBuffer(size_t size) {
   }
 }
 
-StreamResult FifoBuffer::ReadLocked(void* buffer,
-                                    size_t bytes,
-                                    size_t* bytes_read) {
-  if (data_length_ == 0) {
+bool FifoBuffer::GetWriteRemaining(size_t* size) const {
+  webrtc::MutexLock lock(&mutex_);
+  *size = buffer_length_ - data_length_;
+  return true;
+}
+
+StreamResult FifoBuffer::ReadOffsetLocked(void* buffer,
+                                          size_t bytes,
+                                          size_t offset,
+                                          size_t* bytes_read) {
+  if (offset >= data_length_) {
     return (state_ != SS_CLOSED) ? SR_BLOCK : SR_EOS;
   }
 
-  const size_t available = data_length_;
-  const size_t read_position = read_position_ % buffer_length_;
+  const size_t available = data_length_ - offset;
+  const size_t read_position = (read_position_ + offset) % buffer_length_;
   const size_t copy = std::min(bytes, available);
   const size_t tail_copy = std::min(copy, buffer_length_ - read_position);
   char* const p = static_cast<char*>(buffer);
@@ -175,20 +217,21 @@ StreamResult FifoBuffer::ReadLocked(void* buffer,
   return SR_SUCCESS;
 }
 
-StreamResult FifoBuffer::WriteLocked(const void* buffer,
-                                     size_t bytes,
-                                     size_t* bytes_written) {
+StreamResult FifoBuffer::WriteOffsetLocked(const void* buffer,
+                                           size_t bytes,
+                                           size_t offset,
+                                           size_t* bytes_written) {
   if (state_ == SS_CLOSED) {
     return SR_EOS;
   }
 
-  if (data_length_ >= buffer_length_) {
+  if (data_length_ + offset >= buffer_length_) {
     return SR_BLOCK;
   }
 
-  const size_t available = buffer_length_ - data_length_;
+  const size_t available = buffer_length_ - data_length_ - offset;
   const size_t write_position =
-      (read_position_ + data_length_) % buffer_length_;
+      (read_position_ + data_length_ + offset) % buffer_length_;
   const size_t copy = std::min(bytes, available);
   const size_t tail_copy = std::min(copy, buffer_length_ - write_position);
   const char* const p = static_cast<const char*>(buffer);

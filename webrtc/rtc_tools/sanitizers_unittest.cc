@@ -55,7 +55,6 @@ TEST(SanitizersDeathTest, AddressSanitizer) {
 void SignedIntegerOverflow() {
   int32_t x = 1234567890;
   x *= 2;
-  (void)x;
 }
 
 // For ubsan_vptr:

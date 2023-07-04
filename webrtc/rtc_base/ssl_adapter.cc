@@ -16,11 +16,11 @@
 
 namespace rtc {
 
-std::unique_ptr<SSLAdapterFactory> SSLAdapterFactory::Create() {
-  return std::make_unique<OpenSSLAdapterFactory>();
+SSLAdapterFactory* SSLAdapterFactory::Create() {
+  return new OpenSSLAdapterFactory();
 }
 
-SSLAdapter* SSLAdapter::Create(Socket* socket) {
+SSLAdapter* SSLAdapter::Create(AsyncSocket* socket) {
   return new OpenSSLAdapter(socket);
 }
 

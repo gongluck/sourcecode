@@ -22,7 +22,10 @@ EncoderSimulcastProxy::EncoderSimulcastProxy(VideoEncoderFactory* factory,
   encoder_ = factory_->CreateVideoEncoder(format);
 }
 
-EncoderSimulcastProxy::~EncoderSimulcastProxy() = default;
+EncoderSimulcastProxy::EncoderSimulcastProxy(VideoEncoderFactory* factory)
+    : EncoderSimulcastProxy(factory, SdpVideoFormat("VP8")) {}
+
+EncoderSimulcastProxy::~EncoderSimulcastProxy() {}
 
 int EncoderSimulcastProxy::Release() {
   return encoder_->Release();

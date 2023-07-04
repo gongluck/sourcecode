@@ -20,33 +20,34 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_utils.h"
-#include "rtc_base/win/windows_version.h"
+#include "rtc_base/win32.h"
 
 namespace webrtc {
 
 namespace {
 
 struct GetWindowListParams {
-  GetWindowListParams(int flags,
-                      LONG ex_style_filters,
-                      DesktopCapturer::SourceList* result)
-      : ignore_untitled(flags & GetWindowListFlags::kIgnoreUntitled),
-        ignore_unresponsive(flags & GetWindowListFlags::kIgnoreUnresponsive),
-        ignore_current_process_windows(
-            flags & GetWindowListFlags::kIgnoreCurrentProcessWindows),
-        ex_style_filters(ex_style_filters),
+  GetWindowListParams(int flags, DesktopCapturer::SourceList* result)
+      : ignoreUntitled(flags & GetWindowListFlags::kIgnoreUntitled),
+        ignoreUnresponsive(flags & GetWindowListFlags::kIgnoreUnresponsive),
         result(result) {}
-  const bool ignore_untitled;
-  const bool ignore_unresponsive;
-  const bool ignore_current_process_windows;
-  const LONG ex_style_filters;
+  const bool ignoreUntitled;
+  const bool ignoreUnresponsive;
   DesktopCapturer::SourceList* const result;
 };
 
-bool IsWindowOwnedByCurrentProcess(HWND hwnd) {
+// If a window is owned by the current process and unresponsive, then making a
+// blocking call such as GetWindowText may lead to a deadlock.
+//
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta#remarks
+bool CanSafelyMakeBlockingCalls(HWND hwnd) {
   DWORD process_id;
   GetWindowThreadProcessId(hwnd, &process_id);
-  return process_id == GetCurrentProcessId();
+  if (process_id != GetCurrentProcessId() || IsWindowResponding(hwnd)) {
+    return true;
+  }
+
+  return false;
 }
 
 BOOL CALLBACK GetWindowListHandler(HWND hwnd, LPARAM param) {
@@ -66,40 +67,19 @@ BOOL CALLBACK GetWindowListHandler(HWND hwnd, LPARAM param) {
     return TRUE;
   }
 
-  // Filter out windows that match the extended styles the caller has specified,
-  // e.g. WS_EX_TOOLWINDOW for capturers that don't support overlay windows.
-  if (exstyle & params->ex_style_filters) {
-    return TRUE;
-  }
-
-  if (params->ignore_unresponsive && !IsWindowResponding(hwnd)) {
+  if (params->ignoreUnresponsive && !IsWindowResponding(hwnd)) {
     return TRUE;
   }
 
   DesktopCapturer::Source window;
   window.id = reinterpret_cast<WindowId>(hwnd);
 
-  // GetWindowText* are potentially blocking operations if `hwnd` is
-  // owned by the current process. The APIs will send messages to the window's
-  // message loop, and if the message loop is waiting on this operation we will
-  // enter a deadlock.
-  // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta#remarks
-  //
-  // To help consumers avoid this, there is a DesktopCaptureOption to ignore
-  // windows owned by the current process. Consumers should either ensure that
-  // the thread running their message loop never waits on this operation, or use
-  // the option to exclude these windows from the source list.
-  bool owned_by_current_process = IsWindowOwnedByCurrentProcess(hwnd);
-  if (owned_by_current_process && params->ignore_current_process_windows) {
-    return TRUE;
-  }
-
-  // Even if consumers request to enumerate windows owned by the current
-  // process, we should not call GetWindowText* on unresponsive windows owned by
-  // the current process because we will hang. Unfortunately, we could still
-  // hang if the window becomes unresponsive after this check, hence the option
-  // to avoid these completely.
-  if (!owned_by_current_process || IsWindowResponding(hwnd)) {
+  // GetWindowText* are potentially blocking operations if |hwnd| is
+  // owned by the current process, and can lead to a deadlock if the message
+  // pump is waiting on this thread. If we've filtered out unresponsive
+  // windows, this is not a concern, but otherwise we need to check if we can
+  // safely make blocking calls.
+  if (params->ignoreUnresponsive || CanSafelyMakeBlockingCalls(hwnd)) {
     const size_t kTitleLength = 500;
     WCHAR window_title[kTitleLength] = L"";
     if (GetWindowTextLength(hwnd) != 0 &&
@@ -109,7 +89,7 @@ BOOL CALLBACK GetWindowListHandler(HWND hwnd, LPARAM param) {
   }
 
   // Skip windows when we failed to convert the title or it is empty.
-  if (params->ignore_untitled && window.title.empty())
+  if (params->ignoreUntitled && window.title.empty())
     return TRUE;
 
   // Capture the window class name, to allow specific window classes to be
@@ -179,8 +159,7 @@ bool GetCroppedWindowRect(HWND window,
   // As of Windows8, transparent resize borders are added by the OS at
   // left/bottom/right sides of a resizeable window. If the cropped window
   // doesn't remove these borders, the background will be exposed a bit.
-  if (rtc::rtc_win::GetVersion() >= rtc::rtc_win::Version::VERSION_WIN8 ||
-      is_maximized) {
+  if (rtc::IsWindows8OrLater() || is_maximized) {
     // Only apply this cropping to windows with a resize border (otherwise,
     // it'd clip the edges of captured pop-up windows without this border).
     LONG style = GetWindowLong(window, GWL_STYLE);
@@ -229,7 +208,7 @@ bool GetWindowContentRect(HWND window, DesktopRect* result) {
     // - We assume a window has same border width in each side.
     // So we shrink half of the width difference from all four sides.
     const int shrink = ((width - result->width()) / 2);
-    // When `shrink` is negative, DesktopRect::Extend() shrinks itself.
+    // When |shrink| is negative, DesktopRect::Extend() shrinks itself.
     result->Extend(shrink, 0, shrink, 0);
     // Usually this should not happen, just in case we have received a strange
     // window, which has only left and right borders.
@@ -292,10 +271,8 @@ bool IsWindowResponding(HWND window) {
                             nullptr);
 }
 
-bool GetWindowList(int flags,
-                   DesktopCapturer::SourceList* windows,
-                   LONG ex_style_filters) {
-  GetWindowListParams params(flags, ex_style_filters, windows);
+bool GetWindowList(int flags, DesktopCapturer::SourceList* windows) {
+  GetWindowListParams params(flags, windows);
   return ::EnumWindows(&GetWindowListHandler,
                        reinterpret_cast<LPARAM>(&params)) != 0;
 }
@@ -312,7 +289,7 @@ WindowCaptureHelperWin::WindowCaptureHelperWin() {
             GetProcAddress(dwmapi_library_, "DwmGetWindowAttribute"));
   }
 
-  if (rtc::rtc_win::GetVersion() >= rtc::rtc_win::Version::VERSION_WIN10) {
+  if (rtc::IsWindows10OrLater()) {
     if (FAILED(::CoCreateInstance(__uuidof(VirtualDesktopManager), nullptr,
                                   CLSCTX_ALL,
                                   IID_PPV_ARGS(&virtual_desktop_manager_)))) {
@@ -365,7 +342,7 @@ bool WindowCaptureHelperWin::IsWindowChromeNotification(HWND hwnd) {
   return false;
 }
 
-// `content_rect` is preferred because,
+// |content_rect| is preferred because,
 // 1. WindowCapturerWinGdi is using GDI capturer, which cannot capture DX
 // output.
 //    So ScreenCapturer should be used as much as possible to avoid
@@ -455,16 +432,10 @@ bool WindowCaptureHelperWin::IsWindowCloaked(HWND hwnd) {
 }
 
 bool WindowCaptureHelperWin::EnumerateCapturableWindows(
-    DesktopCapturer::SourceList* results,
-    bool enumerate_current_process_windows,
-    LONG ex_style_filters) {
-  int flags = (GetWindowListFlags::kIgnoreUntitled |
-               GetWindowListFlags::kIgnoreUnresponsive);
-  if (!enumerate_current_process_windows) {
-    flags |= GetWindowListFlags::kIgnoreCurrentProcessWindows;
-  }
-
-  if (!webrtc::GetWindowList(flags, results, ex_style_filters)) {
+    DesktopCapturer::SourceList* results) {
+  if (!webrtc::GetWindowList((GetWindowListFlags::kIgnoreUntitled |
+                              GetWindowListFlags::kIgnoreUnresponsive),
+                             results)) {
     return false;
   }
 

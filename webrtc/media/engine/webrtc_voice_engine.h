@@ -38,6 +38,8 @@ class AudioFrameProcessor;
 
 namespace cricket {
 
+class AudioDeviceModule;
+class AudioMixer;
 class AudioSource;
 class WebRtcVoiceMediaChannel;
 
@@ -77,6 +79,12 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   const std::vector<AudioCodec>& recv_codecs() const override;
   std::vector<webrtc::RtpHeaderExtensionCapability> GetRtpHeaderExtensions()
       const override;
+
+  // For tracking WebRtc channels. Needed because we have to pause them
+  // all when switching devices.
+  // May only be called by WebRtcVoiceMediaChannel.
+  void RegisterChannel(WebRtcVoiceMediaChannel* channel);
+  void UnregisterChannel(WebRtcVoiceMediaChannel* channel);
 
   // Starts AEC dump using an existing file. A maximum file size in bytes can be
   // specified. When the maximum file size is reached, logging is stopped and
@@ -121,6 +129,7 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
   std::vector<AudioCodec> send_codecs_;
   std::vector<AudioCodec> recv_codecs_;
+  std::vector<WebRtcVoiceMediaChannel*> channels_;
   bool is_dumping_aec_ = false;
   bool initialized_ = false;
 
@@ -133,9 +142,9 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   int audio_jitter_buffer_min_delay_ms_ = 0;
   bool audio_jitter_buffer_enable_rtx_handling_ = false;
 
-  // If this field is enabled, we will negotiate and use RFC 2198
+  // If this field trial is enabled, we will negotiate and use RFC 2198
   // redundancy for opus audio.
-  const bool audio_red_for_opus_enabled_;
+  const bool audio_red_for_opus_trial_enabled_;
   const bool minimized_remsampling_on_mobile_trial_enabled_;
 };
 
@@ -178,8 +187,6 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   bool AddRecvStream(const StreamParams& sp) override;
   bool RemoveRecvStream(uint32_t ssrc) override;
   void ResetUnsignaledRecvStream() override;
-  void OnDemuxerCriteriaUpdatePending() override;
-  void OnDemuxerCriteriaUpdateComplete() override;
 
   // E2EE Frame API
   // Set a frame decryptor to a particular ssrc that will intercept all
@@ -208,7 +215,6 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
 
   void OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                         int64_t packet_time_us) override;
-  void OnPacketSent(const rtc::SentPacket& sent_packet) override;
   void OnNetworkRouteChanged(const std::string& transport_name,
                              const rtc::NetworkRoute& network_route) override;
   void OnReadyToSend(bool ready) override;
@@ -239,9 +245,29 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   // implements Transport interface
   bool SendRtp(const uint8_t* data,
                size_t len,
-               const webrtc::PacketOptions& options) override;
+               const webrtc::PacketOptions& options) override {
+    rtc::CopyOnWriteBuffer packet(data, len, kMaxRtpPacketLen);
+    rtc::PacketOptions rtc_options;
+    rtc_options.packet_id = options.packet_id;
+    if (DscpEnabled()) {
+      rtc_options.dscp = PreferredDscp();
+    }
+    rtc_options.info_signaled_after_sent.included_in_feedback =
+        options.included_in_feedback;
+    rtc_options.info_signaled_after_sent.included_in_allocation =
+        options.included_in_allocation;
+    return VoiceMediaChannel::SendPacket(&packet, rtc_options);
+  }
 
-  bool SendRtcp(const uint8_t* data, size_t len) override;
+  bool SendRtcp(const uint8_t* data, size_t len) override {
+    rtc::CopyOnWriteBuffer packet(data, len, kMaxRtpPacketLen);
+    rtc::PacketOptions rtc_options;
+    if (DscpEnabled()) {
+      rtc_options.dscp = PreferredDscp();
+    }
+
+    return VoiceMediaChannel::SendRtcp(&packet, rtc_options);
+  }
 
  private:
   bool SetOptions(const AudioOptions& options);
@@ -277,7 +303,6 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   int dtmf_payload_freq_ = -1;
   bool recv_transport_cc_enabled_ = false;
   bool recv_nack_enabled_ = false;
-  bool enable_non_sender_rtt_ = false;
   bool playout_ = false;
   bool send_ = false;
   webrtc::Call* const call_ = nullptr;
@@ -329,7 +354,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   rtc::scoped_refptr<webrtc::FrameDecryptorInterface>
       unsignaled_frame_decryptor_;
 
-  const bool audio_red_for_opus_enabled_;
+  const bool audio_red_for_opus_trial_enabled_;
 };
 }  // namespace cricket
 

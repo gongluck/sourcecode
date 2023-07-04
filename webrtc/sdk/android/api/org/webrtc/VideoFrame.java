@@ -13,7 +13,6 @@ package org.webrtc;
 import android.graphics.Matrix;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
-import androidx.annotation.Nullable;
 import java.nio.ByteBuffer;
 
 /**
@@ -27,7 +26,6 @@ import java.nio.ByteBuffer;
  * WebRTC software encoders.
  */
 public class VideoFrame implements RefCounted {
-
   /**
    * Implements image storage medium. Might be for example an OpenGL texture or a memory region
    * containing I420-data.
@@ -37,102 +35,59 @@ public class VideoFrame implements RefCounted {
    */
   public interface Buffer extends RefCounted {
     /**
-     * Representation of the underlying buffer. Currently, only NATIVE and I420 are supported.
-     */
-    @CalledByNative("Buffer")
-    @VideoFrameBufferType
-    default int getBufferType() {
-      return VideoFrameBufferType.NATIVE;
-    }
-
-    /**
      * Resolution of the buffer in pixels.
      */
-    @CalledByNative("Buffer")
-    int getWidth();
-
-    @CalledByNative("Buffer")
-    int getHeight();
+    @CalledByNative("Buffer") int getWidth();
+    @CalledByNative("Buffer") int getHeight();
 
     /**
      * Returns a memory-backed frame in I420 format. If the pixel data is in another format, a
      * conversion will take place. All implementations must provide a fallback to I420 for
      * compatibility with e.g. the internal WebRTC software encoders.
-     *
-     * <p> Conversion may fail, for example if reading the pixel data from a texture fails. If the
-     * conversion fails, null is returned.
      */
-    @Nullable
-    @CalledByNative("Buffer")
-    I420Buffer toI420();
+    @CalledByNative("Buffer") I420Buffer toI420();
 
-    @Override
-    @CalledByNative("Buffer")
-    void retain();
-
-    @Override
-    @CalledByNative("Buffer")
-    void release();
+    @Override @CalledByNative("Buffer") void retain();
+    @Override @CalledByNative("Buffer") void release();
 
     /**
-     * Crops a region defined by `cropx`, `cropY`, `cropWidth` and `cropHeight`. Scales it to size
-     * `scaleWidth` x `scaleHeight`.
+     * Crops a region defined by |cropx|, |cropY|, |cropWidth| and |cropHeight|. Scales it to size
+     * |scaleWidth| x |scaleHeight|.
      */
     @CalledByNative("Buffer")
     Buffer cropAndScale(
-      int cropX,
-      int cropY,
-      int cropWidth,
-      int cropHeight,
-      int scaleWidth,
-      int scaleHeight
-    );
+        int cropX, int cropY, int cropWidth, int cropHeight, int scaleWidth, int scaleHeight);
   }
 
   /**
    * Interface for I420 buffers.
    */
   public interface I420Buffer extends Buffer {
-    @Override
-    default int getBufferType() {
-      return VideoFrameBufferType.I420;
-    }
-
     /**
      * Returns a direct ByteBuffer containing Y-plane data. The buffer capacity is at least
      * getStrideY() * getHeight() bytes. The position of the returned buffer is ignored and must
      * be 0. Callers may mutate the ByteBuffer (eg. through relative-read operations), so
      * implementations must return a new ByteBuffer or slice for each call.
      */
-    @CalledByNative("I420Buffer")
-    ByteBuffer getDataY();
-
+    @CalledByNative("I420Buffer") ByteBuffer getDataY();
     /**
      * Returns a direct ByteBuffer containing U-plane data. The buffer capacity is at least
      * getStrideU() * ((getHeight() + 1) / 2) bytes. The position of the returned buffer is ignored
      * and must be 0. Callers may mutate the ByteBuffer (eg. through relative-read operations), so
      * implementations must return a new ByteBuffer or slice for each call.
      */
-    @CalledByNative("I420Buffer")
-    ByteBuffer getDataU();
-
+    @CalledByNative("I420Buffer") ByteBuffer getDataU();
     /**
      * Returns a direct ByteBuffer containing V-plane data. The buffer capacity is at least
      * getStrideV() * ((getHeight() + 1) / 2) bytes. The position of the returned buffer is ignored
      * and must be 0. Callers may mutate the ByteBuffer (eg. through relative-read operations), so
      * implementations must return a new ByteBuffer or slice for each call.
      */
-    @CalledByNative("I420Buffer")
-    ByteBuffer getDataV();
+    @CalledByNative("I420Buffer") ByteBuffer getDataV();
 
-    @CalledByNative("I420Buffer")
-    int getStrideY();
-
-    @CalledByNative("I420Buffer")
-    int getStrideU();
-
-    @CalledByNative("I420Buffer")
-    int getStrideV();
+    @CalledByNative("I420Buffer") int getStrideY();
+    @CalledByNative("I420Buffer") int getStrideU();
+    @CalledByNative("I420Buffer") int getStrideV();
   }
 
   /**

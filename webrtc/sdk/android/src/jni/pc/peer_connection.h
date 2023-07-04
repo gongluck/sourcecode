@@ -72,8 +72,6 @@ class PeerConnectionObserverJni : public PeerConnectionObserver {
                       streams) override;
   void OnTrack(
       rtc::scoped_refptr<RtpTransceiverInterface> transceiver) override;
-  void OnRemoveTrack(
-      rtc::scoped_refptr<RtpReceiverInterface> receiver) override;
 
  private:
   typedef std::map<MediaStreamInterface*, JavaMediaStream>

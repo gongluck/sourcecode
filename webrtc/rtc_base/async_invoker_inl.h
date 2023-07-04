@@ -21,33 +21,32 @@
 
 namespace rtc {
 
-class DEPRECATED_AsyncInvoker;
+class AsyncInvoker;
 
-// Helper class for DEPRECATED_AsyncInvoker. Runs a task and triggers a callback
+// Helper class for AsyncInvoker. Runs a task and triggers a callback
 // on the calling thread if necessary.
 class AsyncClosure {
  public:
-  explicit AsyncClosure(DEPRECATED_AsyncInvoker* invoker);
+  explicit AsyncClosure(AsyncInvoker* invoker);
   virtual ~AsyncClosure();
   // Runs the asynchronous task, and triggers a callback to the calling
   // thread if needed. Should be called from the target thread.
   virtual void Execute() = 0;
 
  protected:
-  DEPRECATED_AsyncInvoker* invoker_;
+  AsyncInvoker* invoker_;
   // Reference counted so that if the AsyncInvoker destructor finishes before
   // an AsyncClosure's destructor that's about to call
   // "invocation_complete_->Set()", it's not dereferenced after being
   // destroyed.
-  rtc::Ref<Event>::Ptr invocation_complete_;
+  scoped_refptr<RefCountedObject<Event>> invocation_complete_;
 };
 
 // Simple closure that doesn't trigger a callback for the calling thread.
 template <class FunctorT>
 class FireAndForgetAsyncClosure : public AsyncClosure {
  public:
-  explicit FireAndForgetAsyncClosure(DEPRECATED_AsyncInvoker* invoker,
-                                     FunctorT&& functor)
+  explicit FireAndForgetAsyncClosure(AsyncInvoker* invoker, FunctorT&& functor)
       : AsyncClosure(invoker), functor_(std::forward<FunctorT>(functor)) {}
   virtual void Execute() { functor_(); }
 

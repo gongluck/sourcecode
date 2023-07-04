@@ -114,10 +114,10 @@ class DummyPeerConnection : public PeerConnectionInterface {
   }
   void ClearStatsCache() override {}
 
-  RTCErrorOr<rtc::scoped_refptr<DataChannelInterface>> CreateDataChannelOrError(
+  rtc::scoped_refptr<DataChannelInterface> CreateDataChannel(
       const std::string& label,
       const DataChannelInit* config) override {
-    return RTCError(RTCErrorType::INTERNAL_ERROR, "Dummy function called");
+    return nullptr;
   }
 
   const SessionDescriptionInterface* local_description() const override {

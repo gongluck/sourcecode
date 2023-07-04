@@ -18,7 +18,7 @@
 namespace webrtc {
 
 void FuzzAudioProcessing(test::FuzzDataHelper* fuzz_data,
-                         rtc::scoped_refptr<AudioProcessing> apm);
+                         std::unique_ptr<AudioProcessing> apm);
 
 }  // namespace webrtc
 

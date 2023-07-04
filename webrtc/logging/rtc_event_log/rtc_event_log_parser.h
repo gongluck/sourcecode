@@ -14,6 +14,7 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <sstream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
 #include <utility>  // pair
 #include <vector>
@@ -64,108 +65,144 @@ namespace webrtc {
 
 enum PacketDirection { kIncomingPacket = 0, kOutgoingPacket };
 
-// This class is used to process lists of LoggedRtpPacketIncoming
-// and LoggedRtpPacketOutgoing without duplicating the code.
-// TODO(terelius): Remove this class. Instead use e.g. a vector of pointers
-// to LoggedRtpPacket or templatize the surrounding code.
 template <typename T>
-class DereferencingVector {
+class PacketView;
+
+template <typename T>
+class PacketIterator {
+  friend class PacketView<T>;
+
  public:
-  template <bool IsConst>
-  class DereferencingIterator {
-   public:
-    // Standard iterator traits.
-    using difference_type = std::ptrdiff_t;
-    using value_type = T;
-    using pointer = typename std::conditional_t<IsConst, const T*, T*>;
-    using reference = typename std::conditional_t<IsConst, const T&, T&>;
-    using iterator_category = std::bidirectional_iterator_tag;
+  // Standard iterator traits.
+  using difference_type = std::ptrdiff_t;
+  using value_type = T;
+  using pointer = T*;
+  using reference = T&;
+  using iterator_category = std::bidirectional_iterator_tag;
 
-    using representation =
-        typename std::conditional_t<IsConst, const T* const*, T**>;
+  // The default-contructed iterator is meaningless, but is required by the
+  // ForwardIterator concept.
+  PacketIterator() : ptr_(nullptr), element_size_(0) {}
+  PacketIterator(const PacketIterator& other)
+      : ptr_(other.ptr_), element_size_(other.element_size_) {}
+  PacketIterator(const PacketIterator&& other)
+      : ptr_(other.ptr_), element_size_(other.element_size_) {}
+  ~PacketIterator() = default;
 
-    explicit DereferencingIterator(representation ptr) : ptr_(ptr) {}
+  PacketIterator& operator=(const PacketIterator& other) {
+    ptr_ = other.ptr_;
+    element_size_ = other.element_size_;
+    return *this;
+  }
+  PacketIterator& operator=(const PacketIterator&& other) {
+    ptr_ = other.ptr_;
+    element_size_ = other.element_size_;
+    return *this;
+  }
 
-    DereferencingIterator(const DereferencingIterator& other)
-        : ptr_(other.ptr_) {}
-    DereferencingIterator(const DereferencingIterator&& other)
-        : ptr_(other.ptr_) {}
-    ~DereferencingIterator() = default;
+  bool operator==(const PacketIterator<T>& other) const {
+    RTC_DCHECK_EQ(element_size_, other.element_size_);
+    return ptr_ == other.ptr_;
+  }
+  bool operator!=(const PacketIterator<T>& other) const {
+    RTC_DCHECK_EQ(element_size_, other.element_size_);
+    return ptr_ != other.ptr_;
+  }
 
-    DereferencingIterator& operator=(const DereferencingIterator& other) {
-      ptr_ = other.ptr_;
-      return *this;
-    }
-    DereferencingIterator& operator=(const DereferencingIterator&& other) {
-      ptr_ = other.ptr_;
-      return *this;
-    }
+  PacketIterator& operator++() {
+    ptr_ += element_size_;
+    return *this;
+  }
+  PacketIterator& operator--() {
+    ptr_ -= element_size_;
+    return *this;
+  }
+  PacketIterator operator++(int) {
+    PacketIterator iter_copy(ptr_, element_size_);
+    ptr_ += element_size_;
+    return iter_copy;
+  }
+  PacketIterator operator--(int) {
+    PacketIterator iter_copy(ptr_, element_size_);
+    ptr_ -= element_size_;
+    return iter_copy;
+  }
 
-    bool operator==(const DereferencingIterator& other) const {
-      return ptr_ == other.ptr_;
-    }
-    bool operator!=(const DereferencingIterator& other) const {
-      return ptr_ != other.ptr_;
-    }
+  T& operator*() { return *reinterpret_cast<T*>(ptr_); }
+  const T& operator*() const { return *reinterpret_cast<const T*>(ptr_); }
 
-    DereferencingIterator& operator++() {
-      ++ptr_;
-      return *this;
-    }
-    DereferencingIterator& operator--() {
-      --ptr_;
-      return *this;
-    }
-    DereferencingIterator operator++(int) {
-      DereferencingIterator iter_copy(ptr_);
-      ++ptr_;
-      return iter_copy;
-    }
-    DereferencingIterator operator--(int) {
-      DereferencingIterator iter_copy(ptr_);
-      --ptr_;
-      return iter_copy;
-    }
+  T* operator->() { return reinterpret_cast<T*>(ptr_); }
+  const T* operator->() const { return reinterpret_cast<const T*>(ptr_); }
 
-    template <bool _IsConst = IsConst>
-    std::enable_if_t<!_IsConst, reference> operator*() {
-      return **ptr_;
-    }
+ private:
+  PacketIterator(typename std::conditional<std::is_const<T>::value,
+                                           const void*,
+                                           void*>::type p,
+                 size_t s)
+      : ptr_(reinterpret_cast<decltype(ptr_)>(p)), element_size_(s) {}
 
-    template <bool _IsConst = IsConst>
-    std::enable_if_t<_IsConst, reference> operator*() const {
-      return **ptr_;
-    }
+  typename std::conditional<std::is_const<T>::value, const char*, char*>::type
+      ptr_;
+  size_t element_size_;
+};
 
-    template <bool _IsConst = IsConst>
-    std::enable_if_t<!_IsConst, pointer> operator->() {
-      return *ptr_;
-    }
-
-    template <bool _IsConst = IsConst>
-    std::enable_if_t<_IsConst, pointer> operator->() const {
-      return *ptr_;
-    }
-
-   private:
-    representation ptr_;
-  };
+// Suppose that we have a struct S where we are only interested in a specific
+// member M. Given an array of S, PacketView can be used to treat the array
+// as an array of M, without exposing the type S to surrounding code and without
+// accessing the member through a virtual function. In this case, we want to
+// have a common view for incoming and outgoing RtpPackets, hence the PacketView
+// name.
+// Note that constructing a PacketView bypasses the typesystem, so the caller
+// has to take extra care when constructing these objects. The implementation
+// also requires that the containing struct is standard-layout (e.g. POD).
+//
+// Usage example:
+// struct A {...};
+// struct B { A a; ...};
+// struct C { A a; ...};
+// size_t len = 10;
+// B* array1 = new B[len];
+// C* array2 = new C[len];
+//
+// PacketView<A> view1 = PacketView<A>::Create<B>(array1, len, offsetof(B, a));
+// PacketView<A> view2 = PacketView<A>::Create<C>(array2, len, offsetof(C, a));
+//
+// The following code works with either view1 or view2.
+// void f(PacketView<A> view)
+// for (A& a : view) {
+//   DoSomething(a);
+// }
+template <typename T>
+class PacketView {
+ public:
+  template <typename U>
+  static PacketView Create(U* ptr, size_t num_elements, size_t offset) {
+    static_assert(std::is_standard_layout<U>::value,
+                  "PacketView can only be created for standard layout types.");
+    static_assert(std::is_standard_layout<T>::value,
+                  "PacketView can only be created for standard layout types.");
+    return PacketView(ptr, num_elements, offset, sizeof(U));
+  }
 
   using value_type = T;
   using reference = value_type&;
   using const_reference = const value_type&;
 
-  using iterator = DereferencingIterator<false>;
-  using const_iterator = DereferencingIterator<true>;
+  using iterator = PacketIterator<T>;
+  using const_iterator = PacketIterator<const T>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  iterator begin() { return iterator(elems_.data()); }
-  iterator end() { return iterator(elems_.data() + elems_.size()); }
+  iterator begin() { return iterator(data_, element_size_); }
+  iterator end() {
+    auto end_ptr = data_ + num_elements_ * element_size_;
+    return iterator(end_ptr, element_size_);
+  }
 
-  const_iterator begin() const { return const_iterator(elems_.data()); }
+  const_iterator begin() const { return const_iterator(data_, element_size_); }
   const_iterator end() const {
-    return const_iterator(elems_.data() + elems_.size());
+    auto end_ptr = data_ + num_elements_ * element_size_;
+    return const_iterator(end_ptr, element_size_);
   }
 
   reverse_iterator rbegin() { return reverse_iterator(end()); }
@@ -178,27 +215,35 @@ class DereferencingVector {
     return const_reverse_iterator(begin());
   }
 
-  size_t size() const { return elems_.size(); }
+  size_t size() const { return num_elements_; }
 
-  bool empty() const { return elems_.empty(); }
+  bool empty() const { return num_elements_ == 0; }
 
   T& operator[](size_t i) {
-    RTC_DCHECK_LT(i, elems_.size());
-    return *elems_[i];
+    auto elem_ptr = data_ + i * element_size_;
+    return *reinterpret_cast<T*>(elem_ptr);
   }
 
   const T& operator[](size_t i) const {
-    RTC_DCHECK_LT(i, elems_.size());
-    return *elems_[i];
-  }
-
-  void push_back(T* elem) {
-    RTC_DCHECK(elem != nullptr);
-    elems_.push_back(elem);
+    auto elem_ptr = data_ + i * element_size_;
+    return *reinterpret_cast<const T*>(elem_ptr);
   }
 
  private:
-  std::vector<T*> elems_;
+  PacketView(typename std::conditional<std::is_const<T>::value,
+                                       const void*,
+                                       void*>::type data,
+             size_t num_elements,
+             size_t offset,
+             size_t element_size)
+      : data_(reinterpret_cast<decltype(data_)>(data) + offset),
+        num_elements_(num_elements),
+        element_size_(element_size) {}
+
+  typename std::conditional<std::is_const<T>::value, const char*, char*>::type
+      data_;
+  size_t num_elements_;
+  size_t element_size_;
 };
 
 // Conversion functions for version 2 of the wire format.
@@ -301,12 +346,14 @@ class ParsedRtcEventLog {
 
   struct LoggedRtpStreamView {
     LoggedRtpStreamView(uint32_t ssrc,
-                        const std::vector<LoggedRtpPacketIncoming>& packets);
+                        const LoggedRtpPacketIncoming* ptr,
+                        size_t num_elements);
     LoggedRtpStreamView(uint32_t ssrc,
-                        const std::vector<LoggedRtpPacketOutgoing>& packets);
+                        const LoggedRtpPacketOutgoing* ptr,
+                        size_t num_elements);
     LoggedRtpStreamView(const LoggedRtpStreamView&);
     uint32_t ssrc;
-    DereferencingVector<const LoggedRtpPacket> packet_view;
+    PacketView<const LoggedRtpPacket> packet_view;
   };
 
   class LogSegment {
@@ -342,8 +389,9 @@ class ParsedRtcEventLog {
   // Reads an RtcEventLog from a string and returns success if successful.
   ParseStatus ParseString(const std::string& s);
 
-  // Reads an RtcEventLog from an string and returns success if successful.
-  ParseStatus ParseStream(const std::string& s);
+  // Reads an RtcEventLog from an istream and returns success if successful.
+  ParseStatus ParseStream(
+      std::istream& stream);  // no-presubmit-check TODO(webrtc:8982)
 
   MediaType GetMediaType(uint32_t ssrc, PacketDirection direction) const;
 
@@ -619,7 +667,8 @@ class ParsedRtcEventLog {
   std::vector<InferredRouteChangeEvent> GetRouteChanges() const;
 
  private:
-  ABSL_MUST_USE_RESULT ParseStatus ParseStreamInternal(absl::string_view s);
+  ABSL_MUST_USE_RESULT ParseStatus ParseStreamInternal(
+      std::istream& stream);  // no-presubmit-check TODO(webrtc:8982)
 
   ABSL_MUST_USE_RESULT ParseStatus
   StoreParsedLegacyEvent(const rtclog::Event& event);
@@ -627,14 +676,27 @@ class ParsedRtcEventLog {
   template <typename T>
   void StoreFirstAndLastTimestamp(const std::vector<T>& v);
 
+  // Reads the header, direction, header length and packet length from the RTP
+  // event at |index|, and stores the values in the corresponding output
+  // parameters. Each output parameter can be set to nullptr if that value
+  // isn't needed.
+  // NB: The header must have space for at least IP_PACKET_SIZE bytes.
+  ParseStatus GetRtpHeader(const rtclog::Event& event,
+                           PacketDirection* incoming,
+                           uint8_t* header,
+                           size_t* header_length,
+                           size_t* total_length,
+                           int* probe_cluster_id) const;
+
   // Returns: a pointer to a header extensions map acquired from parsing
   // corresponding Audio/Video Sender/Receiver config events.
   // Warning: if the same SSRC is reused by both video and audio streams during
   // call, extensions maps may be incorrect (the last one would be returned).
-  const RtpHeaderExtensionMap* GetRtpHeaderExtensionMap(bool incoming,
-                                                        uint32_t ssrc);
+  const RtpHeaderExtensionMap* GetRtpHeaderExtensionMap(
+      PacketDirection direction,
+      uint32_t ssrc);
 
-  // Reads packet, direction and packet length from the RTCP event at `index`,
+  // Reads packet, direction and packet length from the RTCP event at |index|,
   // and stores the values in the corresponding output parameters.
   // Each output parameter can be set to nullptr if that value isn't needed.
   // NB: The packet must have space for at least IP_PACKET_SIZE bytes.

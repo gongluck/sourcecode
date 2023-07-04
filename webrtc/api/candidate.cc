@@ -12,7 +12,6 @@
 
 #include "rtc_base/helpers.h"
 #include "rtc_base/ip_address.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace cricket {
@@ -27,14 +26,14 @@ Candidate::Candidate()
       network_cost_(0) {}
 
 Candidate::Candidate(int component,
-                     absl::string_view protocol,
+                     const std::string& protocol,
                      const rtc::SocketAddress& address,
                      uint32_t priority,
-                     absl::string_view username,
-                     absl::string_view password,
-                     absl::string_view type,
+                     const std::string& username,
+                     const std::string& password,
+                     const std::string& type,
                      uint32_t generation,
-                     absl::string_view foundation,
+                     const std::string& foundation,
                      uint16_t network_id,
                      uint16_t network_cost)
     : id_(rtc::CreateRandomString(8)),
@@ -92,7 +91,7 @@ uint32_t Candidate::GetPriority(uint32_t type_preference,
   //            (2^8)*(local preference) +
   //            (2^0)*(256 - component ID)
 
-  // `local_preference` length is 2 bytes, 0-65535 inclusive.
+  // |local_preference| length is 2 bytes, 0-65535 inclusive.
   // In our implemenation we will partion local_preference into
   //              0                 1
   //       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
@@ -101,9 +100,7 @@ uint32_t Candidate::GetPriority(uint32_t type_preference,
   //      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   // NIC Type - Type of the network adapter e.g. 3G/Wifi/Wired.
   // Addr Pref - Address preference value as per RFC 3484.
-  // local preference =  (NIC Type << 8 | Addr_Pref) + relay preference.
-  // The relay preference is based on the number of TURN servers, the
-  // first TURN server gets the highest preference.
+  // local preference =  (NIC Type << 8 | Addr_Pref) - relay preference.
 
   int addr_pref = IPAddressPrecedence(address_.ipaddr());
   int local_preference =
@@ -132,34 +129,15 @@ Candidate Candidate::ToSanitizedCopy(bool use_hostname_address,
                                      bool filter_related_address) const {
   Candidate copy(*this);
   if (use_hostname_address) {
-    rtc::IPAddress ip;
-    if (address().hostname().empty()) {
-      // IP needs to be redacted, but no hostname available.
-      rtc::SocketAddress redacted_addr("redacted-ip.invalid", address().port());
-      copy.set_address(redacted_addr);
-    } else if (IPFromString(address().hostname(), &ip)) {
-      // The hostname is an IP literal, and needs to be redacted too.
-      rtc::SocketAddress redacted_addr("redacted-literal.invalid",
-                                       address().port());
-      copy.set_address(redacted_addr);
-    } else {
-      rtc::SocketAddress hostname_only_addr(address().hostname(),
-                                            address().port());
-      copy.set_address(hostname_only_addr);
-    }
+    rtc::SocketAddress hostname_only_addr(address().hostname(),
+                                          address().port());
+    copy.set_address(hostname_only_addr);
   }
   if (filter_related_address) {
     copy.set_related_address(
         rtc::EmptySocketAddressWithFamily(copy.address().family()));
   }
   return copy;
-}
-
-void Candidate::Assign(std::string& s, absl::string_view view) {
-  // Assigning via a temporary object, like s = std::string(view), results in
-  // binary size bloat. To avoid that, extract pointer and size from the
-  // string view, and use std::string::assign method.
-  s.assign(view.data(), view.size());
 }
 
 }  // namespace cricket

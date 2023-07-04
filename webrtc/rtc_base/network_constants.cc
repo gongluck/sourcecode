@@ -39,7 +39,7 @@ std::string AdapterTypeToString(AdapterType type) {
     case ADAPTER_TYPE_LOOPBACK:
       return "Loopback";
     default:
-      RTC_DCHECK_NOTREACHED() << "Invalid type " << type;
+      RTC_NOTREACHED() << "Invalid type " << type;
       return std::string();
   }
 }

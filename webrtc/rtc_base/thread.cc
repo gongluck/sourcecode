@@ -71,12 +71,10 @@ class ScopedAutoReleasePool {
 namespace rtc {
 namespace {
 
-//消息处理任务
 class MessageHandlerWithTask final : public MessageHandler {
  public:
   MessageHandlerWithTask() {}
 
-  //执行消息处理
   void OnMessage(Message* msg) override {
     static_cast<rtc_thread_internal::MessageLikeTask*>(msg->pdata)->Run();
     delete msg->pdata;
@@ -118,7 +116,7 @@ ThreadManager* ThreadManager::Instance() {
 
 ThreadManager::~ThreadManager() {
   // By above RTC_DEFINE_STATIC_LOCAL.
-  RTC_DCHECK_NOTREACHED() << "ThreadManager should never be destructed.";
+  RTC_NOTREACHED() << "ThreadManager should never be destructed.";
 }
 
 // static
@@ -285,8 +283,7 @@ void ThreadManager::SetCurrentThreadInternal(Thread* thread) {
 
 #if defined(WEBRTC_WIN)
 ThreadManager::ThreadManager()
-    : key_(TlsAlloc() /*线程局部变量索引*/),
-      main_thread_ref_(CurrentThreadRef()) {}
+    : key_(TlsAlloc()), main_thread_ref_(CurrentThreadRef()) {}
 
 Thread* ThreadManager::CurrentThread() {
   return static_cast<Thread*>(TlsGetValue(key_));
@@ -355,35 +352,6 @@ Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() {
   thread_->SetAllowBlockingCalls(previous_state_);
 }
 
-#if RTC_DCHECK_IS_ON
-Thread::ScopedCountBlockingCalls::ScopedCountBlockingCalls(
-    std::function<void(uint32_t, uint32_t)> callback)
-    : thread_(Thread::Current()),
-      base_blocking_call_count_(thread_->GetBlockingCallCount()),
-      base_could_be_blocking_call_count_(
-          thread_->GetCouldBeBlockingCallCount()),
-      result_callback_(std::move(callback)) {}
-
-Thread::ScopedCountBlockingCalls::~ScopedCountBlockingCalls() {
-  if (GetTotalBlockedCallCount() >= min_blocking_calls_for_callback_) {
-    result_callback_(GetBlockingCallCount(), GetCouldBeBlockingCallCount());
-  }
-}
-
-uint32_t Thread::ScopedCountBlockingCalls::GetBlockingCallCount() const {
-  return thread_->GetBlockingCallCount() - base_blocking_call_count_;
-}
-
-uint32_t Thread::ScopedCountBlockingCalls::GetCouldBeBlockingCallCount() const {
-  return thread_->GetCouldBeBlockingCallCount() -
-         base_could_be_blocking_call_count_;
-}
-
-uint32_t Thread::ScopedCountBlockingCalls::GetTotalBlockedCallCount() const {
-  return GetBlockingCallCount() + GetCouldBeBlockingCallCount();
-}
-#endif
-
 Thread::Thread(SocketServer* ss) : Thread(ss, /*do_init=*/true) {}
 
 Thread::Thread(std::unique_ptr<SocketServer> ss)
@@ -420,7 +388,6 @@ void Thread::DoInit() {
   }
 
   fInitialized_ = true;
-  //添加本线程到管理集合中
   ThreadManager::Add(this);
 }
 
@@ -433,11 +400,13 @@ void Thread::DoDestroy() {
   // The signal is done from here to ensure
   // that it always gets called when the queue
   // is going away.
+  SignalQueueDestroyed();
+  ThreadManager::Remove(this);
+  ClearInternal(nullptr, MQID_ANY, nullptr);
+
   if (ss_) {
     ss_->SetMessageQueue(nullptr);
   }
-  ThreadManager::Remove(this);
-  ClearInternal(nullptr, MQID_ANY, nullptr);
 }
 
 SocketServer* Thread::socketserver() {
@@ -547,7 +516,6 @@ bool Thread::Get(Message* pmsg, int cmsWait, bool process_io) {
     }
 
     {
-      //等待事件
       // Wait and multiplex in the meantime
       if (!ss_->Wait(static_cast<int>(cmsNext), process_io))
         return false;
@@ -582,16 +550,13 @@ void Thread::Post(const Location& posted_from,
 
   {
     CritScope cs(&crit_);
-    //构造消息
     Message msg;
     msg.posted_from = posted_from;
     msg.phandler = phandler;
     msg.message_id = id;
     msg.pdata = pdata;
-    //插入消息队列
     messages_.push_back(msg);
   }
-  //唤醒线程
   WakeUpSocketServer();
 }
 
@@ -710,7 +675,6 @@ void Thread::ClearInternal(MessageHandler* phandler,
   delayed_messages_.reheap();
 }
 
-//分发处理消息
 void Thread::Dispatch(Message* pmsg) {
   TRACE_EVENT2("webrtc", "Thread::Dispatch", "src_file",
                pmsg->posted_from.file_name(), "src_func",
@@ -884,7 +848,6 @@ void Thread::AssertBlockingIsAllowedOnCurrentThread() {
 #endif
 }
 
-//线程入口PreRun
 // static
 #if defined(WEBRTC_WIN)
 DWORD WINAPI Thread::PreRun(LPVOID pv) {
@@ -907,7 +870,6 @@ void* Thread::PreRun(void* pv) {
 #endif
 }  // namespace rtc
 
-//线程对象执行
 void Thread::Run() {
   ProcessMessages(kForever);
 }
@@ -939,11 +901,6 @@ void Thread::Send(const Location& posted_from,
   msg.message_id = id;
   msg.pdata = pdata;
   if (IsCurrent()) {
-#if RTC_DCHECK_IS_ON
-    RTC_DCHECK(this->IsInvokeToThreadAllowed(this));
-    RTC_DCHECK_RUN_ON(this);
-    could_be_blocking_call_count_++;
-#endif
     msg.phandler->OnMessage(&msg);
     return;
   }
@@ -954,8 +911,6 @@ void Thread::Send(const Location& posted_from,
 
 #if RTC_DCHECK_IS_ON
   if (current_thread) {
-    RTC_DCHECK_RUN_ON(current_thread);
-    current_thread->blocking_call_count_++;
     RTC_DCHECK(current_thread->IsInvokeToThreadAllowed(this));
     ThreadManager::Instance()->RegisterSendAndCheckForCycles(current_thread,
                                                              this);
@@ -1043,7 +998,7 @@ void Thread::ClearCurrentTaskQueue() {
 void Thread::QueuedTaskHandler::OnMessage(Message* msg) {
   RTC_DCHECK(msg);
   auto* data = static_cast<ScopedMessageData<webrtc::QueuedTask>*>(msg->pdata);
-  std::unique_ptr<webrtc::QueuedTask> task(data->Release());
+  std::unique_ptr<webrtc::QueuedTask> task = std::move(data->data());
   // Thread expects handler to own Message::pdata when OnMessage is called
   // Since MessageData is no longer needed, delete it.
   delete data;
@@ -1055,7 +1010,7 @@ void Thread::QueuedTaskHandler::OnMessage(Message* msg) {
 }
 
 void Thread::AllowInvokesToThread(Thread* thread) {
-#if (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
   if (!IsCurrent()) {
     PostTask(webrtc::ToQueuedTask(
         [thread, this]() { AllowInvokesToThread(thread); }));
@@ -1068,7 +1023,7 @@ void Thread::AllowInvokesToThread(Thread* thread) {
 }
 
 void Thread::DisallowAllInvokes() {
-#if (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
   if (!IsCurrent()) {
     PostTask(webrtc::ToQueuedTask([this]() { DisallowAllInvokes(); }));
     return;
@@ -1079,21 +1034,10 @@ void Thread::DisallowAllInvokes() {
 #endif
 }
 
-#if RTC_DCHECK_IS_ON
-uint32_t Thread::GetBlockingCallCount() const {
-  RTC_DCHECK_RUN_ON(this);
-  return blocking_call_count_;
-}
-uint32_t Thread::GetCouldBeBlockingCallCount() const {
-  RTC_DCHECK_RUN_ON(this);
-  return could_be_blocking_call_count_;
-}
-#endif
-
 // Returns true if no policies added or if there is at least one policy
-// that permits invocation to `target` thread.
+// that permits invocation to |target| thread.
 bool Thread::IsInvokeToThreadAllowed(rtc::Thread* target) {
-#if (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
   RTC_DCHECK_RUN_ON(this);
   if (!invoke_policy_enabled_) {
     return true;
@@ -1154,7 +1098,6 @@ bool Thread::ProcessMessages(int cmsLoop) {
 #if defined(WEBRTC_MAC)
     ScopedAutoReleasePool pool;
 #endif
-    //获取消息并分发处理
     Message msg;
     if (!Get(&msg, cmsNext))
       return !IsQuitting();
@@ -1232,7 +1175,6 @@ AutoSocketServerThread::AutoSocketServerThread(SocketServer* ss)
   // Temporarily set the current thread to nullptr so that we can keep checks
   // around that catch unintentional pointer overwrites.
   rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
-  //设置当前线程对象
   rtc::ThreadManager::Instance()->SetCurrentThread(this);
   if (old_thread_) {
     ThreadManager::Remove(old_thread_);
@@ -1253,7 +1195,6 @@ AutoSocketServerThread::~AutoSocketServerThread() {
   Stop();
   DoDestroy();
   rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
-  //还原当前线程对象
   rtc::ThreadManager::Instance()->SetCurrentThread(old_thread_);
   if (old_thread_) {
     ThreadManager::Add(old_thread_);

@@ -54,7 +54,7 @@ class AudioPacketizationCallback {
                            uint32_t timestamp,
                            const uint8_t* payload_data,
                            size_t payload_len_bytes) {
-    RTC_DCHECK_NOTREACHED() << "This method must be overridden, or not used.";
+    RTC_NOTREACHED() << "This method must be overridden, or not used.";
     return -1;
   }
 };
@@ -83,9 +83,9 @@ class AudioCodingModule {
   //   Sender
   //
 
-  // `modifier` is called exactly once with one argument: a pointer to the
+  // |modifier| is called exactly once with one argument: a pointer to the
   // unique_ptr that holds the current encoder (which is null if there is no
-  // current encoder). For the duration of the call, `modifier` has exclusive
+  // current encoder). For the duration of the call, |modifier| has exclusive
   // access to the unique_ptr; it may call the encoder, steal the encoder and
   // replace it with another encoder or with nullptr, etc.
   virtual void ModifyEncoder(
@@ -116,7 +116,6 @@ class AudioCodingModule {
   virtual int32_t RegisterTransportCallback(
       AudioPacketizationCallback* transport) = 0;
 
-  //添加10ms音频数据并编码
   ///////////////////////////////////////////////////////////////////////////
   // int32_t Add10MsData()
   // Add 10MS of raw (PCM) audio data and encode it. If the sampling
@@ -194,7 +193,6 @@ class AudioCodingModule {
                                  const size_t payload_len_bytes,
                                  const RTPHeader& rtp_header) = 0;
 
-  //播放10ms音频
   ///////////////////////////////////////////////////////////////////////////
   // int32_t PlayoutData10Ms(
   // Get 10 milliseconds of raw audio data for playout, at the given sampling
@@ -239,8 +237,6 @@ class AudioCodingModule {
       NetworkStatistics* network_statistics) = 0;
 
   virtual ANAStats GetANAStats() const = 0;
-
-  virtual int GetTargetBitrate() const = 0;
 };
 
 }  // namespace webrtc

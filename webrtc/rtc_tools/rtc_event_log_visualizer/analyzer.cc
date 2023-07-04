@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
-#include "absl/functional/bind_front.h"
 #include "absl/strings/string_view.h"
 #include "api/function_view.h"
 #include "api/network_state_predictor.h"
@@ -49,6 +48,7 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
+#include "modules/rtp_rtcp/source/rtp_utility.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/format_macros.h"
 #include "rtc_base/logging.h"
@@ -87,10 +87,10 @@ double AbsSendTimeToMicroseconds(int64_t abs_send_time) {
   return abs_send_time * kTimestampToMicroSec;
 }
 
-// Computes the difference `later` - `earlier` where `later` and `earlier`
-// are counters that wrap at `modulus`. The difference is chosen to have the
-// least absolute value. For example if `modulus` is 8, then the difference will
-// be chosen in the range [-3, 4]. If `modulus` is 9, then the difference will
+// Computes the difference |later| - |earlier| where |later| and |earlier|
+// are counters that wrap at |modulus|. The difference is chosen to have the
+// least absolute value. For example if |modulus| is 8, then the difference will
+// be chosen in the range [-3, 4]. If |modulus| is 9, then the difference will
 // be in [-4, 4].
 int64_t WrappingDifference(uint32_t later, uint32_t earlier, int64_t modulus) {
   RTC_DCHECK_LE(1, modulus);
@@ -959,7 +959,7 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(Plot* plot,
           last_series = &overusing_series;
           break;
         case BandwidthUsage::kLast:
-          RTC_DCHECK_NOTREACHED();
+          RTC_NOTREACHED();
       }
     }
 
@@ -1266,7 +1266,7 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
       const RtpPacketType& rtp_packet = *rtp_iterator->second;
       if (rtp_packet.rtp.header.extension.hasTransportSequenceNumber) {
         RtpPacketSendInfo packet_info;
-        packet_info.media_ssrc = rtp_packet.rtp.header.ssrc;
+        packet_info.ssrc = rtp_packet.rtp.header.ssrc;
         packet_info.transport_sequence_number =
             rtp_packet.rtp.header.extension.transportSequenceNumber;
         packet_info.rtp_sequence_number = rtp_packet.rtp.header.sequenceNumber;
@@ -1367,11 +1367,13 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
 
 void EventLogAnalyzer::CreateReceiveSideBweSimulationGraph(Plot* plot) {
   using RtpPacketType = LoggedRtpPacketIncoming;
-  class RembInterceptor {
+  class RembInterceptingPacketRouter : public PacketRouter {
    public:
-    void SendRemb(uint32_t bitrate_bps, std::vector<uint32_t> ssrcs) {
+    void OnReceiveBitrateChanged(const std::vector<uint32_t>& ssrcs,
+                                 uint32_t bitrate_bps) override {
       last_bitrate_bps_ = bitrate_bps;
       bitrate_updated_ = true;
+      PacketRouter::OnReceiveBitrateChanged(ssrcs, bitrate_bps);
     }
     uint32_t last_bitrate_bps() const { return last_bitrate_bps_; }
     bool GetAndResetBitrateUpdated() {
@@ -1398,10 +1400,10 @@ void EventLogAnalyzer::CreateReceiveSideBweSimulationGraph(Plot* plot) {
   }
 
   SimulatedClock clock(0);
-  RembInterceptor remb_interceptor;
-  ReceiveSideCongestionController rscc(
-      &clock, [](auto...) {},
-      absl::bind_front(&RembInterceptor::SendRemb, &remb_interceptor), nullptr);
+  RembInterceptingPacketRouter packet_router;
+  // TODO(terelius): The PacketRouter is used as the RemoteBitrateObserver.
+  // Is this intentional?
+  ReceiveSideCongestionController rscc(&clock, &packet_router);
   // TODO(holmer): Log the call config and use that here instead.
   // static const uint32_t kDefaultStartBitrateBps = 300000;
   // rscc.SetBweBitrates(0, kDefaultStartBitrateBps, -1);
@@ -1426,9 +1428,9 @@ void EventLogAnalyzer::CreateReceiveSideBweSimulationGraph(Plot* plot) {
       float x = config_.GetCallTimeSec(clock.TimeInMicroseconds());
       acked_time_series.points.emplace_back(x, y);
     }
-    if (remb_interceptor.GetAndResetBitrateUpdated() ||
+    if (packet_router.GetAndResetBitrateUpdated() ||
         clock.TimeInMicroseconds() - last_update_us >= 1e6) {
-      uint32_t y = remb_interceptor.last_bitrate_bps() / 1000;
+      uint32_t y = packet_router.last_bitrate_bps() / 1000;
       float x = config_.GetCallTimeSec(clock.TimeInMicroseconds());
       time_series.points.emplace_back(x, y);
       last_update_us = clock.TimeInMicroseconds();
@@ -1450,6 +1452,7 @@ void EventLogAnalyzer::CreateNetworkDelayFeedbackGraph(Plot* plot) {
   int64_t min_send_receive_diff_ms = std::numeric_limits<int64_t>::max();
   int64_t min_rtt_ms = std::numeric_limits<int64_t>::max();
 
+  int64_t prev_y = 0;
   std::vector<MatchedSendArrivalTimes> matched_rtp_rtcp =
       GetNetworkTrace(parsed_log_);
   absl::c_stable_sort(matched_rtp_rtcp, [](const MatchedSendArrivalTimes& a,
@@ -1463,6 +1466,7 @@ void EventLogAnalyzer::CreateNetworkDelayFeedbackGraph(Plot* plot) {
       continue;
     float x = config_.GetCallTimeSec(1000 * packet.feedback_arrival_time_ms);
     int64_t y = packet.arrival_time_ms - packet.send_time_ms;
+    prev_y = y;
     int64_t rtt_ms = packet.feedback_arrival_time_ms - packet.send_time_ms;
     min_rtt_ms = std::min(rtt_ms, min_rtt_ms);
     min_send_receive_diff_ms = std::min(y, min_send_receive_diff_ms);

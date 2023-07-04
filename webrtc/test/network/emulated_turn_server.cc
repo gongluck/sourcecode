@@ -79,14 +79,14 @@ class PacketSocketFactoryWrapper : public rtc::PacketSocketFactory {
   ~PacketSocketFactoryWrapper() override {}
 
   // This method is called from TurnServer when making a TURN ALLOCATION.
-  // It will create a socket on the `peer_` endpoint.
+  // It will create a socket on the |peer_| endpoint.
   rtc::AsyncPacketSocket* CreateUdpSocket(const rtc::SocketAddress& address,
                                           uint16_t min_port,
                                           uint16_t max_port) override {
     return turn_server_->CreatePeerSocket();
   }
 
-  rtc::AsyncListenSocket* CreateServerTcpSocket(
+  rtc::AsyncPacketSocket* CreateServerTcpSocket(
       const rtc::SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
@@ -101,8 +101,7 @@ class PacketSocketFactoryWrapper : public rtc::PacketSocketFactory {
       const rtc::PacketSocketTcpOptions& tcp_options) override {
     return nullptr;
   }
-  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
-      override {
+  rtc::AsyncResolverInterface* CreateAsyncResolver() override {
     return nullptr;
   }
 

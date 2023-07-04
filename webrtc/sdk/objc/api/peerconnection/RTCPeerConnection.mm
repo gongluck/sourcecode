@@ -348,12 +348,11 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 
     webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
     deps.observer = _observer.get();
-    auto result = factory.nativeFactory->CreatePeerConnectionOrError(*config, std::move(deps));
+    _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
 
-    if (!result.ok()) {
+    if (!_peerConnection) {
       return nil;
     }
-    _peerConnection = result.MoveValue();
     _factory = factory;
     _localStreams = [[NSMutableArray alloc] init];
     _delegate = delegate;
@@ -437,18 +436,20 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 - (void)addIceCandidate:(RTC_OBJC_TYPE(RTCIceCandidate) *)candidate
       completionHandler:(void (^)(NSError *_Nullable error))completionHandler {
   RTC_DCHECK(completionHandler != nil);
-  _peerConnection->AddIceCandidate(
-      candidate.nativeCandidate, [completionHandler](const auto &error) {
-        if (error.ok()) {
-          completionHandler(nil);
-        } else {
-          NSString *str = [NSString stringForStdString:error.message()];
-          NSError *err = [NSError errorWithDomain:kRTCPeerConnectionErrorDomain
-                                             code:static_cast<NSInteger>(error.type())
-                                         userInfo:@{NSLocalizedDescriptionKey : str}];
-          completionHandler(err);
-        }
-      });
+  auto iceCandidate = webrtc::CreateIceCandidate(candidate.nativeCandidate->sdp_mid(),
+                                                 candidate.nativeCandidate->sdp_mline_index(),
+                                                 candidate.nativeCandidate->candidate());
+  _peerConnection->AddIceCandidate(std::move(iceCandidate), [completionHandler](const auto &error) {
+    if (error.ok()) {
+      completionHandler(nil);
+    } else {
+      NSString *str = [NSString stringForStdString:error.message()];
+      NSError *err = [NSError errorWithDomain:kRTCPeerConnectionErrorDomain
+                                         code:static_cast<NSInteger>(error.type())
+                                     userInfo:@{NSLocalizedDescriptionKey : str}];
+      completionHandler(err);
+    }
+  });
 }
 - (void)removeIceCandidates:(NSArray<RTC_OBJC_TYPE(RTCIceCandidate) *> *)iceCandidates {
   std::vector<cricket::Candidate> candidates;
@@ -579,7 +580,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   RTC_DCHECK(completionHandler != nil);
   rtc::scoped_refptr<webrtc::SetLocalDescriptionObserverInterface> observer(
       new rtc::RefCountedObject<::SetSessionDescriptionObserver>(completionHandler));
-  _peerConnection->SetLocalDescription(sdp.nativeDescription, observer);
+  _peerConnection->SetLocalDescription(sdp.nativeDescription->Clone(), observer);
 }
 
 - (void)setLocalDescriptionWithCompletionHandler:
@@ -595,7 +596,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   RTC_DCHECK(completionHandler != nil);
   rtc::scoped_refptr<webrtc::SetRemoteDescriptionObserverInterface> observer(
       new rtc::RefCountedObject<::SetSessionDescriptionObserver>(completionHandler));
-  _peerConnection->SetRemoteDescription(sdp.nativeDescription, observer);
+  _peerConnection->SetRemoteDescription(sdp.nativeDescription->Clone(), observer);
 }
 
 - (BOOL)setBweMinBitrateBps:(nullable NSNumber *)minBitrateBps

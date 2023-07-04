@@ -16,7 +16,6 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "api/numerics/samples_stats_counter.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
@@ -181,7 +180,7 @@ class PerfTestHistogramWriter : public PerfTestResultWriter {
       case ImproveDirection::kBiggerIsBetter:
         return proto::BIGGER_IS_BETTER;
       default:
-        RTC_DCHECK_NOTREACHED() << "Invalid enum value " << improve_direction;
+        RTC_NOTREACHED() << "Invalid enum value " << improve_direction;
     }
   }
 

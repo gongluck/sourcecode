@@ -83,6 +83,10 @@ class MediaConstraints {
   static const char kValueFalse[];  // false
 
   // PeerConnection constraint keys.
+  // Temporary pseudo-constraints used to enable DTLS-SRTP
+  static const char kEnableDtlsSrtp[];  // Enable DTLS-SRTP
+  // Temporary pseudo-constraints used to enable DataChannels
+  static const char kEnableRtpDataChannels[];  // Enable RTP DataChannels
   // Google-specific constraint keys.
   // Temporary pseudo-constraint for enabling DSCP through JS.
   static const char kEnableDscp[];  // googDscp

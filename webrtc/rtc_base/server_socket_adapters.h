@@ -18,7 +18,7 @@ namespace rtc {
 // Interface for implementing proxy server sockets.
 class AsyncProxyServerSocket : public BufferedReadAdapter {
  public:
-  AsyncProxyServerSocket(Socket* socket, size_t buffer_size);
+  AsyncProxyServerSocket(AsyncSocket* socket, size_t buffer_size);
   ~AsyncProxyServerSocket() override;
   sigslot::signal2<AsyncProxyServerSocket*, const SocketAddress&>
       SignalConnectRequest;
@@ -29,7 +29,7 @@ class AsyncProxyServerSocket : public BufferedReadAdapter {
 // fake SSL handshake. Used when implementing a relay server that does "ssltcp".
 class AsyncSSLServerSocket : public BufferedReadAdapter {
  public:
-  explicit AsyncSSLServerSocket(Socket* socket);
+  explicit AsyncSSLServerSocket(AsyncSocket* socket);
 
  protected:
   void ProcessInput(char* data, size_t* len) override;
@@ -39,7 +39,7 @@ class AsyncSSLServerSocket : public BufferedReadAdapter {
 // Implements a proxy server socket for the SOCKS protocol.
 class AsyncSocksProxyServerSocket : public AsyncProxyServerSocket {
  public:
-  explicit AsyncSocksProxyServerSocket(Socket* socket);
+  explicit AsyncSocksProxyServerSocket(AsyncSocket* socket);
 
  private:
   void ProcessInput(char* data, size_t* len) override;

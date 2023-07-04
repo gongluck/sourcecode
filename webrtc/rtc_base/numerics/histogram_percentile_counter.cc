@@ -72,7 +72,7 @@ absl::optional<uint32_t> HistogramPercentileCounter::GetPercentile(
       elements_to_skip -= it.second;
     }
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return absl::nullopt;
 }
 

@@ -47,12 +47,6 @@ FecPacketCounter UlpfecReceiverImpl::GetPacketCounter() const {
   return packet_counter_;
 }
 
-void UlpfecReceiverImpl::SetRtpExtensions(
-    rtc::ArrayView<const RtpExtension> extensions) {
-  RTC_DCHECK_RUN_ON(&sequence_checker_);
-  extensions_.Reset(extensions);
-}
-
 //     0                   1                    2                   3
 //     0 1 2 3 4 5 6 7 8 9 0 1 2 3  4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 //    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -138,8 +132,9 @@ bool UlpfecReceiverImpl::AddReceivedRedPacket(
         rtp_packet.Buffer().Slice(rtp_packet.headers_size() + kRedHeaderLength,
                                   rtp_packet.payload_size() - kRedHeaderLength);
   } else {
-    received_packet->pkt->data.EnsureCapacity(rtp_packet.size() -
-                                              kRedHeaderLength);
+    auto red_payload = rtp_packet.payload().subview(kRedHeaderLength);
+    received_packet->pkt->data.EnsureCapacity(rtp_packet.headers_size() +
+                                              red_payload.size());
     // Copy RTP header.
     received_packet->pkt->data.SetData(rtp_packet.data(),
                                        rtp_packet.headers_size());
@@ -147,10 +142,9 @@ bool UlpfecReceiverImpl::AddReceivedRedPacket(
     uint8_t& payload_type_byte = received_packet->pkt->data.MutableData()[1];
     payload_type_byte &= 0x80;          // Reset RED payload type.
     payload_type_byte += payload_type;  // Set media payload type.
-    // Copy payload and padding data, after the RED header.
-    received_packet->pkt->data.AppendData(
-        rtp_packet.data() + rtp_packet.headers_size() + kRedHeaderLength,
-        rtp_packet.size() - rtp_packet.headers_size() - kRedHeaderLength);
+    // Copy payload data.
+    received_packet->pkt->data.AppendData(red_payload.data(),
+                                          red_payload.size());
   }
 
   if (received_packet->pkt->data.size() > 0) {
@@ -163,10 +157,10 @@ bool UlpfecReceiverImpl::AddReceivedRedPacket(
 int32_t UlpfecReceiverImpl::ProcessReceivedFec() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
-  // If we iterate over `received_packets_` and it contains a packet that cause
+  // If we iterate over |received_packets_| and it contains a packet that cause
   // us to recurse back to this function (for example a RED packet encapsulating
   // a RED packet), then we will recurse forever. To avoid this we swap
-  // `received_packets_` with an empty vector so that the next recursive call
+  // |received_packets_| with an empty vector so that the next recursive call
   // wont iterate over the same packet again. This also solves the problem of
   // not modifying the vector we are currently iterating over (packets are added
   // in AddReceivedRedPacket).

@@ -252,7 +252,8 @@ class PacingControllerTest
     Send(type, ssrc, sequence_number, capture_time_ms, size);
     EXPECT_CALL(callback_,
                 SendPacket(ssrc, sequence_number, capture_time_ms,
-                           type == RtpPacketMediaType::kRetransmission, false));
+                           type == RtpPacketMediaType::kRetransmission, false))
+        .Times(1);
   }
 
   std::unique_ptr<RtpPacketToSend> BuildRtpPacket(RtpPacketMediaType type) {
@@ -296,7 +297,7 @@ class PacingControllerTest
     int64_t capture_time_ms = clock_.TimeInMilliseconds();
     const size_t kPacketSize = 250;
 
-    EXPECT_TRUE(pacer_->OldestPacketEnqueueTime().IsInfinite());
+    EXPECT_EQ(TimeDelta::Zero(), pacer_->OldestPacketWaitTime());
 
     // Due to the multiplicative factor we can send 5 packets during a send
     // interval. (network capacity * multiplier / (8 bits per byte *
@@ -1193,7 +1194,7 @@ TEST_P(PacingControllerTest, Pause) {
   uint32_t ssrc_high_priority = 12347;
   uint16_t sequence_number = 1234;
 
-  EXPECT_TRUE(pacer_->OldestPacketEnqueueTime().IsInfinite());
+  EXPECT_EQ(TimeDelta::Zero(), pacer_->OldestPacketWaitTime());
 
   ConsumeInitialBudget();
 
@@ -1222,7 +1223,8 @@ TEST_P(PacingControllerTest, Pause) {
   }
 
   // Expect everything to be queued.
-  EXPECT_EQ(capture_time_ms, pacer_->OldestPacketEnqueueTime().ms());
+  EXPECT_EQ(TimeDelta::Millis(second_capture_time_ms - capture_time_ms),
+            pacer_->OldestPacketWaitTime());
 
   // Process triggers keep-alive packet.
   EXPECT_CALL(callback_, SendPadding).WillOnce([](size_t padding) {
@@ -1298,7 +1300,7 @@ TEST_P(PacingControllerTest, Pause) {
     }
   }
 
-  EXPECT_TRUE(pacer_->OldestPacketEnqueueTime().IsInfinite());
+  EXPECT_EQ(TimeDelta::Zero(), pacer_->OldestPacketWaitTime());
 }
 
 TEST_P(PacingControllerTest, InactiveFromStart) {
@@ -1348,7 +1350,7 @@ TEST_P(PacingControllerTest, ExpectedQueueTimeMs) {
   const size_t kNumPackets = 60;
   const size_t kPacketSize = 1200;
   const int32_t kMaxBitrate = kPaceMultiplier * 30000;
-  EXPECT_TRUE(pacer_->OldestPacketEnqueueTime().IsInfinite());
+  EXPECT_EQ(TimeDelta::Zero(), pacer_->OldestPacketWaitTime());
 
   pacer_->SetPacingRates(DataRate::BitsPerSec(30000 * kPaceMultiplier),
                          DataRate::Zero());
@@ -1381,7 +1383,7 @@ TEST_P(PacingControllerTest, ExpectedQueueTimeMs) {
 TEST_P(PacingControllerTest, QueueTimeGrowsOverTime) {
   uint32_t ssrc = 12346;
   uint16_t sequence_number = 1234;
-  EXPECT_TRUE(pacer_->OldestPacketEnqueueTime().IsInfinite());
+  EXPECT_EQ(TimeDelta::Zero(), pacer_->OldestPacketWaitTime());
 
   pacer_->SetPacingRates(DataRate::BitsPerSec(30000 * kPaceMultiplier),
                          DataRate::Zero());
@@ -1389,10 +1391,9 @@ TEST_P(PacingControllerTest, QueueTimeGrowsOverTime) {
                       clock_.TimeInMilliseconds(), 1200);
 
   clock_.AdvanceTimeMilliseconds(500);
-  EXPECT_EQ(clock_.TimeInMilliseconds() - 500,
-            pacer_->OldestPacketEnqueueTime().ms());
+  EXPECT_EQ(TimeDelta::Millis(500), pacer_->OldestPacketWaitTime());
   pacer_->ProcessPackets();
-  EXPECT_TRUE(pacer_->OldestPacketEnqueueTime().IsInfinite());
+  EXPECT_EQ(TimeDelta::Zero(), pacer_->OldestPacketWaitTime());
 }
 
 TEST_P(PacingControllerTest, ProbingWithInsertedPackets) {
@@ -2132,39 +2133,6 @@ TEST_P(PacingControllerTest, SendsFecPackets) {
   });
   AdvanceTimeAndProcess();
   AdvanceTimeAndProcess();
-}
-
-TEST_P(PacingControllerTest, GapInPacingDoesntAccumulateBudget) {
-  if (PeriodicProcess()) {
-    // This test checks behavior when not using interval budget.
-    return;
-  }
-
-  const uint32_t kSsrc = 12345;
-  uint16_t sequence_number = 1234;
-  const DataSize kPackeSize = DataSize::Bytes(250);
-  const TimeDelta kPacketSendTime = TimeDelta::Millis(15);
-
-  pacer_->SetPacingRates(kPackeSize / kPacketSendTime,
-                         /*padding_rate=*/DataRate::Zero());
-
-  // Send an initial packet.
-  SendAndExpectPacket(RtpPacketMediaType::kVideo, kSsrc, sequence_number++,
-                      clock_.TimeInMilliseconds(), kPackeSize.bytes());
-  pacer_->ProcessPackets();
-  ::testing::Mock::VerifyAndClearExpectations(&callback_);
-
-  // Advance time kPacketSendTime past where the media debt should be 0.
-  clock_.AdvanceTime(2 * kPacketSendTime);
-
-  // Enqueue two new packets. Expect only one to be sent one ProcessPackets().
-  Send(RtpPacketMediaType::kVideo, kSsrc, sequence_number + 1,
-       clock_.TimeInMilliseconds(), kPackeSize.bytes());
-  Send(RtpPacketMediaType::kVideo, kSsrc, sequence_number + 2,
-       clock_.TimeInMilliseconds(), kPackeSize.bytes());
-  EXPECT_CALL(callback_, SendPacket(kSsrc, sequence_number + 1,
-                                    clock_.TimeInMilliseconds(), false, false));
-  pacer_->ProcessPackets();
 }
 
 INSTANTIATE_TEST_SUITE_P(

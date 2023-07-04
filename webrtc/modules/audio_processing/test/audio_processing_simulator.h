@@ -99,13 +99,12 @@ struct SimulationSettings {
   absl::optional<bool> use_agc;
   absl::optional<bool> use_agc2;
   absl::optional<bool> use_pre_amplifier;
-  absl::optional<bool> use_capture_level_adjustment;
-  absl::optional<bool> use_analog_mic_gain_emulation;
   absl::optional<bool> use_hpf;
   absl::optional<bool> use_ns;
-  absl::optional<int> use_ts;
+  absl::optional<bool> use_ts;
   absl::optional<bool> use_analog_agc;
   absl::optional<bool> use_vad;
+  absl::optional<bool> use_le;
   absl::optional<bool> use_all;
   absl::optional<bool> analog_agc_disable_digital_adaptive;
   absl::optional<int> agc_mode;
@@ -114,10 +113,9 @@ struct SimulationSettings {
   absl::optional<int> agc_compression_gain;
   absl::optional<bool> agc2_use_adaptive_gain;
   absl::optional<float> agc2_fixed_gain_db;
+  AudioProcessing::Config::GainController2::LevelEstimator
+      agc2_adaptive_level_estimator;
   absl::optional<float> pre_amplifier_gain_factor;
-  absl::optional<float> pre_gain_factor;
-  absl::optional<float> post_gain_factor;
-  absl::optional<float> analog_mic_gain_emulation_initial_level;
   absl::optional<int> ns_level;
   absl::optional<bool> ns_analysis_on_linear_aec_output;
   absl::optional<int> maximum_internal_processing_rate;

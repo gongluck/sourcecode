@@ -40,8 +40,7 @@ class SctpDataChannel;
 class SctpDataChannelProviderInterface {
  public:
   // Sends the data to the transport.
-  virtual bool SendData(int sid,
-                        const SendDataParams& params,
+  virtual bool SendData(const cricket::SendDataParams& params,
                         const rtc::CopyOnWriteBuffer& payload,
                         cricket::SendDataResult* result) = 0;
   // Connects to the transport signals.
@@ -64,7 +63,7 @@ class SctpDataChannelProviderInterface {
 // a const member. Block access to the 'id' member since it cannot be const.
 struct InternalDataChannelInit : public DataChannelInit {
   enum OpenHandshakeRole { kOpener, kAcker, kNone };
-  // The default role is kOpener because the default `negotiated` is false.
+  // The default role is kOpener because the default |negotiated| is false.
   InternalDataChannelInit() : open_handshake_role(kOpener) {}
   explicit InternalDataChannelInit(const DataChannelInit& base);
   OpenHandshakeRole open_handshake_role;
@@ -73,7 +72,7 @@ struct InternalDataChannelInit : public DataChannelInit {
 // Helper class to allocate unique IDs for SCTP DataChannels.
 class SctpSidAllocator {
  public:
-  // Gets the first unused odd/even id based on the DTLS role. If `role` is
+  // Gets the first unused odd/even id based on the DTLS role. If |role| is
   // SSL_CLIENT, the allocated id starts from 0 and takes even numbers;
   // otherwise, the id starts from 1 and takes odd numbers.
   // Returns false if no ID can be allocated.
@@ -82,11 +81,11 @@ class SctpSidAllocator {
   // Attempts to reserve a specific sid. Returns false if it's unavailable.
   bool ReserveSid(int sid);
 
-  // Indicates that `sid` isn't in use any more, and is thus available again.
+  // Indicates that |sid| isn't in use any more, and is thus available again.
   void ReleaseSid(int sid);
 
  private:
-  // Checks if `sid` is available to be assigned to a new SCTP data channel.
+  // Checks if |sid| is available to be assigned to a new SCTP data channel.
   bool IsSidAvailable(int sid) const;
 
   std::set<int> used_sids_;
@@ -177,6 +176,8 @@ class SctpDataChannel : public DataChannelInterface,
   void CloseAbruptlyWithError(RTCError error);
   // Specializations of CloseAbruptlyWithError
   void CloseAbruptlyWithDataChannelFailure(const std::string& message);
+  void CloseAbruptlyWithSctpCauseCode(const std::string& message,
+                                      uint16_t cause_code);
 
   // Slots for provider to connect signals to.
   //
@@ -207,7 +208,7 @@ class SctpDataChannel : public DataChannelInterface,
   // Called when the transport channel is unusable.
   // This method makes sure the DataChannel is disconnected and changes state
   // to kClosed.
-  void OnTransportChannelClosed(RTCError error);
+  void OnTransportChannelClosed();
 
   DataChannelStats GetStats() const;
 
@@ -266,6 +267,9 @@ class SctpDataChannel : public DataChannelInterface,
   uint64_t bytes_sent_ RTC_GUARDED_BY(signaling_thread_) = 0;
   uint32_t messages_received_ RTC_GUARDED_BY(signaling_thread_) = 0;
   uint64_t bytes_received_ RTC_GUARDED_BY(signaling_thread_) = 0;
+  // Number of bytes of data that have been queued using Send(). Increased
+  // before each transport send and decreased after each successful send.
+  uint64_t buffered_amount_ RTC_GUARDED_BY(signaling_thread_) = 0;
   SctpDataChannelProviderInterface* const provider_
       RTC_GUARDED_BY(signaling_thread_);
   HandshakeState handshake_state_ RTC_GUARDED_BY(signaling_thread_) =

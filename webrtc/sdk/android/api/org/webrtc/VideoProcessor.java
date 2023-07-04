@@ -10,7 +10,7 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
+import android.support.annotation.Nullable;
 
 /**
  * Lightweight abstraction for an object that can receive video frames, process them, and pass them
@@ -18,7 +18,6 @@ import androidx.annotation.Nullable;
  */
 public interface VideoProcessor extends CapturerObserver {
   public static class FrameAdaptationParameters {
-
     public final int cropX;
     public final int cropY;
     public final int cropWidth;
@@ -28,16 +27,8 @@ public interface VideoProcessor extends CapturerObserver {
     public final long timestampNs;
     public final boolean drop;
 
-    public FrameAdaptationParameters(
-      int cropX,
-      int cropY,
-      int cropWidth,
-      int cropHeight,
-      int scaleWidth,
-      int scaleHeight,
-      long timestampNs,
-      boolean drop
-    ) {
+    public FrameAdaptationParameters(int cropX, int cropY, int cropWidth, int cropHeight,
+        int scaleWidth, int scaleHeight, long timestampNs, boolean drop) {
       this.cropX = cropX;
       this.cropY = cropY;
       this.cropWidth = cropWidth;
@@ -53,11 +44,7 @@ public interface VideoProcessor extends CapturerObserver {
    * This is a chance to access an unadapted frame. The default implementation applies the
    * adaptation and forwards the frame to {@link #onFrameCaptured(VideoFrame)}.
    */
-  default void onFrameCaptured(
-    VideoFrame frame,
-    FrameAdaptationParameters parameters
-  ) {
-    //对视频帧做转换
+  default void onFrameCaptured(VideoFrame frame, FrameAdaptationParameters parameters) {
     VideoFrame adaptedFrame = applyFrameAdaptationParameters(frame, parameters);
     if (adaptedFrame != null) {
       onFrameCaptured(adaptedFrame);
@@ -76,27 +63,14 @@ public interface VideoProcessor extends CapturerObserver {
    * dropped. Returns a new frame. The caller is responsible for releasing the returned frame.
    */
   public static @Nullable VideoFrame applyFrameAdaptationParameters(
-    VideoFrame frame,
-    FrameAdaptationParameters parameters
-  ) {
+      VideoFrame frame, FrameAdaptationParameters parameters) {
     if (parameters.drop) {
       return null;
     }
 
-    final VideoFrame.Buffer adaptedBuffer = frame
-      .getBuffer()
-      .cropAndScale(
-        parameters.cropX,
-        parameters.cropY,
-        parameters.cropWidth,
-        parameters.cropHeight,
-        parameters.scaleWidth,
-        parameters.scaleHeight
-      );
-    return new VideoFrame(
-      adaptedBuffer,
-      frame.getRotation(),
-      parameters.timestampNs
-    );
+    final VideoFrame.Buffer adaptedBuffer =
+        frame.getBuffer().cropAndScale(parameters.cropX, parameters.cropY, parameters.cropWidth,
+            parameters.cropHeight, parameters.scaleWidth, parameters.scaleHeight);
+    return new VideoFrame(adaptedBuffer, frame.getRotation(), parameters.timestampNs);
   }
 }

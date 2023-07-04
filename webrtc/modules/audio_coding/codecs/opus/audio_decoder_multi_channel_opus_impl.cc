@@ -26,7 +26,6 @@ std::unique_ptr<AudioDecoderMultiChannelOpusImpl>
 AudioDecoderMultiChannelOpusImpl::MakeAudioDecoder(
     AudioDecoderMultiChannelOpusConfig config) {
   if (!config.IsOk()) {
-    RTC_DCHECK_NOTREACHED();
     return nullptr;
   }
   // Fill the pointer with a working decoder through the C interface. This
@@ -79,9 +78,6 @@ AudioDecoderMultiChannelOpusImpl::SdpToConfig(const SdpAudioFormat& format) {
     return absl::nullopt;
   }
   config.channel_mapping = *channel_mapping;
-  if (!config.IsOk()) {
-    return absl::nullopt;
-  }
   return config;
 }
 

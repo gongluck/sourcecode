@@ -19,6 +19,7 @@
 #include "absl/types/optional.h"
 #include "modules/audio_coding/neteq/tools/packet_source.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/rtp_rtcp/source/rtp_utility.h"
 #include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
@@ -29,7 +30,7 @@ class RtpFileReader;
 
 class RtpFileSource : public PacketSource {
  public:
-  // Creates an RtpFileSource reading from `file_name`. If the file cannot be
+  // Creates an RtpFileSource reading from |file_name|. If the file cannot be
   // opened, or has the wrong format, NULL will be returned.
   static RtpFileSource* Create(
       const std::string& file_name,
@@ -41,7 +42,7 @@ class RtpFileSource : public PacketSource {
 
   ~RtpFileSource() override;
 
-  // Registers an RTP header extension and binds it to `id`.
+  // Registers an RTP header extension and binds it to |id|.
   virtual bool RegisterRtpHeaderExtension(RTPExtensionType type, uint8_t id);
 
   std::unique_ptr<Packet> NextPacket() override;

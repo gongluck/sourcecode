@@ -120,7 +120,7 @@ class PeerConnectionWrapperForRampUpTest : public PeerConnectionWrapper {
       FrameGeneratorCapturerVideoTrackSource::Config config,
       Clock* clock) {
     video_track_sources_.emplace_back(
-        rtc::make_ref_counted<FrameGeneratorCapturerVideoTrackSource>(
+        new rtc::RefCountedObject<FrameGeneratorCapturerVideoTrackSource>(
             config, clock, /*is_screencast=*/false));
     video_track_sources_.back()->Start();
     return rtc::scoped_refptr<VideoTrackInterface>(
@@ -192,14 +192,14 @@ class PeerConnectionRampUpTest : public ::testing::Test {
     dependencies.tls_cert_verifier =
         std::make_unique<rtc::TestCertificateVerifier>();
 
-    auto result = pc_factory_->CreatePeerConnectionOrError(
-        config, std::move(dependencies));
-    if (!result.ok()) {
+    auto pc =
+        pc_factory_->CreatePeerConnection(config, std::move(dependencies));
+    if (!pc) {
       return nullptr;
     }
 
     return std::make_unique<PeerConnectionWrapperForRampUpTest>(
-        pc_factory_, result.MoveValue(), std::move(observer));
+        pc_factory_, pc, std::move(observer));
   }
 
   void SetupOneWayCall() {
@@ -233,16 +233,15 @@ class PeerConnectionRampUpTest : public ::testing::Test {
   void CreateTurnServer(cricket::ProtocolType type,
                         const std::string& common_name = "test turn server") {
     rtc::Thread* thread = network_thread();
-    rtc::SocketFactory* factory = firewall_socket_server_.get();
     std::unique_ptr<cricket::TestTurnServer> turn_server =
         network_thread_->Invoke<std::unique_ptr<cricket::TestTurnServer>>(
-            RTC_FROM_HERE, [thread, factory, type, common_name] {
+            RTC_FROM_HERE, [thread, type, common_name] {
               static const rtc::SocketAddress turn_server_internal_address{
                   kTurnInternalAddress, kTurnInternalPort};
               static const rtc::SocketAddress turn_server_external_address{
                   kTurnExternalAddress, kTurnExternalPort};
               return std::make_unique<cricket::TestTurnServer>(
-                  thread, factory, turn_server_internal_address,
+                  thread, turn_server_internal_address,
                   turn_server_external_address, type,
                   true /*ignore_bad_certs=*/, common_name);
             });
@@ -299,7 +298,7 @@ class PeerConnectionRampUpTest : public ::testing::Test {
     if (ice_candidate_pair_stats.available_outgoing_bitrate.is_defined()) {
       return *ice_candidate_pair_stats.available_outgoing_bitrate;
     }
-    // We couldn't get the `available_outgoing_bitrate` for the active candidate
+    // We couldn't get the |available_outgoing_bitrate| for the active candidate
     // pair.
     return 0;
   }
@@ -308,7 +307,7 @@ class PeerConnectionRampUpTest : public ::testing::Test {
   // The turn servers should be accessed & deleted on the network thread to
   // avoid a race with the socket read/write which occurs on the network thread.
   std::vector<std::unique_ptr<cricket::TestTurnServer>> turn_servers_;
-  // `virtual_socket_server_` is used by `network_thread_` so it must be
+  // |virtual_socket_server_| is used by |network_thread_| so it must be
   // destroyed later.
   // TODO(bugs.webrtc.org/7668): We would like to update the virtual network we
   // use for this test. VirtualSocketServer isn't ideal because:
@@ -326,7 +325,7 @@ class PeerConnectionRampUpTest : public ::testing::Test {
   std::unique_ptr<rtc::FirewallSocketServer> firewall_socket_server_;
   std::unique_ptr<rtc::Thread> network_thread_;
   std::unique_ptr<rtc::Thread> worker_thread_;
-  // The `pc_factory` uses `network_thread_` & `worker_thread_`, so it must be
+  // The |pc_factory| uses |network_thread_| & |worker_thread_|, so it must be
   // destroyed first.
   std::vector<std::unique_ptr<rtc::FakeNetworkManager>> fake_network_managers_;
   rtc::scoped_refptr<PeerConnectionFactoryInterface> pc_factory_;

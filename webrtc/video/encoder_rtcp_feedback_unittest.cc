@@ -26,8 +26,7 @@ class VieKeyRequestTest : public ::testing::Test {
         encoder_rtcp_feedback_(
             &simulated_clock_,
             std::vector<uint32_t>(1, VieKeyRequestTest::kSsrc),
-            &encoder_,
-            nullptr) {}
+            &encoder_) {}
 
  protected:
   const uint32_t kSsrc = 1234;

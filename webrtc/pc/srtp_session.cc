@@ -13,8 +13,7 @@
 #include <iomanip>
 
 #include "absl/base/attributes.h"
-#include "api/array_view.h"
-#include "modules/rtp_rtcp/source/rtp_util.h"
+#include "media/base/rtp_utils.h"
 #include "pc/external_hmac.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -26,8 +25,6 @@
 #include "third_party/libsrtp/include/srtp_priv.h"
 
 namespace cricket {
-
-using ::webrtc::ParseRtpSequenceNumber;
 
 // One more than the maximum libsrtp error code. Required by
 // RTC_HISTOGRAM_ENUMERATION. Keep this in sync with srtp_error_status_t defined
@@ -99,8 +96,8 @@ bool SrtpSession::ProtectRtp(void* p, int in_len, int max_len, int* out_len) {
 
   *out_len = in_len;
   int err = srtp_protect(session_, p, out_len);
-  int seq_num = ParseRtpSequenceNumber(
-      rtc::MakeArrayView(reinterpret_cast<const uint8_t*>(p), in_len));
+  int seq_num;
+  GetRtpSeqNum(p, in_len, &seq_num);
   if (err != srtp_err_status_ok) {
     RTC_LOG(LS_WARNING) << "Failed to protect SRTP packet, seqnum=" << seq_num
                         << ", err=" << err
@@ -281,9 +278,23 @@ bool SrtpSession::DoSetKey(int type,
     return false;
   }
 
-  if (!key || len != static_cast<size_t>(policy.rtp.cipher_key_len)) {
-    RTC_LOG(LS_ERROR) << "Failed to " << (session_ ? "update" : "create")
-                      << " SRTP session: invalid key";
+  int expected_key_len;
+  int expected_salt_len;
+  if (!rtc::GetSrtpKeyAndSaltLengths(cs, &expected_key_len,
+                                     &expected_salt_len)) {
+    // This should never happen.
+    RTC_NOTREACHED();
+    RTC_LOG(LS_WARNING)
+        << "Failed to " << (session_ ? "update" : "create")
+        << " SRTP session: unsupported cipher_suite without length information"
+        << cs;
+    return false;
+  }
+
+  if (!key ||
+      len != static_cast<size_t>(expected_key_len + expected_salt_len)) {
+    RTC_LOG(LS_WARNING) << "Failed to " << (session_ ? "update" : "create")
+                        << " SRTP session: invalid key";
     return false;
   }
 

@@ -51,7 +51,7 @@ bool SequenceCheckerImpl::IsCurrent() const {
     valid_system_queue_ = current_system_queue;
     return true;
   }
-  if (valid_queue_) {
+  if (valid_queue_ || current_queue) {
     return valid_queue_ == current_queue;
   }
   if (valid_system_queue_ && valid_system_queue_ == current_system_queue) {
@@ -107,9 +107,8 @@ std::string SequenceCheckerImpl::ExpectationToString() const {
 std::string ExpectationToString(const SequenceCheckerImpl* checker) {
 #if RTC_DCHECK_IS_ON
   return checker->ExpectationToString();
-#else
-  return std::string();
 #endif
+  return std::string();
 }
 
 }  // namespace webrtc_sequence_checker_internal

@@ -44,7 +44,7 @@ class FrameDropper {
   // Input:
   //          - framesize_bytes    : The size of the latest frame returned
   //                                 from the encoder.
-  //          - delta_frame        : True if the encoder returned a delta frame.
+  //          - delta_frame        : True if the encoder returned a key frame.
   void Fill(size_t framesize_bytes, bool delta_frame);
 
   void Leak(uint32_t input_framerate);
@@ -59,34 +59,34 @@ class FrameDropper {
   void UpdateRatio();
   void CapAccumulator();
 
-  rtc::ExpFilter key_frame_ratio_;             //关键帧率
-  rtc::ExpFilter delta_frame_size_avg_kbits_;  //差分帧码率
+  rtc::ExpFilter key_frame_ratio_;
+  rtc::ExpFilter delta_frame_size_avg_kbits_;
 
   // Key frames and large delta frames are not immediately accumulated in the
   // bucket since they can immediately overflow the bucket leading to large
   // drops on the following packets that may be much smaller. Instead these
   // large frames are accumulated over several frames when the bucket leaks.
 
-  // `large_frame_accumulation_spread_` represents the number of frames over
+  // |large_frame_accumulation_spread_| represents the number of frames over
   // which a large frame is accumulated.
-  float large_frame_accumulation_spread_;  //大帧最大拆分块数
-  // `large_frame_accumulation_count_` represents the number of frames left
+  float large_frame_accumulation_spread_;
+  // |large_frame_accumulation_count_| represents the number of frames left
   // to finish accumulating a large frame.
-  int large_frame_accumulation_count_;  //大帧剩余块数
-  // `large_frame_accumulation_chunk_size_` represents the size of a single
+  int large_frame_accumulation_count_;
+  // |large_frame_accumulation_chunk_size_| represents the size of a single
   // chunk for large frame accumulation.
-  float large_frame_accumulation_chunk_size_;  //大帧分块大小
+  float large_frame_accumulation_chunk_size_;
 
-  float accumulator_;                   //漏桶累积的字节数
-  float accumulator_max_;               //漏桶容积
-  float target_bitrate_;                //目标码率
-  bool drop_next_;                      //丢弃下一帧
-  rtc::ExpFilter drop_ratio_;           //丢帧率
-  int drop_count_;                      //丢帧数
-  float incoming_frame_rate_;           //输入帧率
-  bool was_below_max_;                  //未超过阈值
-  bool enabled_;                        //启用
-  const float max_drop_duration_secs_;  //连续丢帧最大持续时间
+  float accumulator_;
+  float accumulator_max_;
+  float target_bitrate_;
+  bool drop_next_;
+  rtc::ExpFilter drop_ratio_;
+  int drop_count_;
+  float incoming_frame_rate_;
+  bool was_below_max_;
+  bool enabled_;
+  const float max_drop_duration_secs_;
 };
 
 }  // namespace webrtc

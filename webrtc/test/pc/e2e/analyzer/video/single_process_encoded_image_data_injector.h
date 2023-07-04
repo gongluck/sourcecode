@@ -37,25 +37,27 @@ namespace webrtc_pc_e2e {
 // This injector won't add any extra overhead into EncodedImage payload and
 // support frames with any size of payload. Also assumes that every EncodedImage
 // payload size is greater or equals to 3 bytes
-class SingleProcessEncodedImageDataInjector
-    : public EncodedImageDataPropagator {
+class SingleProcessEncodedImageDataInjector : public EncodedImageDataInjector,
+                                              public EncodedImageDataExtractor {
  public:
   SingleProcessEncodedImageDataInjector();
   ~SingleProcessEncodedImageDataInjector() override;
 
   // Id and discard flag will be injected into EncodedImage buffer directly.
-  // This buffer won't be fully copied, so `source` image buffer will be also
+  // This buffer won't be fully copied, so |source| image buffer will be also
   // changed.
   EncodedImage InjectData(uint16_t id,
                           bool discard,
-                          const EncodedImage& source) override;
+                          const EncodedImage& source,
+                          int coding_entity_id) override;
 
   void Start(int expected_receivers_count) override {
     MutexLock crit(&lock_);
     expected_receivers_count_ = expected_receivers_count;
   }
   void AddParticipantInCall() override;
-  EncodedImageExtractionResult ExtractData(const EncodedImage& source) override;
+  EncodedImageExtractionResult ExtractData(const EncodedImage& source,
+                                           int coding_entity_id) override;
 
  private:
   // Contains data required to extract frame id from EncodedImage and restore

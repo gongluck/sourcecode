@@ -17,7 +17,6 @@
 
 #include "api/adaptation/resource.h"
 #include "api/media_types.h"
-#include "api/task_queue/task_queue_base.h"
 #include "call/audio_receive_stream.h"
 #include "call/audio_send_stream.h"
 #include "call/call_config.h"
@@ -84,14 +83,11 @@ class Call {
 
   static Call* Create(const Call::Config& config);
   static Call* Create(const Call::Config& config,
-                      Clock* clock,
-                      rtc::scoped_refptr<SharedModuleThread> call_thread,
-                      std::unique_ptr<ProcessThread> pacer_thread);
+                      rtc::scoped_refptr<SharedModuleThread> call_thread);
   static Call* Create(const Call::Config& config,
                       Clock* clock,
                       rtc::scoped_refptr<SharedModuleThread> call_thread,
-                      std::unique_ptr<RtpTransportControllerSendInterface>
-                          transportControllerSend);
+                      std::unique_ptr<ProcessThread> pacer_thread);
 
   virtual AudioSendStream* CreateAudioSendStream(
       const AudioSendStream::Config& config) = 0;
@@ -155,23 +151,12 @@ class Call {
   virtual void OnAudioTransportOverheadChanged(
       int transport_overhead_per_packet) = 0;
 
-  // Called when a receive stream's local ssrc has changed and association with
-  // send streams needs to be updated.
-  virtual void OnLocalSsrcUpdated(AudioReceiveStream& stream,
-                                  uint32_t local_ssrc) = 0;
-
-  virtual void OnUpdateSyncGroup(AudioReceiveStream& stream,
-                                 const std::string& sync_group) = 0;
-
   virtual void OnSentPacket(const rtc::SentPacket& sent_packet) = 0;
 
   virtual void SetClientBitratePreferences(
       const BitrateSettings& preferences) = 0;
 
   virtual const WebRtcKeyValueConfig& trials() const = 0;
-
-  virtual TaskQueueBase* network_thread() const = 0;
-  virtual TaskQueueBase* worker_thread() const = 0;
 
   virtual ~Call() {}
 };

@@ -47,34 +47,24 @@ void CreateSdpObserverJni::OnFailure(webrtc::RTCError error) {
                                    NativeToJavaString(env, error.message()));
 }
 
-SetLocalSdpObserverJni::SetLocalSdpObserverJni(
+SetSdpObserverJni::SetSdpObserverJni(
     JNIEnv* env,
-    const JavaRef<jobject>& j_observer)
-    : j_observer_global_(env, j_observer) {}
+    const JavaRef<jobject>& j_observer,
+    std::unique_ptr<MediaConstraints> constraints)
+    : j_observer_global_(env, j_observer),
+      constraints_(std::move(constraints)) {}
 
-void SetLocalSdpObserverJni::OnSetLocalDescriptionComplete(RTCError error) {
+SetSdpObserverJni::~SetSdpObserverJni() = default;
+
+void SetSdpObserverJni::OnSuccess() {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
-  if (error.ok()) {
-    Java_SdpObserver_onSetSuccess(env, j_observer_global_);
-  } else {
-    Java_SdpObserver_onSetFailure(env, j_observer_global_,
-                                  NativeToJavaString(env, error.message()));
-  }
+  Java_SdpObserver_onSetSuccess(env, j_observer_global_);
 }
 
-SetRemoteSdpObserverJni::SetRemoteSdpObserverJni(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_observer)
-    : j_observer_global_(env, j_observer) {}
-
-void SetRemoteSdpObserverJni::OnSetRemoteDescriptionComplete(RTCError error) {
+void SetSdpObserverJni::OnFailure(webrtc::RTCError error) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
-  if (error.ok()) {
-    Java_SdpObserver_onSetSuccess(env, j_observer_global_);
-  } else {
-    Java_SdpObserver_onSetFailure(env, j_observer_global_,
-                                  NativeToJavaString(env, error.message()));
-  }
+  Java_SdpObserver_onSetFailure(env, j_observer_global_,
+                                NativeToJavaString(env, error.message()));
 }
 
 }  // namespace jni

@@ -95,7 +95,7 @@ TEST(VideoCodecTestMediaCodec, DISABLED_ForemanCif500kbpsH264CHP) {
   const auto frame_checker =
       std::make_unique<VideoCodecTestFixtureImpl::H264KeyframeChecker>();
 
-  config.h264_codec_settings.profile = H264Profile::kProfileConstrainedHigh;
+  config.h264_codec_settings.profile = H264::kProfileConstrainedHigh;
   config.encoded_frame_checker = frame_checker.get();
   config.SetCodecSettings(cricket::kH264CodecName, 1, 1, 1, false, false, false,
                           352, 288);
@@ -120,7 +120,7 @@ TEST(VideoCodecTestMediaCodec, ForemanMixedRes100kbpsVp8H264) {
   const std::vector<std::string> codecs = {cricket::kVp8CodecName,
                                            cricket::kH264CodecName};
   const std::vector<std::tuple<int, int>> resolutions = {
-      {128, 96}, {176, 144}, {320, 240}, {480, 272}};
+      {128, 96}, {160, 120}, {176, 144}, {240, 136}, {320, 240}, {480, 272}};
   const std::vector<RateProfile> rate_profiles = {
       {100, kForemanFramerateFps, 0}};
   const std::vector<QualityThresholds> quality_thresholds = {

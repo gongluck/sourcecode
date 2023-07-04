@@ -14,15 +14,11 @@
 
 #include "absl/algorithm/container.h"
 #include "api/call/audio_sink.h"
-#include "modules/rtp_rtcp/source/rtp_util.h"
+#include "media/base/rtp_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/thread.h"
 
 namespace cricket {
-
-using ::webrtc::ParseRtpSsrc;
-
 FakeAudioSendStream::FakeAudioSendStream(
     int id,
     const webrtc::AudioSendStream::Config& config)
@@ -99,35 +95,9 @@ bool FakeAudioReceiveStream::DeliverRtp(const uint8_t* packet,
   return true;
 }
 
-void FakeAudioReceiveStream::SetDepacketizerToDecoderFrameTransformer(
-    rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer) {
-  config_.frame_transformer = std::move(frame_transformer);
-}
-
-void FakeAudioReceiveStream::SetDecoderMap(
-    std::map<int, webrtc::SdpAudioFormat> decoder_map) {
-  config_.decoder_map = std::move(decoder_map);
-}
-
-void FakeAudioReceiveStream::SetUseTransportCcAndNackHistory(
-    bool use_transport_cc,
-    int history_ms) {
-  config_.rtp.transport_cc = use_transport_cc;
-  config_.rtp.nack.rtp_history_ms = history_ms;
-}
-
-void FakeAudioReceiveStream::SetNonSenderRttMeasurement(bool enabled) {
-  config_.enable_non_sender_rtt = enabled;
-}
-
-void FakeAudioReceiveStream::SetFrameDecryptor(
-    rtc::scoped_refptr<webrtc::FrameDecryptorInterface> frame_decryptor) {
-  config_.frame_decryptor = std::move(frame_decryptor);
-}
-
-void FakeAudioReceiveStream::SetRtpExtensions(
-    std::vector<webrtc::RtpExtension> extensions) {
-  config_.rtp.extensions = std::move(extensions);
+void FakeAudioReceiveStream::Reconfigure(
+    const webrtc::AudioReceiveStream::Config& config) {
+  config_ = config;
 }
 
 webrtc::AudioReceiveStream::Stats FakeAudioReceiveStream::GetStats(
@@ -375,11 +345,6 @@ webrtc::VideoReceiveStream::Stats FakeVideoReceiveStream::GetStats() const {
   return stats_;
 }
 
-void FakeVideoReceiveStream::SetRtpExtensions(
-    std::vector<webrtc::RtpExtension> extensions) {
-  config_.rtp.extensions = std::move(extensions);
-}
-
 void FakeVideoReceiveStream::Start() {
   receiving_ = true;
 }
@@ -397,11 +362,6 @@ FakeFlexfecReceiveStream::FakeFlexfecReceiveStream(
     const webrtc::FlexfecReceiveStream::Config& config)
     : config_(config) {}
 
-void FakeFlexfecReceiveStream::SetRtpExtensions(
-    std::vector<webrtc::RtpExtension> extensions) {
-  config_.rtp.extensions = std::move(extensions);
-}
-
 const webrtc::FlexfecReceiveStream::Config&
 FakeFlexfecReceiveStream::GetConfig() const {
   return config_;
@@ -413,17 +373,11 @@ webrtc::FlexfecReceiveStream::Stats FakeFlexfecReceiveStream::GetStats() const {
 }
 
 void FakeFlexfecReceiveStream::OnRtpPacket(const webrtc::RtpPacketReceived&) {
-  RTC_DCHECK_NOTREACHED() << "Not implemented.";
+  RTC_NOTREACHED() << "Not implemented.";
 }
 
 FakeCall::FakeCall()
-    : FakeCall(rtc::Thread::Current(), rtc::Thread::Current()) {}
-
-FakeCall::FakeCall(webrtc::TaskQueueBase* worker_thread,
-                   webrtc::TaskQueueBase* network_thread)
-    : network_thread_(network_thread),
-      worker_thread_(worker_thread),
-      audio_network_state_(webrtc::kNetworkUp),
+    : audio_network_state_(webrtc::kNetworkUp),
       video_network_state_(webrtc::kNetworkUp),
       num_created_send_streams_(0),
       num_created_receive_streams_(0) {}
@@ -618,24 +572,20 @@ FakeCall::DeliveryStatus FakeCall::DeliverPacket(webrtc::MediaType media_type,
   RTC_DCHECK(media_type == webrtc::MediaType::AUDIO ||
              media_type == webrtc::MediaType::VIDEO);
 
-  if (!webrtc::IsRtpPacket(packet)) {
+  uint32_t ssrc;
+  if (!GetRtpSsrc(packet.cdata(), packet.size(), &ssrc))
     return DELIVERY_PACKET_ERROR;
-  }
 
-  uint32_t ssrc = ParseRtpSsrc(packet);
   if (media_type == webrtc::MediaType::VIDEO) {
     for (auto receiver : video_receive_streams_) {
-      if (receiver->GetConfig().rtp.remote_ssrc == ssrc) {
-        ++delivered_packets_by_ssrc_[ssrc];
+      if (receiver->GetConfig().rtp.remote_ssrc == ssrc)
         return DELIVERY_OK;
-      }
     }
   }
   if (media_type == webrtc::MediaType::AUDIO) {
     for (auto receiver : audio_receive_streams_) {
       if (receiver->GetConfig().rtp.remote_ssrc == ssrc) {
         receiver->DeliverRtp(packet.cdata(), packet.size(), packet_time_us);
-        ++delivered_packets_by_ssrc_[ssrc];
         return DELIVERY_OK;
       }
     }
@@ -659,14 +609,6 @@ webrtc::Call::Stats FakeCall::GetStats() const {
   return stats_;
 }
 
-webrtc::TaskQueueBase* FakeCall::network_thread() const {
-  return network_thread_;
-}
-
-webrtc::TaskQueueBase* FakeCall::worker_thread() const {
-  return worker_thread_;
-}
-
 void FakeCall::SignalChannelNetworkState(webrtc::MediaType media,
                                          webrtc::NetworkState state) {
   switch (media) {
@@ -685,18 +627,6 @@ void FakeCall::SignalChannelNetworkState(webrtc::MediaType media,
 
 void FakeCall::OnAudioTransportOverheadChanged(
     int transport_overhead_per_packet) {}
-
-void FakeCall::OnLocalSsrcUpdated(webrtc::AudioReceiveStream& stream,
-                                  uint32_t local_ssrc) {
-  auto& fake_stream = static_cast<FakeAudioReceiveStream&>(stream);
-  fake_stream.SetLocalSsrc(local_ssrc);
-}
-
-void FakeCall::OnUpdateSyncGroup(webrtc::AudioReceiveStream& stream,
-                                 const std::string& sync_group) {
-  auto& fake_stream = static_cast<FakeAudioReceiveStream&>(stream);
-  fake_stream.SetSyncGroup(sync_group);
-}
 
 void FakeCall::OnSentPacket(const rtc::SentPacket& sent_packet) {
   last_sent_packet_ = sent_packet;

@@ -10,6 +10,7 @@
 
 #include "modules/video_coding/media_opt_util.h"
 
+#include <assert.h>
 #include <math.h>
 
 #include <algorithm>
@@ -86,10 +87,10 @@ VCMNackFecMethod::VCMNackFecMethod(int64_t lowRttNackThresholdMs,
       _lowRttNackMs(lowRttNackThresholdMs),
       _highRttNackMs(highRttNackThresholdMs),
       _maxFramesFec(1) {
-  RTC_DCHECK(lowRttNackThresholdMs >= -1 && highRttNackThresholdMs >= -1);
-  RTC_DCHECK(highRttNackThresholdMs == -1 ||
-             lowRttNackThresholdMs <= highRttNackThresholdMs);
-  RTC_DCHECK(lowRttNackThresholdMs > -1 || highRttNackThresholdMs == -1);
+  assert(lowRttNackThresholdMs >= -1 && highRttNackThresholdMs >= -1);
+  assert(highRttNackThresholdMs == -1 ||
+         lowRttNackThresholdMs <= highRttNackThresholdMs);
+  assert(lowRttNackThresholdMs > -1 || highRttNackThresholdMs == -1);
   _type = kNackFec;
 }
 
@@ -153,7 +154,7 @@ int VCMNackFecMethod::ComputeMaxFramesFec(
       rtc::saturated_cast<int>(
           2.0f * base_layer_framerate * parameters->rtt / 1000.0f + 0.5f),
       1);
-  // `kUpperLimitFramesFec` is the upper limit on how many frames we
+  // |kUpperLimitFramesFec| is the upper limit on how many frames we
   // allow any FEC to be based on.
   if (max_frames_fec > kUpperLimitFramesFec) {
     max_frames_fec = kUpperLimitFramesFec;
@@ -171,7 +172,7 @@ bool VCMNackFecMethod::BitRateTooLowForFec(
   // The condition should depend on resolution and content. For now, use
   // threshold on bytes per frame, with some effect for the frame size.
   // The condition for turning off FEC is also based on other factors,
-  // such as `_numLayers`, `_maxFramesFec`, and `_rtt`.
+  // such as |_numLayers|, |_maxFramesFec|, and |_rtt|.
   int estimate_bytes_per_frame = 1000 * BitsPerFrame(parameters) / 8;
   int max_bytes_per_frame = kMaxBytesPerFrameForFec;
   int num_pixels = parameters->codecWidth * parameters->codecHeight;
@@ -383,7 +384,7 @@ bool VCMFecMethod::ProtectionFactor(const VCMProtectionParameters* parameters) {
   indexTableKey = VCM_MIN(indexTableKey, kFecRateTableSize);
 
   // Check on table index
-  RTC_DCHECK_LT(indexTableKey, kFecRateTableSize);
+  assert(indexTableKey < kFecRateTableSize);
 
   // Protection factor for I frame
   codeRateKey = kFecRateTable[indexTableKey];

@@ -29,8 +29,7 @@ struct RTC_EXPORT AudioDecoderL16 {
     bool IsOk() const {
       return (sample_rate_hz == 8000 || sample_rate_hz == 16000 ||
               sample_rate_hz == 32000 || sample_rate_hz == 48000) &&
-             (num_channels >= 1 &&
-              num_channels <= AudioDecoder::kMaxNumberOfChannels);
+             num_channels >= 1;
     }
     int sample_rate_hz = 8000;
     int num_channels = 1;

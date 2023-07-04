@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "absl/types/optional.h"
-#include "api/array_view.h"
 #include "api/network_state_predictor.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -78,9 +77,9 @@ rtclog::DelayBasedBweUpdate::DetectorState ConvertDetectorState(
     case BandwidthUsage::kBwOverusing:
       return rtclog::DelayBasedBweUpdate::BWE_OVERUSING;
     case BandwidthUsage::kLast:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::DelayBasedBweUpdate::BWE_NORMAL;
 }
 
@@ -94,9 +93,9 @@ rtclog::BweProbeResult::ResultType ConvertProbeResultType(
     case ProbeFailureReason::kTimeout:
       return rtclog::BweProbeResult::TIMEOUT;
     case ProbeFailureReason::kLast:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::BweProbeResult::SUCCESS;
 }
 
@@ -107,9 +106,9 @@ rtclog::VideoReceiveConfig_RtcpMode ConvertRtcpMode(RtcpMode rtcp_mode) {
     case RtcpMode::kReducedSize:
       return rtclog::VideoReceiveConfig::RTCP_REDUCEDSIZE;
     case RtcpMode::kOff:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::VideoReceiveConfig::RTCP_COMPOUND;
 }
 
@@ -125,9 +124,9 @@ ConvertIceCandidatePairConfigType(IceCandidatePairConfigType type) {
     case IceCandidatePairConfigType::kSelected:
       return rtclog::IceCandidatePairConfig::SELECTED;
     case IceCandidatePairConfigType::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::IceCandidatePairConfig::ADDED;
 }
 
@@ -145,9 +144,9 @@ rtclog::IceCandidatePairConfig::IceCandidateType ConvertIceCandidateType(
     case IceCandidateType::kRelay:
       return rtclog::IceCandidatePairConfig::RELAY;
     case IceCandidateType::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::IceCandidatePairConfig::UNKNOWN_CANDIDATE_TYPE;
 }
 
@@ -165,9 +164,9 @@ rtclog::IceCandidatePairConfig::Protocol ConvertIceCandidatePairProtocol(
     case IceCandidatePairProtocol::kTls:
       return rtclog::IceCandidatePairConfig::TLS;
     case IceCandidatePairProtocol::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::IceCandidatePairConfig::UNKNOWN_PROTOCOL;
 }
 
@@ -182,9 +181,9 @@ ConvertIceCandidatePairAddressFamily(
     case IceCandidatePairAddressFamily::kIpv6:
       return rtclog::IceCandidatePairConfig::IPV6;
     case IceCandidatePairAddressFamily::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::IceCandidatePairConfig::UNKNOWN_ADDRESS_FAMILY;
 }
 
@@ -204,9 +203,9 @@ rtclog::IceCandidatePairConfig::NetworkType ConvertIceCandidateNetworkType(
     case IceCandidateNetworkType::kCellular:
       return rtclog::IceCandidatePairConfig::CELLULAR;
     case IceCandidateNetworkType::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::IceCandidatePairConfig::UNKNOWN_NETWORK_TYPE;
 }
 
@@ -222,9 +221,9 @@ ConvertIceCandidatePairEventType(IceCandidatePairEventType type) {
     case IceCandidatePairEventType::kCheckResponseReceived:
       return rtclog::IceCandidatePairEvent::CHECK_RESPONSE_RECEIVED;
     case IceCandidatePairEventType::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
   }
-  RTC_DCHECK_NOTREACHED();
+  RTC_NOTREACHED();
   return rtclog::IceCandidatePairEvent::CHECK_SENT;
 }
 
@@ -374,7 +373,7 @@ std::string RtcEventLogEncoderLegacy::Encode(const RtcEvent& event) {
   }
 
   int event_type = static_cast<int>(event.GetType());
-  RTC_DCHECK_NOTREACHED() << "Unknown event type (" << event_type << ")";
+  RTC_NOTREACHED() << "Unknown event type (" << event_type << ")";
   return "";
 }
 
@@ -594,14 +593,14 @@ std::string RtcEventLogEncoderLegacy::EncodeRtcpPacketOutgoing(
 
 std::string RtcEventLogEncoderLegacy::EncodeRtpPacketIncoming(
     const RtcEventRtpPacketIncoming& event) {
-  return EncodeRtpPacket(event.timestamp_us(), event.RawHeader(),
+  return EncodeRtpPacket(event.timestamp_us(), event.header(),
                          event.packet_length(), PacedPacketInfo::kNotAProbe,
                          true);
 }
 
 std::string RtcEventLogEncoderLegacy::EncodeRtpPacketOutgoing(
     const RtcEventRtpPacketOutgoing& event) {
-  return EncodeRtpPacket(event.timestamp_us(), event.RawHeader(),
+  return EncodeRtpPacket(event.timestamp_us(), event.header(),
                          event.packet_length(), event.probe_cluster_id(),
                          false);
 }
@@ -674,7 +673,7 @@ std::string RtcEventLogEncoderLegacy::EncodeVideoSendStreamConfig(
     encoder->set_payload_type(codec.payload_type);
 
     if (event.config().codecs.size() > 1) {
-      RTC_LOG(LS_WARNING)
+      RTC_LOG(WARNING)
           << "LogVideoSendStreamConfig currently only supports one "
              "codec. Logging codec :"
           << codec.payload_name;
@@ -737,7 +736,7 @@ std::string RtcEventLogEncoderLegacy::EncodeRtcpPacket(
 
 std::string RtcEventLogEncoderLegacy::EncodeRtpPacket(
     int64_t timestamp_us,
-    rtc::ArrayView<const uint8_t> header,
+    const webrtc::RtpPacket& header,
     size_t packet_length,
     int probe_cluster_id,
     bool is_incoming) {

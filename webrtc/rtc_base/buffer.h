@@ -204,16 +204,13 @@ class BufferT {
   template <typename U,
             typename std::enable_if<
                 internal::BufferCompat<T, U>::value>::type* = nullptr>
-  //填充数据
   void SetData(const U* data, size_t size) {
     RTC_DCHECK(IsConsistent());
     const size_t old_size = size_;
-    //从头开始
     size_ = 0;
-    //追加数据
     AppendData(data, size);
-    if (ZeroOnFree && size_ < old_size) {  //将操作后缩小的缓冲区
-      ZeroTrailingData(old_size - size_);  //置0
+    if (ZeroOnFree && size_ < old_size) {
+      ZeroTrailingData(old_size - size_);
     }
   }
 
@@ -232,13 +229,13 @@ class BufferT {
     SetData(w.data(), w.size());
   }
 
-  // Replaces the data in the buffer with at most `max_elements` of data, using
-  // the function `setter`, which should have the following signature:
+  // Replaces the data in the buffer with at most |max_elements| of data, using
+  // the function |setter|, which should have the following signature:
   //
   //   size_t setter(ArrayView<U> view)
   //
-  // `setter` is given an appropriately typed ArrayView of length exactly
-  // `max_elements` that describes the area where it should write the data; it
+  // |setter| is given an appropriately typed ArrayView of length exactly
+  // |max_elements| that describes the area where it should write the data; it
   // should return the number of elements actually written. (If it doesn't fill
   // the whole ArrayView, it should leave the unused space at the end.)
   template <typename U = T,
@@ -261,14 +258,11 @@ class BufferT {
   template <typename U,
             typename std::enable_if<
                 internal::BufferCompat<T, U>::value>::type* = nullptr>
-  //追加数据
   void AppendData(const U* data, size_t size) {
     RTC_DCHECK(IsConsistent());
     const size_t new_size = size_ + size;
-    //确保缓冲区足够 内部自动扩容
     EnsureCapacityWithHeadroom(new_size, true);
     static_assert(sizeof(T) == sizeof(U), "");
-    //拷贝数据
     std::memcpy(data_.get() + size_, data, size * sizeof(U));
     size_ = new_size;
     RTC_DCHECK(IsConsistent());
@@ -296,13 +290,13 @@ class BufferT {
     AppendData(&item, 1);
   }
 
-  // Appends at most `max_elements` to the end of the buffer, using the function
-  // `setter`, which should have the following signature:
+  // Appends at most |max_elements| to the end of the buffer, using the function
+  // |setter|, which should have the following signature:
   //
   //   size_t setter(ArrayView<U> view)
   //
-  // `setter` is given an appropriately typed ArrayView of length exactly
-  // `max_elements` that describes the area where it should write the data; it
+  // |setter| is given an appropriately typed ArrayView of length exactly
+  // |max_elements| that describes the area where it should write the data; it
   // should return the number of elements actually written. (If it doesn't fill
   // the whole ArrayView, it should leave the unused space at the end.)
   template <typename U = T,
@@ -396,7 +390,7 @@ class BufferT {
   }
 
   // Zero the first "count" elements of unused capacity.
-  void ZeroTrailingData(size_t count) {  //将当前pos后count个元素置0
+  void ZeroTrailingData(size_t count) {
     RTC_DCHECK(IsConsistent());
     RTC_DCHECK_LE(count, capacity_ - size_);
     ExplicitZeroMemory(data_.get() + size_, count * sizeof(T));

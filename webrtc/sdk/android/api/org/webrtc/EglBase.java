@@ -11,8 +11,8 @@
 package org.webrtc;
 
 import android.graphics.SurfaceTexture;
+import android.support.annotation.Nullable;
 import android.view.Surface;
-import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import javax.microedition.khronos.egl.EGL10;
 
@@ -23,7 +23,7 @@ import javax.microedition.khronos.egl.EGL10;
 public interface EglBase {
   // EGL wrapper for an actual EGLContext.
   public interface Context {
-    public static final long NO_CONTEXT = 0;
+    public final static long NO_CONTEXT = 0;
 
     /**
      * Returns an EGL context that can be used by native code. Returns NO_CONTEXT if the method is
@@ -54,7 +54,6 @@ public interface EglBase {
   }
 
   public static class ConfigBuilder {
-
     private int openGlesVersion = 2;
     private boolean hasAlphaChannel;
     private boolean supportsPixelBuffer;
@@ -62,9 +61,7 @@ public interface EglBase {
 
     public ConfigBuilder setOpenGlesVersion(int version) {
       if (version < 1 || version > 3) {
-        throw new IllegalArgumentException(
-          "OpenGL ES version " + version + " not supported"
-        );
+        throw new IllegalArgumentException("OpenGL ES version " + version + " not supported");
       }
       this.openGlesVersion = version;
       return this;
@@ -99,9 +96,7 @@ public interface EglBase {
       }
       if (openGlesVersion == 2 || openGlesVersion == 3) {
         list.add(EGL10.EGL_RENDERABLE_TYPE);
-        list.add(
-          openGlesVersion == 3 ? EGL_OPENGL_ES3_BIT : EGL_OPENGL_ES2_BIT
-        );
+        list.add(openGlesVersion == 3 ? EGL_OPENGL_ES3_BIT : EGL_OPENGL_ES2_BIT);
       }
       if (supportsPixelBuffer) {
         list.add(EGL10.EGL_SURFACE_TYPE);
@@ -121,21 +116,17 @@ public interface EglBase {
     }
   }
 
-  public static final int[] CONFIG_PLAIN = configBuilder()
-    .createConfigAttributes();
-  public static final int[] CONFIG_RGBA = configBuilder()
-    .setHasAlphaChannel(true)
-    .createConfigAttributes();
-  public static final int[] CONFIG_PIXEL_BUFFER = configBuilder()
-    .setSupportsPixelBuffer(true)
-    .createConfigAttributes();
+  public static final int[] CONFIG_PLAIN = configBuilder().createConfigAttributes();
+  public static final int[] CONFIG_RGBA =
+      configBuilder().setHasAlphaChannel(true).createConfigAttributes();
+  public static final int[] CONFIG_PIXEL_BUFFER =
+      configBuilder().setSupportsPixelBuffer(true).createConfigAttributes();
   public static final int[] CONFIG_PIXEL_RGBA_BUFFER = configBuilder()
-    .setHasAlphaChannel(true)
-    .setSupportsPixelBuffer(true)
-    .createConfigAttributes();
-  public static final int[] CONFIG_RECORDABLE = configBuilder()
-    .setIsRecordable(true)
-    .createConfigAttributes();
+                                                           .setHasAlphaChannel(true)
+                                                           .setSupportsPixelBuffer(true)
+                                                           .createConfigAttributes();
+  public static final int[] CONFIG_RECORDABLE =
+      configBuilder().setIsRecordable(true).createConfigAttributes();
 
   static int getOpenGlesVersionFromConfig(int[] configAttributes) {
     for (int i = 0; i < configAttributes.length - 1; ++i) {
@@ -155,18 +146,14 @@ public interface EglBase {
   }
 
   /**
-   * Create a new context with the specified config attributes, sharing data with `sharedContext`.
-   * If `sharedContext` is null, a root context is created. This function will try to create an EGL
+   * Create a new context with the specified config attributes, sharing data with |sharedContext|.
+   * If |sharedContext| is null, a root context is created. This function will try to create an EGL
    * 1.4 context if possible, and an EGL 1.0 context otherwise.
    */
-  public static EglBase create(
-    @Nullable Context sharedContext,
-    int[] configAttributes
-  ) {
+  public static EglBase create(@Nullable Context sharedContext, int[] configAttributes) {
     if (sharedContext == null) {
-      return EglBase14Impl.isEGL14Supported()
-        ? createEgl14(configAttributes)
-        : createEgl10(configAttributes);
+      return EglBase14Impl.isEGL14Supported() ? createEgl14(configAttributes)
+                                              : createEgl10(configAttributes);
     } else if (sharedContext instanceof EglBase14.Context) {
       return createEgl14((EglBase14.Context) sharedContext, configAttributes);
     } else if (sharedContext instanceof EglBase10.Context) {
@@ -180,11 +167,11 @@ public interface EglBase {
    * context if possible, and an EGL 1.0 context otherwise.
    */
   public static EglBase create() {
-    return create(null/* shaderContext */, CONFIG_PLAIN);
+    return create(null /* shaderContext */, CONFIG_PLAIN);
   }
 
   /**
-   * Helper function for creating a plain context, sharing data with `sharedContext`. This function
+   * Helper function for creating a plain context, sharing data with |sharedContext|. This function
    * will try to create an EGL 1.4 context if possible, and an EGL 1.0 context otherwise.
    */
   public static EglBase create(Context sharedContext) {
@@ -193,21 +180,16 @@ public interface EglBase {
 
   /** Explicitly create a root EGl 1.0 context with the specified config attributes. */
   public static EglBase10 createEgl10(int[] configAttributes) {
-    return new EglBase10Impl(/* sharedContext= */null, configAttributes);
+    return new EglBase10Impl(/* sharedContext= */ null, configAttributes);
   }
 
   /**
    * Explicitly create a root EGl 1.0 context with the specified config attributes and shared
    * context.
    */
-  public static EglBase10 createEgl10(
-    EglBase10.Context sharedContext,
-    int[] configAttributes
-  ) {
+  public static EglBase10 createEgl10(EglBase10.Context sharedContext, int[] configAttributes) {
     return new EglBase10Impl(
-      sharedContext == null ? null : sharedContext.getRawContext(),
-      configAttributes
-    );
+        sharedContext == null ? null : sharedContext.getRawContext(), configAttributes);
   }
 
   /**
@@ -215,29 +197,22 @@ public interface EglBase {
    * and shared context.
    */
   public static EglBase10 createEgl10(
-    javax.microedition.khronos.egl.EGLContext sharedContext,
-    int[] configAttributes
-  ) {
+      javax.microedition.khronos.egl.EGLContext sharedContext, int[] configAttributes) {
     return new EglBase10Impl(sharedContext, configAttributes);
   }
 
   /** Explicitly create a root EGl 1.4 context with the specified config attributes. */
   public static EglBase14 createEgl14(int[] configAttributes) {
-    return new EglBase14Impl(/* sharedContext= */null, configAttributes);
+    return new EglBase14Impl(/* sharedContext= */ null, configAttributes);
   }
 
   /**
    * Explicitly create a root EGl 1.4 context with the specified config attributes and shared
    * context.
    */
-  public static EglBase14 createEgl14(
-    EglBase14.Context sharedContext,
-    int[] configAttributes
-  ) {
+  public static EglBase14 createEgl14(EglBase14.Context sharedContext, int[] configAttributes) {
     return new EglBase14Impl(
-      sharedContext == null ? null : sharedContext.getRawContext(),
-      configAttributes
-    );
+        sharedContext == null ? null : sharedContext.getRawContext(), configAttributes);
   }
 
   /**
@@ -245,9 +220,7 @@ public interface EglBase {
    * and shared context.
    */
   public static EglBase14 createEgl14(
-    android.opengl.EGLContext sharedContext,
-    int[] configAttributes
-  ) {
+      android.opengl.EGLContext sharedContext, int[] configAttributes) {
     return new EglBase14Impl(sharedContext, configAttributes);
   }
 

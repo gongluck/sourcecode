@@ -23,7 +23,11 @@ namespace {
 class DummySocketServer : public rtc::SocketServer {
  public:
   rtc::Socket* CreateSocket(int family, int type) override {
-    RTC_DCHECK_NOTREACHED();
+    RTC_NOTREACHED();
+    return nullptr;
+  }
+  rtc::AsyncSocket* CreateAsyncSocket(int family, int type) override {
+    RTC_NOTREACHED();
     return nullptr;
   }
   bool Wait(int cms, bool process_io) override {

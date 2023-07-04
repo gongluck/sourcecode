@@ -18,27 +18,24 @@
 namespace webrtc {
 namespace {
 
-class TransformableIncomingAudioFrame
-    : public TransformableAudioFrameInterface {
+class TransformableAudioFrame : public TransformableAudioFrameInterface {
  public:
-  TransformableIncomingAudioFrame(rtc::ArrayView<const uint8_t> payload,
-                                  const RTPHeader& header,
-                                  uint32_t ssrc)
+  TransformableAudioFrame(rtc::ArrayView<const uint8_t> payload,
+                          const RTPHeader& header,
+                          uint32_t ssrc)
       : payload_(payload.data(), payload.size()),
         header_(header),
         ssrc_(ssrc) {}
-  ~TransformableIncomingAudioFrame() override = default;
+  ~TransformableAudioFrame() override = default;
   rtc::ArrayView<const uint8_t> GetData() const override { return payload_; }
 
   void SetData(rtc::ArrayView<const uint8_t> data) override {
     payload_.SetData(data.data(), data.size());
   }
 
-  uint8_t GetPayloadType() const override { return header_.payloadType; }
-  uint32_t GetSsrc() const override { return ssrc_; }
   uint32_t GetTimestamp() const override { return header_.timestamp; }
+  uint32_t GetSsrc() const override { return ssrc_; }
   const RTPHeader& GetHeader() const override { return header_; }
-  Direction GetDirection() const override { return Direction::kReceiver; }
 
  private:
   rtc::Buffer payload_;
@@ -50,7 +47,7 @@ class TransformableIncomingAudioFrame
 ChannelReceiveFrameTransformerDelegate::ChannelReceiveFrameTransformerDelegate(
     ReceiveFrameCallback receive_frame_callback,
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
-    TaskQueueBase* channel_receive_thread)
+    rtc::Thread* channel_receive_thread)
     : receive_frame_callback_(receive_frame_callback),
       frame_transformer_(std::move(frame_transformer)),
       channel_receive_thread_(channel_receive_thread) {}
@@ -74,7 +71,7 @@ void ChannelReceiveFrameTransformerDelegate::Transform(
     uint32_t ssrc) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   frame_transformer_->Transform(
-      std::make_unique<TransformableIncomingAudioFrame>(packet, header, ssrc));
+      std::make_unique<TransformableAudioFrame>(packet, header, ssrc));
 }
 
 void ChannelReceiveFrameTransformerDelegate::OnTransformedFrame(
@@ -91,10 +88,7 @@ void ChannelReceiveFrameTransformerDelegate::ReceiveFrame(
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (!receive_frame_callback_)
     return;
-  RTC_CHECK_EQ(frame->GetDirection(),
-               TransformableFrameInterface::Direction::kReceiver);
-  auto* transformed_frame =
-      static_cast<TransformableIncomingAudioFrame*>(frame.get());
+  auto* transformed_frame = static_cast<TransformableAudioFrame*>(frame.get());
   receive_frame_callback_(transformed_frame->GetData(),
                           transformed_frame->GetHeader());
 }

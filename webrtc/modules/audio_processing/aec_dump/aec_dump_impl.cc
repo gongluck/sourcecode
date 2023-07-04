@@ -155,7 +155,7 @@ void AecDumpImpl::WriteRenderStreamMessage(
 
   audioproc::ReverseStream* msg = event->mutable_reverse_stream();
 
-  for (int i = 0; i < src.num_channels(); ++i) {
+  for (size_t i = 0; i < src.num_channels(); ++i) {
     const auto& channel_view = src.channel(i);
     msg->add_channel(channel_view.begin(), sizeof(float) * channel_view.size());
   }
@@ -184,12 +184,6 @@ void AecDumpImpl::WriteRuntimeSetting(
       float x;
       runtime_setting.GetFloat(&x);
       setting->set_capture_pre_gain(x);
-      break;
-    }
-    case AudioProcessing::RuntimeSetting::Type::kCapturePostGain: {
-      float x;
-      runtime_setting.GetFloat(&x);
-      setting->set_capture_post_gain(x);
       break;
     }
     case AudioProcessing::RuntimeSetting::Type::
@@ -230,7 +224,7 @@ void AecDumpImpl::WriteRuntimeSetting(
       break;
     }
     case AudioProcessing::RuntimeSetting::Type::kNotSpecified:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
       break;
   }
   worker_queue_->PostTask(std::move(task));

@@ -10,19 +10,17 @@
 
 #include "pc/sctp_data_channel.h"
 
-#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
 
+#include "api/proxy.h"
 #include "media/sctp/sctp_transport_internal.h"
-#include "pc/proxy.h"
 #include "pc/sctp_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
-#include "rtc_base/system/unused.h"
 #include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/thread.h"
 
@@ -31,6 +29,7 @@ namespace webrtc {
 namespace {
 
 static size_t kMaxQueuedReceivedDataBytes = 16 * 1024 * 1024;
+static size_t kMaxQueuedSendDataBytes = 16 * 1024 * 1024;
 
 static std::atomic<int> g_unique_id{0};
 
@@ -65,7 +64,7 @@ PROXY_CONSTMETHOD0(uint64_t, buffered_amount)
 PROXY_METHOD0(void, Close)
 // TODO(bugs.webrtc.org/11547): Change to run on the network thread.
 PROXY_METHOD1(bool, Send, const DataBuffer&)
-END_PROXY_MAP(DataChannel)
+END_PROXY_MAP()
 
 }  // namespace
 
@@ -79,27 +78,17 @@ InternalDataChannelInit::InternalDataChannelInit(const DataChannelInit& base)
     // Specified in createDataChannel, WebRTC spec section 6.1 bullet 13.
     id = -1;
   }
-  // Backwards compatibility: If maxRetransmits or maxRetransmitTime
-  // are negative, the feature is not enabled.
-  // Values are clamped to a 16bit range.
-  if (maxRetransmits) {
-    if (*maxRetransmits < 0) {
-      RTC_LOG(LS_ERROR)
-          << "Accepting maxRetransmits < 0 for backwards compatibility";
-      maxRetransmits = absl::nullopt;
-    } else if (*maxRetransmits > std::numeric_limits<uint16_t>::max()) {
-      maxRetransmits = std::numeric_limits<uint16_t>::max();
-    }
+  // Backwards compatibility: If base.maxRetransmits or base.maxRetransmitTime
+  // have been set to -1, unset them.
+  if (maxRetransmits && *maxRetransmits == -1) {
+    RTC_LOG(LS_ERROR)
+        << "Accepting maxRetransmits = -1 for backwards compatibility";
+    maxRetransmits = absl::nullopt;
   }
-
-  if (maxRetransmitTime) {
-    if (*maxRetransmitTime < 0) {
-      RTC_LOG(LS_ERROR)
-          << "Accepting maxRetransmitTime < 0 for backwards compatibility";
-      maxRetransmitTime = absl::nullopt;
-    } else if (*maxRetransmitTime > std::numeric_limits<uint16_t>::max()) {
-      maxRetransmitTime = std::numeric_limits<uint16_t>::max();
-    }
+  if (maxRetransmitTime && *maxRetransmitTime == -1) {
+    RTC_LOG(LS_ERROR)
+        << "Accepting maxRetransmitTime = -1 for backwards compatibility";
+    maxRetransmitTime = absl::nullopt;
   }
 }
 
@@ -146,8 +135,9 @@ rtc::scoped_refptr<SctpDataChannel> SctpDataChannel::Create(
     const InternalDataChannelInit& config,
     rtc::Thread* signaling_thread,
     rtc::Thread* network_thread) {
-  auto channel = rtc::make_ref_counted<SctpDataChannel>(
-      config, provider, label, signaling_thread, network_thread);
+  rtc::scoped_refptr<SctpDataChannel> channel(
+      new rtc::RefCountedObject<SctpDataChannel>(
+          config, provider, label, signaling_thread, network_thread));
   if (!channel->Init()) {
     return nullptr;
   }
@@ -178,7 +168,6 @@ SctpDataChannel::SctpDataChannel(const InternalDataChannelInit& config,
       observer_(nullptr),
       provider_(provider) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  RTC_UNUSED(network_thread_);
 }
 
 bool SctpDataChannel::Init() {
@@ -253,7 +242,7 @@ bool SctpDataChannel::reliable() const {
 
 uint64_t SctpDataChannel::buffered_amount() const {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  return queued_send_data_.byte_count();
+  return buffered_amount_;
 }
 
 void SctpDataChannel::Close() {
@@ -305,12 +294,25 @@ bool SctpDataChannel::Send(const DataBuffer& buffer) {
     return false;
   }
 
+  // TODO(jiayl): the spec is unclear about if the remote side should get the
+  // onmessage event. We need to figure out the expected behavior and change the
+  // code accordingly.
+  if (buffer.size() == 0) {
+    return true;
+  }
+
+  buffered_amount_ += buffer.size();
+
   // If the queue is non-empty, we're waiting for SignalReadyToSend,
   // so just add to the end of the queue and keep waiting.
   if (!queued_send_data_.Empty()) {
     if (!QueueSendDataMessage(buffer)) {
-      // Queue is full
-      return false;
+      RTC_LOG(LS_ERROR) << "Closing the DataChannel due to a failure to queue "
+                           "additional data.";
+      // https://w3c.github.io/webrtc-pc/#dom-rtcdatachannel-send step 5
+      // Note that the spec doesn't explicitly say to close in this situation.
+      CloseAbruptlyWithError(RTCError(RTCErrorType::RESOURCE_EXHAUSTED,
+                                      "Unable to queue data for sending"));
     }
     return true;
   }
@@ -376,11 +378,13 @@ void SctpDataChannel::OnTransportChannelCreated() {
   }
 }
 
-void SctpDataChannel::OnTransportChannelClosed(RTCError error) {
-  // The SctpTransport is unusable, which could come from multiplie reasons:
-  // - the SCTP m= section was rejected
-  // - the DTLS transport is closed
-  // - the SCTP transport is closed
+void SctpDataChannel::OnTransportChannelClosed() {
+  // The SctpTransport is unusable (for example, because the SCTP m= section
+  // was rejected, or because the DTLS transport closed), so we need to close
+  // abruptly.
+  RTCError error = RTCError(RTCErrorType::OPERATION_ERROR_WITH_DATA,
+                            "Transport channel closed");
+  error.set_error_detail(RTCErrorDetailType::SCTP_FAILURE);
   CloseAbruptlyWithError(std::move(error));
 }
 
@@ -399,7 +403,7 @@ void SctpDataChannel::OnDataReceived(const cricket::ReceiveDataParams& params,
     return;
   }
 
-  if (params.type == DataMessageType::kControl) {
+  if (params.type == cricket::DMT_CONTROL) {
     if (handshake_state_ != kHandshakeWaitingForAck) {
       // Ignore it if we are not expecting an ACK message.
       RTC_LOG(LS_WARNING)
@@ -420,8 +424,8 @@ void SctpDataChannel::OnDataReceived(const cricket::ReceiveDataParams& params,
     return;
   }
 
-  RTC_DCHECK(params.type == DataMessageType::kBinary ||
-             params.type == DataMessageType::kText);
+  RTC_DCHECK(params.type == cricket::DMT_BINARY ||
+             params.type == cricket::DMT_TEXT);
 
   RTC_LOG(LS_VERBOSE) << "DataChannel received DATA message, sid = "
                       << params.sid;
@@ -432,7 +436,7 @@ void SctpDataChannel::OnDataReceived(const cricket::ReceiveDataParams& params,
     handshake_state_ = kHandshakeReady;
   }
 
-  bool binary = (params.type == webrtc::DataMessageType::kBinary);
+  bool binary = (params.type == cricket::DMT_BINARY);
   auto buffer = std::make_unique<DataBuffer>(payload, binary);
   if (state_ == kOpen && observer_) {
     ++messages_received_;
@@ -480,6 +484,8 @@ void SctpDataChannel::CloseAbruptlyWithError(RTCError error) {
   }
 
   // Closing abruptly means any queued data gets thrown away.
+  buffered_amount_ = 0;
+
   queued_send_data_.Clear();
   queued_control_data_.Clear();
 
@@ -611,7 +617,7 @@ void SctpDataChannel::SendQueuedDataMessages() {
 bool SctpDataChannel::SendDataMessage(const DataBuffer& buffer,
                                       bool queue_if_blocked) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  SendDataParams send_params;
+  cricket::SendDataParams send_params;
 
   send_params.ordered = config_.ordered;
   // Send as ordered if it is still going through OPEN/ACK signaling.
@@ -622,19 +628,22 @@ bool SctpDataChannel::SendDataMessage(const DataBuffer& buffer,
            "because the OPEN_ACK message has not been received.";
   }
 
-  send_params.max_rtx_count = config_.maxRetransmits;
-  send_params.max_rtx_ms = config_.maxRetransmitTime;
-  send_params.type =
-      buffer.binary ? DataMessageType::kBinary : DataMessageType::kText;
+  send_params.max_rtx_count =
+      config_.maxRetransmits ? *config_.maxRetransmits : -1;
+  send_params.max_rtx_ms =
+      config_.maxRetransmitTime ? *config_.maxRetransmitTime : -1;
+  send_params.sid = config_.id;
+  send_params.type = buffer.binary ? cricket::DMT_BINARY : cricket::DMT_TEXT;
 
   cricket::SendDataResult send_result = cricket::SDR_SUCCESS;
-  bool success =
-      provider_->SendData(config_.id, send_params, buffer.data, &send_result);
+  bool success = provider_->SendData(send_params, buffer.data, &send_result);
 
   if (success) {
     ++messages_sent_;
     bytes_sent_ += buffer.size();
 
+    RTC_DCHECK(buffered_amount_ >= buffer.size());
+    buffered_amount_ -= buffer.size();
     if (observer_ && buffer.size() > 0) {
       observer_->OnBufferedAmountChange(buffer.size());
     }
@@ -660,8 +669,7 @@ bool SctpDataChannel::SendDataMessage(const DataBuffer& buffer,
 bool SctpDataChannel::QueueSendDataMessage(const DataBuffer& buffer) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   size_t start_buffered_amount = queued_send_data_.byte_count();
-  if (start_buffered_amount + buffer.size() >
-      DataChannelInterface::MaxSendQueueSize()) {
+  if (start_buffered_amount + buffer.size() > kMaxQueuedSendDataBytes) {
     RTC_LOG(LS_ERROR) << "Can't buffer any more data for the data channel.";
     return false;
   }
@@ -694,16 +702,16 @@ bool SctpDataChannel::SendControlMessage(const rtc::CopyOnWriteBuffer& buffer) {
   bool is_open_message = handshake_state_ == kHandshakeShouldSendOpen;
   RTC_DCHECK(!is_open_message || !config_.negotiated);
 
-  SendDataParams send_params;
+  cricket::SendDataParams send_params;
+  send_params.sid = config_.id;
   // Send data as ordered before we receive any message from the remote peer to
   // make sure the remote peer will not receive any data before it receives the
   // OPEN message.
   send_params.ordered = config_.ordered || is_open_message;
-  send_params.type = DataMessageType::kControl;
+  send_params.type = cricket::DMT_CONTROL;
 
   cricket::SendDataResult send_result = cricket::SDR_SUCCESS;
-  bool retval =
-      provider_->SendData(config_.id, send_params, buffer, &send_result);
+  bool retval = provider_->SendData(send_params, buffer, &send_result);
   if (retval) {
     RTC_LOG(LS_VERBOSE) << "Sent CONTROL message on channel " << config_.id;
 

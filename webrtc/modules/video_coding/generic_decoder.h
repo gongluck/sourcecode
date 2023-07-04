@@ -11,11 +11,11 @@
 #ifndef MODULES_VIDEO_CODING_GENERIC_DECODER_H_
 #define MODULES_VIDEO_CODING_GENERIC_DECODER_H_
 
+#include <memory>
 #include <string>
 
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
-#include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/timestamp_map.h"
@@ -45,11 +45,11 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   void OnDecoderImplementationName(const char* implementation_name);
 
   void Map(uint32_t timestamp, const VCMFrameInformation& frameInfo);
-  void ClearTimestampMap();
+  int32_t Pop(uint32_t timestamp);
 
  private:
   SequenceChecker construction_thread_;
-  // Protect `_timestampMap`.
+  // Protect |_timestampMap|.
   Clock* const _clock;
   // This callback must be set before the decoder thread starts running
   // and must only be unset when external threads (e.g decoder thread)
@@ -64,12 +64,12 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   // Set by the field trial WebRTC-SlowDownDecoder to simulate a slow decoder.
   FieldTrialOptional<TimeDelta> _extra_decode_time;
 
-  // Set by the field trial WebRTC-LowLatencyRenderer. The parameter `enabled`
+  // Set by the field trial WebRTC-LowLatencyRenderer. The parameter |enabled|
   // determines if the low-latency renderer algorithm should be used for the
   // case min playout delay=0 and max playout delay>0.
   FieldTrialParameter<bool> low_latency_renderer_enabled_;
   // Set by the field trial WebRTC-LowLatencyRenderer. The parameter
-  // `include_predecode_buffer` determines if the predecode buffer should be
+  // |include_predecode_buffer| determines if the predecode buffer should be
   // taken into account when calculating maximum number of frames in composition
   // queue.
   FieldTrialParameter<bool> low_latency_renderer_include_predecode_buffer_;
@@ -77,13 +77,14 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
 
 class VCMGenericDecoder {
  public:
-  explicit VCMGenericDecoder(VideoDecoder* decoder);
+  explicit VCMGenericDecoder(std::unique_ptr<VideoDecoder> decoder);
+  explicit VCMGenericDecoder(VideoDecoder* decoder, bool isExternal = false);
   ~VCMGenericDecoder();
 
   /**
-   * Initialize the decoder with the information from the `settings`
+   * Initialize the decoder with the information from the VideoCodec
    */
-  bool Configure(const VideoDecoder::Settings& settings);
+  int32_t InitDecode(const VideoCodec* settings, int32_t numberOfCores);
 
   /**
    * Decode to a raw I420 frame,
@@ -98,12 +99,15 @@ class VCMGenericDecoder {
   int32_t RegisterDecodeCompleteCallback(VCMDecodedFrameCallback* callback);
 
   bool IsSameDecoder(VideoDecoder* decoder) const {
-    return decoder_ == decoder;
+    return decoder_.get() == decoder;
   }
 
  private:
-  VCMDecodedFrameCallback* _callback = nullptr;
-  VideoDecoder* const decoder_;
+  VCMDecodedFrameCallback* _callback;
+  VCMFrameInformation _frameInfos[kDecoderFrameMemoryLength];
+  std::unique_ptr<VideoDecoder> decoder_;
+  VideoCodecType _codecType;
+  const bool _isExternal;
   VideoContentType _last_keyframe_content_type;
   VideoDecoder::DecoderInfo decoder_info_;
 };

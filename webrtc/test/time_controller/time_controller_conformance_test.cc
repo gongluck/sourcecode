@@ -54,7 +54,7 @@ std::string ParamsToString(const TestParamInfo<webrtc::TimeMode>& param) {
     case webrtc::TimeMode::kSimulated:
       return "SimulatedTime";
     default:
-      RTC_DCHECK_NOTREACHED() << "Time mode not supported";
+      RTC_NOTREACHED() << "Time mode not supported";
   }
 }
 
@@ -92,9 +92,6 @@ TEST_P(SimulatedRealTimeControllerConformanceTest, ThreadPostOrderTest) {
   thread->PostTask(RTC_FROM_HERE, [&]() { execution_order.Executed(2); });
   time_controller->AdvanceTime(TimeDelta::Millis(100));
   EXPECT_THAT(execution_order.order(), ElementsAreArray({1, 2}));
-  // Destroy `thread` before `execution_order` to be sure `execution_order`
-  // is not accessed on the posted task after it is destroyed.
-  thread = nullptr;
 }
 
 TEST_P(SimulatedRealTimeControllerConformanceTest, ThreadPostDelayedOrderTest) {
@@ -108,9 +105,6 @@ TEST_P(SimulatedRealTimeControllerConformanceTest, ThreadPostDelayedOrderTest) {
   thread->PostTask(ToQueuedTask([&]() { execution_order.Executed(1); }));
   time_controller->AdvanceTime(TimeDelta::Millis(600));
   EXPECT_THAT(execution_order.order(), ElementsAreArray({1, 2}));
-  // Destroy `thread` before `execution_order` to be sure `execution_order`
-  // is not accessed on the posted task after it is destroyed.
-  thread = nullptr;
 }
 
 TEST_P(SimulatedRealTimeControllerConformanceTest, ThreadPostInvokeOrderTest) {
@@ -125,9 +119,6 @@ TEST_P(SimulatedRealTimeControllerConformanceTest, ThreadPostInvokeOrderTest) {
   thread->Invoke<void>(RTC_FROM_HERE, [&]() { execution_order.Executed(2); });
   time_controller->AdvanceTime(TimeDelta::Millis(100));
   EXPECT_THAT(execution_order.order(), ElementsAreArray({1, 2}));
-  // Destroy `thread` before `execution_order` to be sure `execution_order`
-  // is not accessed on the posted task after it is destroyed.
-  thread = nullptr;
 }
 
 TEST_P(SimulatedRealTimeControllerConformanceTest,
@@ -145,9 +136,6 @@ TEST_P(SimulatedRealTimeControllerConformanceTest,
   });
   time_controller->AdvanceTime(TimeDelta::Millis(100));
   EXPECT_THAT(execution_order.order(), ElementsAreArray({1, 2}));
-  // Destroy `thread` before `execution_order` to be sure `execution_order`
-  // is not accessed on the posted task after it is destroyed.
-  thread = nullptr;
 }
 
 TEST_P(SimulatedRealTimeControllerConformanceTest,
@@ -170,9 +158,6 @@ TEST_P(SimulatedRealTimeControllerConformanceTest,
                          /*warn_after_ms=*/10'000));
   time_controller->AdvanceTime(TimeDelta::Millis(100));
   EXPECT_THAT(execution_order.order(), ElementsAreArray({1, 2}));
-  // Destroy `task_queue` before `execution_order` to be sure `execution_order`
-  // is not accessed on the posted task after it is destroyed.
-  task_queue = nullptr;
 }
 
 INSTANTIATE_TEST_SUITE_P(ConformanceTest,

@@ -13,7 +13,6 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
-
 #include <map>
 #include <memory>
 
@@ -38,8 +37,7 @@ class SourceEnumerator {
 
 class WindowEnumerator final : public SourceEnumerator {
  public:
-  explicit WindowEnumerator(bool enumerate_current_process_windows)
-      : enumerate_current_process_windows_(enumerate_current_process_windows) {}
+  WindowEnumerator() = default;
 
   WindowEnumerator(const WindowEnumerator&) = delete;
   WindowEnumerator& operator=(const WindowEnumerator&) = delete;
@@ -47,15 +45,11 @@ class WindowEnumerator final : public SourceEnumerator {
   ~WindowEnumerator() override = default;
 
   bool FindAllSources(DesktopCapturer::SourceList* sources) override {
-    // WGC fails to capture windows with the WS_EX_TOOLWINDOW style, so we
-    // provide it as a filter to ensure windows with the style are not returned.
-    return window_capture_helper_.EnumerateCapturableWindows(
-        sources, enumerate_current_process_windows_, WS_EX_TOOLWINDOW);
+    return window_capture_helper_.EnumerateCapturableWindows(sources);
   }
 
  private:
   WindowCaptureHelperWin window_capture_helper_;
-  bool enumerate_current_process_windows_;
 };
 
 class ScreenEnumerator final : public SourceEnumerator {
@@ -68,14 +62,14 @@ class ScreenEnumerator final : public SourceEnumerator {
   ~ScreenEnumerator() override = default;
 
   bool FindAllSources(DesktopCapturer::SourceList* sources) override {
-    return webrtc::GetScreenList(sources);
+    return webrtc::GetMonitorList(sources);
   }
 };
 
 // A capturer that uses the Window.Graphics.Capture APIs. It is suitable for
 // both window and screen capture (but only one type per instance). Consumers
 // should not instantiate this class directly, instead they should use
-// `CreateRawWindowCapturer()` or `CreateRawScreenCapturer()` to receive a
+// |CreateRawWindowCapturer()| or |CreateRawScreenCapturer()| to receive a
 // capturer appropriate for the type of source they want to capture.
 class WgcCapturerWin : public DesktopCapturer {
  public:
@@ -96,7 +90,6 @@ class WgcCapturerWin : public DesktopCapturer {
   // DesktopCapturer interface.
   bool GetSourceList(SourceList* sources) override;
   bool SelectSource(SourceId id) override;
-  bool FocusOnSelectedSource() override;
   void Start(Callback* callback) override;
   void CaptureFrame() override;
 

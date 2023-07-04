@@ -15,8 +15,8 @@
 #include "api/video/color_space.h"
 #include "api/video/i420_buffer.h"
 #include "api/video_codecs/video_encoder.h"
-#include "api/video_codecs/vp9_profile.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
+#include "media/base/vp9_profile.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/video_coding/codecs/interface/libvpx_interface.h"
 #include "modules/video_coding/codecs/interface/mock_libvpx_interface.h"
@@ -30,7 +30,6 @@
 #include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/mappable_native_buffer.h"
 #include "test/video_codec_settings.h"
 
 namespace webrtc {
@@ -159,31 +158,6 @@ TEST_P(TestVp9ImplForPixelFormat, EncodeDecode) {
             color_space.chroma_siting_vertical());
 }
 
-TEST_P(TestVp9ImplForPixelFormat, EncodeNativeBuffer) {
-  VideoFrame input_frame = NextInputFrame();
-  // Replace the input frame with a fake native buffer of the same size and
-  // underlying pixel format. Do not allow ToI420() for non-I420 buffers,
-  // ensuring zero-conversion.
-  input_frame = test::CreateMappableNativeFrame(
-      input_frame.ntp_time_ms(), input_frame.video_frame_buffer()->type(),
-      input_frame.width(), input_frame.height());
-  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Encode(input_frame, nullptr));
-  EncodedImage encoded_frame;
-  CodecSpecificInfo codec_specific_info;
-  ASSERT_TRUE(WaitForEncodedFrame(&encoded_frame, &codec_specific_info));
-
-  // After encoding, we would expect a single mapping to have happened.
-  rtc::scoped_refptr<test::MappableNativeBuffer> mappable_buffer =
-      test::GetMappableNativeBufferFromVideoFrame(input_frame);
-  std::vector<rtc::scoped_refptr<VideoFrameBuffer>> mapped_buffers =
-      mappable_buffer->GetMappedFramedBuffers();
-  ASSERT_EQ(mapped_buffers.size(), 1u);
-  EXPECT_EQ(mapped_buffers[0]->type(), mappable_buffer->mappable_type());
-  EXPECT_EQ(mapped_buffers[0]->width(), input_frame.width());
-  EXPECT_EQ(mapped_buffers[0]->height(), input_frame.height());
-  EXPECT_FALSE(mappable_buffer->DidConvertToI420());
-}
-
 TEST_P(TestVp9ImplForPixelFormat, DecodedColorSpaceFromBitstream) {
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Encode(NextInputFrame(), nullptr));
   EncodedImage encoded_frame;
@@ -257,6 +231,8 @@ TEST(Vp9ImplTest, ParserQpEqualsEncodedQp) {
 }
 
 TEST(Vp9ImplTest, EncodeAttachesTemplateStructureWithSvcController) {
+  test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Vp9DependencyDescriptor/Enabled/");
   std::unique_ptr<VideoEncoder> encoder = VP9Encoder::Create();
   VideoCodec codec_settings = DefaultCodecSettings();
   EXPECT_EQ(encoder->InitEncode(&codec_settings, kSettings),
@@ -299,6 +275,8 @@ TEST(Vp9ImplTest, EncoderWith2TemporalLayers) {
 }
 
 TEST(Vp9ImplTest, EncodeTemporalLayersWithSvcController) {
+  test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Vp9DependencyDescriptor/Enabled/");
   std::unique_ptr<VideoEncoder> encoder = VP9Encoder::Create();
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.VP9()->numberOfTemporalLayers = 2;
@@ -346,6 +324,8 @@ TEST(Vp9ImplTest, EncoderWith2SpatialLayers) {
 }
 
 TEST(Vp9ImplTest, EncodeSpatialLayersWithSvcController) {
+  test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Vp9DependencyDescriptor/Enabled/");
   std::unique_ptr<VideoEncoder> encoder = VP9Encoder::Create();
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.VP9()->numberOfSpatialLayers = 2;
@@ -481,6 +461,8 @@ TEST_F(TestVp9Impl, EnableDisableSpatialLayers) {
 }
 
 TEST(Vp9ImplTest, EnableDisableSpatialLayersWithSvcController) {
+  test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Vp9DependencyDescriptor/Enabled/");
   const int num_spatial_layers = 3;
   // Configure encoder to produce 3 spatial layers. Encode frames of layer 0
   // then enable layer 1 and encode more frames and so on.
@@ -530,7 +512,7 @@ TEST(Vp9ImplTest, EnableDisableSpatialLayersWithSvcController) {
         bitrate_allocation, codec_settings.maxFramerate));
 
     frames = producer.SetNumInputFrames(num_frames_to_encode).Encode();
-    // With `sl_idx` spatial layer disabled, there are `sl_idx` spatial layers
+    // With |sl_idx| spatial layer disabled, there are |sl_idx| spatial layers
     // left.
     ASSERT_THAT(frames, SizeIs(num_frames_to_encode * sl_idx));
     for (size_t i = 0; i < frames.size(); ++i) {
@@ -555,6 +537,8 @@ MATCHER_P2(GenericLayerIs, spatial_id, temporal_id, "") {
 }
 
 TEST(Vp9ImplTest, SpatialUpswitchNotAtGOFBoundary) {
+  test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Vp9DependencyDescriptor/Enabled/");
   std::unique_ptr<VideoEncoder> encoder = VP9Encoder::Create();
   VideoCodec codec_settings = DefaultCodecSettings();
   ConfigureSvc(codec_settings, /*num_spatial_layers=*/3,
@@ -753,6 +737,8 @@ TEST_F(TestVp9Impl, DisableEnableBaseLayerTriggersKeyFrame) {
 TEST(Vp9ImplTest, DisableEnableBaseLayerWithSvcControllerTriggersKeyFrame) {
   // Configure encoder to produce N spatial layers. Encode frames for all
   // layers. Then disable all but the last layer. Then reenable all back again.
+  test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Vp9DependencyDescriptor/Enabled/");
   const size_t num_spatial_layers = 3;
   const size_t num_temporal_layers = 3;
   // Must not be multiple of temporal period to exercise all code paths.
@@ -2156,10 +2142,11 @@ TEST_F(TestVp9Impl, ReenablingUpperLayerAfterKFWithInterlayerPredIsEnabled) {
   EXPECT_EQ(encoded_frames[0]._frameType, VideoFrameType::kVideoFrameDelta);
 }
 
-TEST_F(TestVp9Impl, HandlesEmptyDecoderConfigure) {
+TEST_F(TestVp9Impl, HandlesEmptyInitDecode) {
   std::unique_ptr<VideoDecoder> decoder = CreateDecoder();
-  // Check that default settings are ok for decoder.
-  EXPECT_TRUE(decoder->Configure({}));
+  // Check that nullptr settings are ok for decoder.
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
+            decoder->InitDecode(/*codec_settings=*/nullptr, 1));
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder->Release());
 }
 
@@ -2190,6 +2177,36 @@ GetWrapImageFunction(vpx_image_t* img) {
     img->img_data = img_data;
     return img;
   };
+}
+
+TEST(Vp9SpeedSettingsTrialsTest, SvcExtraCfgNotPopulatedByDefault) {
+  test::ExplicitKeyValueConfig trials("");
+
+  // Keep a raw pointer for EXPECT calls and the like. Ownership is otherwise
+  // passed on to LibvpxVp9Encoder.
+  auto* const vpx = new NiceMock<MockLibvpxInterface>();
+  LibvpxVp9Encoder encoder(cricket::VideoCodec(),
+                           absl::WrapUnique<LibvpxInterface>(vpx), trials);
+
+  VideoCodec settings = DefaultCodecSettings();
+  // Configure 3 spatial and three temporal ayers.
+  ConfigureSvc(settings, 3, 3);
+  vpx_image_t img;
+
+  ON_CALL(*vpx, img_wrap).WillByDefault(GetWrapImageFunction(&img));
+  ON_CALL(*vpx, codec_enc_config_default)
+      .WillByDefault(DoAll(WithArg<1>([](vpx_codec_enc_cfg_t* cfg) {
+                             memset(cfg, 0, sizeof(vpx_codec_enc_cfg_t));
+                           }),
+                           Return(VPX_CODEC_OK)));
+  EXPECT_CALL(*vpx,
+              codec_control(
+                  _, VP9E_SET_SVC_PARAMETERS,
+                  SafeMatcherCast<vpx_svc_extra_cfg_t*>(AllOf(
+                      Field(&vpx_svc_extra_cfg_t::speed_per_layer, Each(0)),
+                      Field(&vpx_svc_extra_cfg_t::loopfilter_ctrl, Each(0))))));
+
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder.InitEncode(&settings, kSettings));
 }
 
 TEST(Vp9SpeedSettingsTrialsTest, NoSvcUsesGlobalSpeedFromTl0InLayerConfig) {
@@ -2290,10 +2307,10 @@ TEST(Vp9SpeedSettingsTrialsTest,
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder.InitEncode(&settings, kSettings));
 }
 
-TEST(Vp9SpeedSettingsTrialsTest, DefaultPerLayerFlagsWithSvc) {
+TEST(Vp9SpeedSettingsTrialsTest, PerLayerFlagsWithSvc) {
   // Per-temporal and spatial layer speed settings:
   // SL0:   TL0 = speed 5, TL1/TL2 = speed 8.
-  // SL1/2: TL0 = speed 7, TL1/TL2 = speed 8.
+  // SL1/2: TL0 = speed 7, TL1/TL2 = speed 9.
   // Deblocking-mode per spatial layer:
   // SL0: mode 1, SL1/2: mode 0.
   test::ExplicitKeyValueConfig trials(
@@ -2301,7 +2318,7 @@ TEST(Vp9SpeedSettingsTrialsTest, DefaultPerLayerFlagsWithSvc) {
       "use_per_layer_speed,"
       "min_pixel_count:0|129600,"
       "base_layer_speed:5|7,"
-      "high_layer_speed:8|8,"
+      "high_layer_speed:8|9,"
       "deblock_mode:1|0/");
 
   // Keep a raw pointer for EXPECT calls and the like. Ownership is otherwise
@@ -2311,33 +2328,19 @@ TEST(Vp9SpeedSettingsTrialsTest, DefaultPerLayerFlagsWithSvc) {
                            absl::WrapUnique<LibvpxInterface>(vpx), trials);
 
   VideoCodec settings = DefaultCodecSettings();
-  constexpr int kNumSpatialLayers = 3;
-  constexpr int kNumTemporalLayers = 3;
-  ConfigureSvc(settings, kNumSpatialLayers, kNumTemporalLayers);
-  VideoBitrateAllocation bitrate_allocation;
-  for (int si = 0; si < kNumSpatialLayers; ++si) {
-    for (int ti = 0; ti < kNumTemporalLayers; ++ti) {
-      uint32_t bitrate_bps =
-          settings.spatialLayers[si].targetBitrate * 1'000 / kNumTemporalLayers;
-      bitrate_allocation.SetBitrate(si, ti, bitrate_bps);
-    }
-  }
+  const int kNumSpatialLayers = 3;
+  ConfigureSvc(settings, kNumSpatialLayers, /*num_temporal_layers=*/3);
   vpx_image_t img;
 
   // Speed settings per spatial layer, for TL0.
   const int kBaseTlSpeed[VPX_MAX_LAYERS] = {5, 7, 7};
   // Speed settings per spatial layer, for TL1, TL2.
-  const int kHighTlSpeed[VPX_MAX_LAYERS] = {8, 8, 8};
+  const int kHighTlSpeed[VPX_MAX_LAYERS] = {8, 9, 9};
   // Loopfilter settings are handled within libvpx, so this array is valid for
   // both TL0 and higher.
   const int kLoopFilter[VPX_MAX_LAYERS] = {1, 0, 0};
 
   ON_CALL(*vpx, img_wrap).WillByDefault(GetWrapImageFunction(&img));
-  ON_CALL(*vpx, codec_enc_init)
-      .WillByDefault(WithArg<0>([](vpx_codec_ctx_t* ctx) {
-        memset(ctx, 0, sizeof(*ctx));
-        return VPX_CODEC_OK;
-      }));
   ON_CALL(*vpx, codec_enc_config_default)
       .WillByDefault(DoAll(WithArg<1>([](vpx_codec_enc_cfg_t* cfg) {
                              memset(cfg, 0, sizeof(vpx_codec_enc_cfg_t));
@@ -2361,9 +2364,6 @@ TEST(Vp9SpeedSettingsTrialsTest, DefaultPerLayerFlagsWithSvc) {
       }));
 
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder.InitEncode(&settings, kSettings));
-
-  encoder.SetRates(VideoEncoder::RateControlParameters(bitrate_allocation,
-                                                       settings.maxFramerate));
 
   MockEncodedImageCallback callback;
   encoder.RegisterEncodeCompleteCallback(&callback);

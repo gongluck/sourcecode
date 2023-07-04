@@ -49,63 +49,54 @@ class RemoteAudioSource::AudioDataProxy : public AudioSinkInterface {
   const rtc::scoped_refptr<RemoteAudioSource> source_;
 };
 
-RemoteAudioSource::RemoteAudioSource(
-    rtc::Thread* worker_thread,
-    OnAudioChannelGoneAction on_audio_channel_gone_action)
+RemoteAudioSource::RemoteAudioSource(rtc::Thread* worker_thread)
     : main_thread_(rtc::Thread::Current()),
       worker_thread_(worker_thread),
-      on_audio_channel_gone_action_(on_audio_channel_gone_action),
       state_(MediaSourceInterface::kLive) {
   RTC_DCHECK(main_thread_);
   RTC_DCHECK(worker_thread_);
 }
 
 RemoteAudioSource::~RemoteAudioSource() {
-  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(main_thread_->IsCurrent());
   RTC_DCHECK(audio_observers_.empty());
-  if (!sinks_.empty()) {
-    RTC_LOG(LS_WARNING)
-        << "RemoteAudioSource destroyed while sinks_ is non-empty.";
-  }
+  RTC_DCHECK(sinks_.empty());
 }
 
 void RemoteAudioSource::Start(cricket::VoiceMediaChannel* media_channel,
                               absl::optional<uint32_t> ssrc) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
+  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(media_channel);
 
   // Register for callbacks immediately before AddSink so that we always get
   // notified when a channel goes out of scope (signaled when "AudioDataProxy"
   // is destroyed).
-  RTC_DCHECK(media_channel);
-  ssrc ? media_channel->SetRawAudioSink(*ssrc,
-                                        std::make_unique<AudioDataProxy>(this))
-       : media_channel->SetDefaultRawAudioSink(
-             std::make_unique<AudioDataProxy>(this));
+  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&] {
+    ssrc ? media_channel->SetRawAudioSink(
+               *ssrc, std::make_unique<AudioDataProxy>(this))
+         : media_channel->SetDefaultRawAudioSink(
+               std::make_unique<AudioDataProxy>(this));
+  });
 }
 
 void RemoteAudioSource::Stop(cricket::VoiceMediaChannel* media_channel,
                              absl::optional<uint32_t> ssrc) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  RTC_DCHECK(media_channel);
-  ssrc ? media_channel->SetRawAudioSink(*ssrc, nullptr)
-       : media_channel->SetDefaultRawAudioSink(nullptr);
-}
-
-void RemoteAudioSource::SetState(SourceState new_state) {
   RTC_DCHECK_RUN_ON(main_thread_);
-  if (state_ != new_state) {
-    state_ = new_state;
-    FireOnChanged();
-  }
+  RTC_DCHECK(media_channel);
+
+  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&] {
+    ssrc ? media_channel->SetRawAudioSink(*ssrc, nullptr)
+         : media_channel->SetDefaultRawAudioSink(nullptr);
+  });
 }
 
 MediaSourceInterface::SourceState RemoteAudioSource::state() const {
-  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(main_thread_->IsCurrent());
   return state_;
 }
 
 bool RemoteAudioSource::remote() const {
-  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(main_thread_->IsCurrent());
   return true;
 }
 
@@ -131,7 +122,7 @@ void RemoteAudioSource::UnregisterAudioObserver(AudioObserver* observer) {
 }
 
 void RemoteAudioSource::AddSink(AudioTrackSinkInterface* sink) {
-  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(main_thread_->IsCurrent());
   RTC_DCHECK(sink);
 
   if (state_ != MediaSourceInterface::kLive) {
@@ -145,7 +136,7 @@ void RemoteAudioSource::AddSink(AudioTrackSinkInterface* sink) {
 }
 
 void RemoteAudioSource::RemoveSink(AudioTrackSinkInterface* sink) {
-  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(main_thread_->IsCurrent());
   RTC_DCHECK(sink);
 
   MutexLock lock(&sink_lock_);
@@ -165,9 +156,6 @@ void RemoteAudioSource::OnData(const AudioSinkInterface::Data& audio) {
 }
 
 void RemoteAudioSource::OnAudioChannelGone() {
-  if (on_audio_channel_gone_action_ != OnAudioChannelGoneAction::kEnd) {
-    return;
-  }
   // Called when the audio channel is deleted.  It may be the worker thread
   // in libjingle or may be a different worker thread.
   // This object needs to live long enough for the cleanup logic in OnMessage to
@@ -180,9 +168,10 @@ void RemoteAudioSource::OnAudioChannelGone() {
 }
 
 void RemoteAudioSource::OnMessage(rtc::Message* msg) {
-  RTC_DCHECK_RUN_ON(main_thread_);
+  RTC_DCHECK(main_thread_->IsCurrent());
   sinks_.clear();
-  SetState(MediaSourceInterface::kEnded);
+  state_ = MediaSourceInterface::kEnded;
+  FireOnChanged();
   // Will possibly delete this RemoteAudioSource since it is reference counted
   // in the message.
   delete msg->pdata;

@@ -19,11 +19,10 @@ namespace webrtc {
 
 absl::optional<AudioDecoderIsacFix::Config> AudioDecoderIsacFix::SdpToConfig(
     const SdpAudioFormat& format) {
-  if (absl::EqualsIgnoreCase(format.name, "ISAC") &&
-      format.clockrate_hz == 16000 && format.num_channels == 1) {
-    return Config();
-  }
-  return absl::nullopt;
+  return absl::EqualsIgnoreCase(format.name, "ISAC") &&
+                 format.clockrate_hz == 16000 && format.num_channels == 1
+             ? absl::optional<Config>(Config())
+             : absl::nullopt;
 }
 
 void AudioDecoderIsacFix::AppendSupportedDecoders(

@@ -12,7 +12,6 @@
 #define MODULES_AUDIO_PROCESSING_AEC3_REVERB_MODEL_ESTIMATOR_H_
 
 #include <array>
-#include <memory>
 #include <vector>
 
 #include "absl/types/optional.h"
@@ -43,13 +42,9 @@ class ReverbModelEstimator {
       const std::vector<bool>& usable_linear_estimates,
       bool stationary_block);
 
-  // Returns the exponential decay of the reverberant echo. The parameter `mild`
-  // indicates which exponential decay to return, the default one or a milder
-  // one.
+  // Returns the exponential decay of the reverberant echo.
   // TODO(peah): Correct to properly support multiple channels.
-  float ReverbDecay(bool mild) const {
-    return reverb_decay_estimators_[0]->Decay(mild);
-  }
+  float ReverbDecay() const { return reverb_decay_estimators_[0]->Decay(); }
 
   // Return the frequency response of the reverberant echo.
   // TODO(peah): Correct to properly support multiple channels.

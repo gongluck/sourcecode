@@ -61,6 +61,7 @@ PayloadTypeMapper::PayloadTypeMapper()
 
            // Payload type assignments currently used by WebRTC.
            // Includes data to reduce collisions (and thus reassignments)
+           {{kGoogleRtpDataCodecName, 0, 0}, kGoogleRtpDataCodecPlType},
            {{kIlbcCodecName, 8000, 1}, 102},
            {{kIsacCodecName, 16000, 1}, 103},
            {{kIsacCodecName, 32000, 1}, 104},
@@ -72,13 +73,6 @@ PayloadTypeMapper::PayloadTypeMapper()
              {{kCodecParamMinPTime, "10"},
               {kCodecParamUseInbandFec, kParamValueTrue}}},
             111},
-           // RED for opus is assigned in the lower range, starting at the top.
-           // Note that the FMTP refers to the opus payload type.
-           {{kRedCodecName,
-             48000,
-             2,
-             {{kCodecParamNotInNameValueFormat, "111/111"}}},
-            63},
            // TODO(solenberg): Remove the hard coded 16k,32k,48k DTMF once we
            // assign payload types dynamically for send side as well.
            {{kDtmfCodecName, 48000, 1}, 110},

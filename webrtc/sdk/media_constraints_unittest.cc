@@ -23,8 +23,10 @@ bool Matches(const PeerConnectionInterface::RTCConfiguration& a,
   return a.disable_ipv6 == b.disable_ipv6 &&
          a.audio_jitter_buffer_max_packets ==
              b.audio_jitter_buffer_max_packets &&
+         a.enable_rtp_data_channel == b.enable_rtp_data_channel &&
          a.screencast_min_bitrate == b.screencast_min_bitrate &&
          a.combined_audio_video_bwe == b.combined_audio_video_bwe &&
+         a.enable_dtls_srtp == b.enable_dtls_srtp &&
          a.media_config == b.media_config;
 }
 
@@ -59,9 +61,12 @@ TEST(MediaConstraints, CopyConstraintsIntoRtcConfiguration) {
   // An empty set of constraints will not overwrite
   // values that are already present.
   configuration = old_configuration;
+  configuration.enable_dtls_srtp = true;
   configuration.audio_jitter_buffer_max_packets = 34;
   CopyConstraintsIntoRtcConfiguration(&constraints_empty, &configuration);
   EXPECT_EQ(34, configuration.audio_jitter_buffer_max_packets);
+  ASSERT_TRUE(configuration.enable_dtls_srtp);
+  EXPECT_TRUE(*(configuration.enable_dtls_srtp));
 }
 
 }  // namespace

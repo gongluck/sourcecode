@@ -15,7 +15,6 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
-#include "api/dtls_transport_interface.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
@@ -135,13 +134,14 @@ void StreamInterfaceChannel::Close() {
 
 DtlsTransport::DtlsTransport(IceTransportInternal* ice_transport,
                              const webrtc::CryptoOptions& crypto_options,
-                             webrtc::RtcEventLog* event_log,
-                             rtc::SSLProtocolVersion max_version)
-    : component_(ice_transport->component()),
+                             webrtc::RtcEventLog* event_log)
+    : transport_name_(ice_transport->transport_name()),
+      component_(ice_transport->component()),
       ice_transport_(ice_transport),
       downward_(NULL),
       srtp_ciphers_(crypto_options.GetSupportedDtlsSrtpCryptoSuites()),
-      ssl_max_version_(max_version),
+      ssl_max_version_(rtc::SSL_PROTOCOL_DTLS_12),
+      crypto_options_(crypto_options),
       event_log_(event_log) {
   RTC_DCHECK(ice_transport_);
   ConnectToIceTransport();
@@ -149,12 +149,16 @@ DtlsTransport::DtlsTransport(IceTransportInternal* ice_transport,
 
 DtlsTransport::~DtlsTransport() = default;
 
-webrtc::DtlsTransportState DtlsTransport::dtls_state() const {
+const webrtc::CryptoOptions& DtlsTransport::crypto_options() const {
+  return crypto_options_;
+}
+
+DtlsTransportState DtlsTransport::dtls_state() const {
   return dtls_state_;
 }
 
 const std::string& DtlsTransport::transport_name() const {
-  return ice_transport_->transport_name();
+  return transport_name_;
 }
 
 int DtlsTransport::component() const {
@@ -195,6 +199,17 @@ rtc::scoped_refptr<rtc::RTCCertificate> DtlsTransport::GetLocalCertificate()
   return local_certificate_;
 }
 
+bool DtlsTransport::SetSslMaxProtocolVersion(rtc::SSLProtocolVersion version) {
+  if (dtls_active_) {
+    RTC_LOG(LS_ERROR) << "Not changing max. protocol version "
+                         "while DTLS is negotiating";
+    return false;
+  }
+
+  ssl_max_version_ = version;
+  return true;
+}
+
 bool DtlsTransport::SetDtlsRole(rtc::SSLRole role) {
   if (dtls_) {
     RTC_DCHECK(dtls_role_);
@@ -219,7 +234,7 @@ bool DtlsTransport::GetDtlsRole(rtc::SSLRole* role) const {
 }
 
 bool DtlsTransport::GetSslCipherSuite(int* cipher) {
-  if (dtls_state() != webrtc::DtlsTransportState::kConnected) {
+  if (dtls_state() != DTLS_TRANSPORT_CONNECTED) {
     return false;
   }
 
@@ -241,7 +256,7 @@ bool DtlsTransport::SetRemoteFingerprint(const std::string& digest_alg,
     return true;
   }
 
-  // If the other side doesn't support DTLS, turn off `dtls_active_`.
+  // If the other side doesn't support DTLS, turn off |dtls_active_|.
   // TODO(deadbeef): Remove this. It's dangerous, because it relies on higher
   // level code to ensure DTLS is actually used, but there are tests that
   // depend on it, for the case where an m= section is rejected. In that case
@@ -277,7 +292,7 @@ bool DtlsTransport::SetRemoteFingerprint(const std::string& digest_alg,
             remote_fingerprint_value_.size(), &err)) {
       RTC_LOG(LS_ERROR) << ToString()
                         << ": Couldn't set DTLS certificate digest.";
-      set_dtls_state(webrtc::DtlsTransportState::kFailed);
+      set_dtls_state(DTLS_TRANSPORT_FAILED);
       // If the error is "verification failed", don't return false, because
       // this means the fingerprint was formatted correctly but didn't match
       // the certificate from the DTLS handshake. Thus the DTLS state should go
@@ -291,12 +306,12 @@ bool DtlsTransport::SetRemoteFingerprint(const std::string& digest_alg,
   // create a new one, resetting our state.
   if (dtls_ && fingerprint_changing) {
     dtls_.reset(nullptr);
-    set_dtls_state(webrtc::DtlsTransportState::kNew);
+    set_dtls_state(DTLS_TRANSPORT_NEW);
     set_writable(false);
   }
 
   if (!SetupDtls()) {
-    set_dtls_state(webrtc::DtlsTransportState::kFailed);
+    set_dtls_state(DTLS_TRANSPORT_FAILED);
     return false;
   }
 
@@ -374,7 +389,7 @@ bool DtlsTransport::SetupDtls() {
 }
 
 bool DtlsTransport::GetSrtpCryptoSuite(int* cipher) {
-  if (dtls_state() != webrtc::DtlsTransportState::kConnected) {
+  if (dtls_state() != DTLS_TRANSPORT_CONNECTED) {
     return false;
   }
 
@@ -382,7 +397,7 @@ bool DtlsTransport::GetSrtpCryptoSuite(int* cipher) {
 }
 
 bool DtlsTransport::GetSslVersionBytes(int* version) const {
-  if (dtls_state() != webrtc::DtlsTransportState::kConnected) {
+  if (dtls_state() != DTLS_TRANSPORT_CONNECTED) {
     return false;
   }
 
@@ -400,14 +415,14 @@ int DtlsTransport::SendPacket(const char* data,
   }
 
   switch (dtls_state()) {
-    case webrtc::DtlsTransportState::kNew:
+    case DTLS_TRANSPORT_NEW:
       // Can't send data until the connection is active.
       // TODO(ekr@rtfm.com): assert here if dtls_ is NULL?
       return -1;
-    case webrtc::DtlsTransportState::kConnecting:
+    case DTLS_TRANSPORT_CONNECTING:
       // Can't send data until the connection is active.
       return -1;
-    case webrtc::DtlsTransportState::kConnected:
+    case DTLS_TRANSPORT_CONNECTED:
       if (flags & PF_SRTP_BYPASS) {
         RTC_DCHECK(!srtp_ciphers_.empty());
         if (!IsRtpPacket(data, size)) {
@@ -420,20 +435,20 @@ int DtlsTransport::SendPacket(const char* data,
                    ? static_cast<int>(size)
                    : -1;
       }
-    case webrtc::DtlsTransportState::kFailed:
+    case DTLS_TRANSPORT_FAILED:
       // Can't send anything when we're failed.
-      RTC_LOG(LS_ERROR) << ToString()
-                        << ": Couldn't send packet due to "
-                           "webrtc::DtlsTransportState::kFailed.";
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": Couldn't send packet due to DTLS_TRANSPORT_FAILED.";
       return -1;
-    case webrtc::DtlsTransportState::kClosed:
+    case DTLS_TRANSPORT_CLOSED:
       // Can't send anything when we're closed.
-      RTC_LOG(LS_ERROR) << ToString()
-                        << ": Couldn't send packet due to "
-                           "webrtc::DtlsTransportState::kClosed.";
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": Couldn't send packet due to DTLS_TRANSPORT_CLOSED.";
       return -1;
     default:
-      RTC_DCHECK_NOTREACHED();
+      RTC_NOTREACHED();
       return -1;
   }
 }
@@ -509,30 +524,27 @@ void DtlsTransport::OnWritableState(rtc::PacketTransportInternal* transport) {
   }
 
   switch (dtls_state()) {
-    case webrtc::DtlsTransportState::kNew:
+    case DTLS_TRANSPORT_NEW:
       MaybeStartDtls();
       break;
-    case webrtc::DtlsTransportState::kConnected:
+    case DTLS_TRANSPORT_CONNECTED:
       // Note: SignalWritableState fired by set_writable.
       set_writable(ice_transport_->writable());
       break;
-    case webrtc::DtlsTransportState::kConnecting:
+    case DTLS_TRANSPORT_CONNECTING:
       // Do nothing.
       break;
-    case webrtc::DtlsTransportState::kFailed:
+    case DTLS_TRANSPORT_FAILED:
       // Should not happen. Do nothing.
-      RTC_LOG(LS_ERROR) << ToString()
-                        << ": OnWritableState() called in state "
-                           "webrtc::DtlsTransportState::kFailed.";
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": OnWritableState() called in state DTLS_TRANSPORT_FAILED.";
       break;
-    case webrtc::DtlsTransportState::kClosed:
+    case DTLS_TRANSPORT_CLOSED:
       // Should not happen. Do nothing.
-      RTC_LOG(LS_ERROR) << ToString()
-                        << ": OnWritableState() called in state "
-                           "webrtc::DtlsTransportState::kClosed.";
-      break;
-    case webrtc::DtlsTransportState::kNumValues:
-      RTC_DCHECK_NOTREACHED();
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": OnWritableState() called in state DTLS_TRANSPORT_CLOSED.";
       break;
   }
 }
@@ -544,7 +556,7 @@ void DtlsTransport::OnReceivingState(rtc::PacketTransportInternal* transport) {
                       << ": ice_transport "
                          "receiving state changed to "
                       << ice_transport_->receiving();
-  if (!dtls_active_ || dtls_state() == webrtc::DtlsTransportState::kConnected) {
+  if (!dtls_active_ || dtls_state() == DTLS_TRANSPORT_CONNECTED) {
     // Note: SignalReceivingState fired by set_receiving.
     set_receiving(ice_transport_->receiving());
   }
@@ -566,7 +578,7 @@ void DtlsTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
   }
 
   switch (dtls_state()) {
-    case webrtc::DtlsTransportState::kNew:
+    case DTLS_TRANSPORT_NEW:
       if (dtls_) {
         RTC_LOG(LS_INFO) << ToString()
                          << ": Packet received before DTLS started.";
@@ -595,8 +607,8 @@ void DtlsTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
       }
       break;
 
-    case webrtc::DtlsTransportState::kConnecting:
-    case webrtc::DtlsTransportState::kConnected:
+    case DTLS_TRANSPORT_CONNECTING:
+    case DTLS_TRANSPORT_CONNECTED:
       // We should only get DTLS or SRTP packets; STUN's already been demuxed.
       // Is this potentially a DTLS packet?
       if (IsDtlsPacket(data, size)) {
@@ -606,7 +618,7 @@ void DtlsTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
         }
       } else {
         // Not a DTLS packet; our handshake should be complete by now.
-        if (dtls_state() != webrtc::DtlsTransportState::kConnected) {
+        if (dtls_state() != DTLS_TRANSPORT_CONNECTED) {
           RTC_LOG(LS_ERROR) << ToString()
                             << ": Received non-DTLS packet before DTLS "
                                "complete.";
@@ -627,9 +639,8 @@ void DtlsTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
         SignalReadPacket(this, data, size, packet_time_us, PF_SRTP_BYPASS);
       }
       break;
-    case webrtc::DtlsTransportState::kFailed:
-    case webrtc::DtlsTransportState::kClosed:
-    case webrtc::DtlsTransportState::kNumValues:
+    case DTLS_TRANSPORT_FAILED:
+    case DTLS_TRANSPORT_CLOSED:
       // This shouldn't be happening. Drop the packet.
       break;
   }
@@ -657,7 +668,7 @@ void DtlsTransport::OnDtlsEvent(rtc::StreamInterface* dtls, int sig, int err) {
     if (dtls_->GetState() == rtc::SS_OPEN) {
       // The check for OPEN shouldn't be necessary but let's make
       // sure we don't accidentally frob the state if it's closed.
-      set_dtls_state(webrtc::DtlsTransportState::kConnected);
+      set_dtls_state(DTLS_TRANSPORT_CONNECTED);
       set_writable(true);
     }
   }
@@ -676,7 +687,7 @@ void DtlsTransport::OnDtlsEvent(rtc::StreamInterface* dtls, int sig, int err) {
         // Remote peer shut down the association with no error.
         RTC_LOG(LS_INFO) << ToString() << ": DTLS transport closed by remote";
         set_writable(false);
-        set_dtls_state(webrtc::DtlsTransportState::kClosed);
+        set_dtls_state(DTLS_TRANSPORT_CLOSED);
         SignalClosed(this);
       } else if (ret == rtc::SR_ERROR) {
         // Remote peer shut down the association with an error.
@@ -685,7 +696,7 @@ void DtlsTransport::OnDtlsEvent(rtc::StreamInterface* dtls, int sig, int err) {
             << ": Closed by remote with DTLS transport error, code="
             << read_error;
         set_writable(false);
-        set_dtls_state(webrtc::DtlsTransportState::kFailed);
+        set_dtls_state(DTLS_TRANSPORT_FAILED);
         SignalClosed(this);
       }
     } while (ret == rtc::SR_SUCCESS);
@@ -695,10 +706,10 @@ void DtlsTransport::OnDtlsEvent(rtc::StreamInterface* dtls, int sig, int err) {
     set_writable(false);
     if (!err) {
       RTC_LOG(LS_INFO) << ToString() << ": DTLS transport closed";
-      set_dtls_state(webrtc::DtlsTransportState::kClosed);
+      set_dtls_state(DTLS_TRANSPORT_CLOSED);
     } else {
       RTC_LOG(LS_INFO) << ToString() << ": DTLS transport error, code=" << err;
-      set_dtls_state(webrtc::DtlsTransportState::kFailed);
+      set_dtls_state(DTLS_TRANSPORT_FAILED);
     }
   }
 }
@@ -720,13 +731,13 @@ void DtlsTransport::MaybeStartDtls() {
       // packets in this state, the incoming queue must be empty. We
       // ignore write errors, thus any errors must be because of
       // configuration and therefore are our fault.
-      RTC_DCHECK_NOTREACHED() << "StartSSL failed.";
+      RTC_NOTREACHED() << "StartSSL failed.";
       RTC_LOG(LS_ERROR) << ToString() << ": Couldn't start DTLS handshake";
-      set_dtls_state(webrtc::DtlsTransportState::kFailed);
+      set_dtls_state(DTLS_TRANSPORT_FAILED);
       return;
     }
     RTC_LOG(LS_INFO) << ToString() << ": DtlsTransport: Started DTLS handshake";
-    set_dtls_state(webrtc::DtlsTransportState::kConnecting);
+    set_dtls_state(DTLS_TRANSPORT_CONNECTING);
     // Now that the handshake has started, we can process a cached ClientHello
     // (if one exists).
     if (cached_client_hello_.size()) {
@@ -794,17 +805,16 @@ void DtlsTransport::set_writable(bool writable) {
   SignalWritableState(this);
 }
 
-void DtlsTransport::set_dtls_state(webrtc::DtlsTransportState state) {
+void DtlsTransport::set_dtls_state(DtlsTransportState state) {
   if (dtls_state_ == state) {
     return;
   }
   if (event_log_) {
-    event_log_->Log(
-        std::make_unique<webrtc::RtcEventDtlsTransportState>(state));
+    event_log_->Log(std::make_unique<webrtc::RtcEventDtlsTransportState>(
+        ConvertDtlsTransportState(state)));
   }
-  RTC_LOG(LS_VERBOSE) << ToString() << ": set_dtls_state from:"
-                      << static_cast<int>(dtls_state_) << " to "
-                      << static_cast<int>(state);
+  RTC_LOG(LS_VERBOSE) << ToString() << ": set_dtls_state from:" << dtls_state_
+                      << " to " << state;
   dtls_state_ = state;
   SendDtlsState(this, state);
 }
