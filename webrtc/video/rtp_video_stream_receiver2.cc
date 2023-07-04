@@ -467,7 +467,7 @@ RtpVideoStreamReceiver2::ParseGenericDependenciesExtension(
   video_header->height = generic_frame_descriptor.Height();
   return kHasGenericDescriptor;
 }
-
+// 处理接收到的视频数据
 void RtpVideoStreamReceiver2::OnReceivedPayloadData(
     rtc::CopyOnWriteBuffer codec_payload,
     const RtpPacketReceived& rtp_packet,
@@ -487,10 +487,11 @@ void RtpVideoStreamReceiver2::OnReceivedPayloadData(
           packet->packet_info.absolute_capture_time()));
 
   RTPVideoHeader& video_header = packet->video_header;
-  video_header.rotation = kVideoRotation_0;
-  video_header.content_type = VideoContentType::UNSPECIFIED;
+  video_header.rotation = kVideoRotation_0;                   // 角度
+  video_header.content_type = VideoContentType::UNSPECIFIED;  // 视频类型
   video_header.video_timing.flags = VideoSendTiming::kInvalid;
-  video_header.is_last_packet_in_frame |= rtp_packet.Marker();
+  video_header.is_last_packet_in_frame |=
+      rtp_packet.Marker();  // M标记，是否帧序列的最后一个包
 
   if (const auto* vp9_header =
           absl::get_if<RTPVideoHeaderVP9>(&video_header.video_type_header)) {
@@ -498,6 +499,7 @@ void RtpVideoStreamReceiver2::OnReceivedPayloadData(
     video_header.is_first_packet_in_frame |= vp9_header->beginning_of_frame;
   }
 
+  // 从扩展头中取值
   rtp_packet.GetExtension<VideoOrientation>(&video_header.rotation);
   rtp_packet.GetExtension<VideoContentTypeExtension>(
       &video_header.content_type);
@@ -556,10 +558,12 @@ void RtpVideoStreamReceiver2::OnReceivedPayloadData(
   }
 
   if (nack_module_) {
+    // 是否I帧
     const bool is_keyframe =
         video_header.is_first_packet_in_frame &&
         video_header.frame_type == VideoFrameType::kVideoFrameKey;
 
+    // nack模块处理接收到的数据
     packet->times_nacked = nack_module_->OnReceivedPacket(
         rtp_packet.SequenceNumber(), is_keyframe, rtp_packet.recovered());
   } else {
@@ -589,7 +593,7 @@ void RtpVideoStreamReceiver2::OnReceivedPayloadData(
     switch (fixed.action) {
       case video_coding::H264SpsPpsTracker::kRequestKeyframe:
         rtcp_feedback_buffer_.RequestKeyFrame();
-        rtcp_feedback_buffer_.SendBufferedRtcpFeedback();
+        rtcp_feedback_buffer_.SendBufferedRtcpFeedback();  // 发送NACK
         ABSL_FALLTHROUGH_INTENDED;
       case video_coding::H264SpsPpsTracker::kDrop:
         return;
@@ -604,6 +608,8 @@ void RtpVideoStreamReceiver2::OnReceivedPayloadData(
 
   rtcp_feedback_buffer_.SendBufferedRtcpFeedback();
   frame_counter_.Add(packet->timestamp);
+
+  // 缓存数据包
   OnInsertedPacket(packet_buffer_.InsertPacket(std::move(packet)));
 }
 
@@ -628,6 +634,7 @@ void RtpVideoStreamReceiver2::OnRecoveredPacket(const uint8_t* rtp_packet,
   ReceivePacket(packet);
 }
 
+// 处理视频RTP包
 // This method handles both regular RTP packets and packets recovered
 // via FlexFEC.
 void RtpVideoStreamReceiver2::OnRtpPacket(const RtpPacketReceived& packet) {
@@ -665,6 +672,7 @@ void RtpVideoStreamReceiver2::OnRtpPacket(const RtpPacketReceived& packet) {
     }
   }
 
+  // 进一步处理接收到的RTP包
   ReceivePacket(packet);
 
   // Update receive statistics after ReceivePacket.
@@ -929,6 +937,7 @@ void RtpVideoStreamReceiver2::ManageFrame(
   reference_finder_->ManageFrame(std::move(frame));
 }
 
+// 处理接收到的视频RTP包
 void RtpVideoStreamReceiver2::ReceivePacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
   if (packet.payload_size() == 0) {
@@ -943,6 +952,7 @@ void RtpVideoStreamReceiver2::ReceivePacket(const RtpPacketReceived& packet) {
     return;
   }
 
+  // 根据负载类型获取解包器
   const auto type_it = payload_type_map_.find(packet.PayloadType());
   if (type_it == payload_type_map_.end()) {
     return;
@@ -954,6 +964,7 @@ void RtpVideoStreamReceiver2::ReceivePacket(const RtpPacketReceived& packet) {
     return;
   }
 
+  // 进一步处理
   OnReceivedPayloadData(std::move(parsed_payload->video_payload), packet,
                         parsed_payload->video_header);
 }

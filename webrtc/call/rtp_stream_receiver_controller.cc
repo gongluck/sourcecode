@@ -49,6 +49,7 @@ RtpStreamReceiverController::CreateReceiver(uint32_t ssrc,
 
 bool RtpStreamReceiverController::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&demuxer_sequence_);
+  // 处理RTP包
   return demuxer_.OnRtpPacket(packet);
 }
 

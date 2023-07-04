@@ -245,6 +245,7 @@ bool RtpDemuxer::RemoveSink(const RtpPacketSinkInterface* sink) {
 bool RtpDemuxer::OnRtpPacket(const RtpPacketReceived& packet) {
   RtpPacketSinkInterface* sink = ResolveSink(packet);
   if (sink != nullptr) {
+    // 处理RTP包
     sink->OnRtpPacket(packet);
     return true;
   }

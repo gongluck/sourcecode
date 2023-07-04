@@ -1451,6 +1451,7 @@ PacketReceiver::DeliveryStatus Call::DeliverRtp(MediaType media_type,
     }
   } else if (media_type == MediaType::VIDEO) {
     parsed_packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
+    // 处理视频RTP包
     if (video_receiver_controller_.OnRtpPacket(parsed_packet)) {
       received_bytes_per_second_counter_.Add(length);
       received_video_bytes_per_second_counter_.Add(length);
@@ -1476,6 +1477,7 @@ PacketReceiver::DeliveryStatus Call::DeliverPacket(
   if (IsRtcp(packet.cdata(), packet.size()))
     return DeliverRtcp(media_type, packet.cdata(), packet.size());
 
+  // 分发处理RTP包
   return DeliverRtp(media_type, std::move(packet), packet_time_us);
 }
 

@@ -1682,6 +1682,7 @@ void WebRtcVideoChannel::FillSendAndReceiveCodecStats(
   }
 }
 
+// 视频通道处理数据包
 void WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                                           int64_t packet_time_us) {
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
@@ -1690,7 +1691,7 @@ void WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
   // consistency it would be good to move the interaction with call_->Receiver()
   // to a common implementation and provide a callback on the worker thread
   // for the exception case (DELIVERY_UNKNOWN_SSRC) and how retry is attempted.
-  worker_thread_->PostTask(
+  worker_thread_->PostTask(  // 交由worker线程处理视频包
       ToQueuedTask(task_safety_, [this, packet, packet_time_us] {
         RTC_DCHECK_RUN_ON(&thread_checker_);
         const webrtc::PacketReceiver::DeliveryStatus delivery_result =
