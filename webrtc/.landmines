@@ -1,0 +1,7 @@
+Clobber to remove out/{Debug,Release}/args.gn (webrtc:5070)
+Clobber to resolve some issues with corrupt .pdb files on bots.
+Clobber due to corrupt .pdb files (after #14623)
+Clobber due to Win 64-bit Debug linking error (crbug.com/668961)
+Clobber due to Win Clang Debug linking errors in https://codereview.webrtc.org/2786603002
+Clobber due to Win Debug linking errors in https://codereview.webrtc.org/2832063003/
+Clobber win x86 bots (issues with isolated files).
