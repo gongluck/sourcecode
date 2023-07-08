@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright 2017 The WebRTC Project Authors. All rights reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -1352,7 +1352,7 @@ void JsepTransportController::OnRtcpPacketReceived_n(
     rtc::CopyOnWriteBuffer* packet,
     int64_t packet_time_us) {
   RTC_DCHECK(config_.rtcp_handler);
-  config_.rtcp_handler(*packet, packet_time_us);
+  config_.rtcp_handler(*packet, packet_time_us);//处理RTCP包
 }
 
 void JsepTransportController::OnDtlsHandshakeError(

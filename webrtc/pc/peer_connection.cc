@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright 2012 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -2872,7 +2872,7 @@ void PeerConnection::RequestUsagePatternReportForTesting() {
 
 std::function<void(const rtc::CopyOnWriteBuffer& packet,
                    int64_t packet_time_us)>
-PeerConnection::InitializeRtcpCallback() {
+PeerConnection::InitializeRtcpCallback() {//初始化RTCP处理函数对象
   RTC_DCHECK_RUN_ON(network_thread());
   return [this, flag = worker_thread_safety_](
              const rtc::CopyOnWriteBuffer& packet, int64_t packet_time_us) {

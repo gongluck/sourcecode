@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright (c) 2012 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -198,7 +198,7 @@ void RTCPReceiver::IncomingPacket(rtc::ArrayView<const uint8_t> packet) {
   }
 
   PacketInformation packet_information;
-  if (!ParseCompoundPacket(packet, &packet_information))
+  if (!ParseCompoundPacket(packet, &packet_information))//合并包处理
     return;
   TriggerCallbacksFromRtcpPacket(packet_information);
 }
@@ -1078,7 +1078,7 @@ void RTCPReceiver::TriggerCallbacksFromRtcpPacket(
   if (!receiver_only_ && (packet_information.packet_type_flags & kRtcpSrReq)) {
     rtp_rtcp_->OnRequestSendReport();
   }
-  if (!receiver_only_ && (packet_information.packet_type_flags & kRtcpNack)) {
+  if (!receiver_only_ && (packet_information.packet_type_flags & kRtcpNack)) {//NACK包
     if (!packet_information.nack_sequence_numbers.empty()) {
       RTC_LOG(LS_VERBOSE) << "Incoming NACK length: "
                           << packet_information.nack_sequence_numbers.size();

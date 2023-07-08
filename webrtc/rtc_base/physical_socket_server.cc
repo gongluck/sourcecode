@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -787,7 +787,7 @@ void SocketDispatcher::OnEvent(uint32_t ff, int err) {
   }
   if ((ff & DE_READ) != 0) {
     DisableEvents(DE_READ);
-    SignalReadEvent(this);
+    SignalReadEvent(this);//处理读事件
   }
   if (((ff & DE_WRITE) != 0) && (id_ == cache_id)) {
     DisableEvents(DE_WRITE);
@@ -1702,7 +1702,7 @@ bool PhysicalSocketServer::Wait(int cmsWait, bool process_io) {
               errcode = wsaEvents.iErrorCode[FD_CLOSE_BIT];
             }
             if (ff != 0) {
-              disp->OnEvent(ff, errcode);
+              disp->OnEvent(ff, errcode);//网络事件分发
             }
           }
         }

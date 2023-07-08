@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright 2017 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -263,7 +263,7 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
 
   rtc::CopyOnWriteBuffer packet(data, len);
   if (packet_type == cricket::RtpPacketType::kRtcp) {
-    OnRtcpPacketReceived(std::move(packet), packet_time_us);
+    OnRtcpPacketReceived(std::move(packet), packet_time_us);//RTCP包
   } else {
     OnRtpPacketReceived(std::move(packet), packet_time_us);
   }

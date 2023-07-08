@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -517,7 +517,7 @@ bool Thread::Get(Message* pmsg, int cmsWait, bool process_io) {
 
     {
       // Wait and multiplex in the meantime
-      if (!ss_->Wait(static_cast<int>(cmsNext), process_io))
+      if (!ss_->Wait(static_cast<int>(cmsNext), process_io))//多路复用消息等待
         return false;
     }
 

@@ -1475,7 +1475,7 @@ PacketReceiver::DeliveryStatus Call::DeliverPacket(
   RTC_DCHECK_RUN_ON(worker_thread_);
 
   if (IsRtcp(packet.cdata(), packet.size()))
-    return DeliverRtcp(media_type, packet.cdata(), packet.size());
+    return DeliverRtcp(media_type, packet.cdata(), packet.size());//分发处理RTCP包
 
   // 分发处理RTP包
   return DeliverRtp(media_type, std::move(packet), packet_time_us);

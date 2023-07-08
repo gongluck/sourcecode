@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -1617,7 +1617,7 @@ void AllocationSequence::OnReadPacket(rtc::AsyncPacketSocket* socket,
         stun_servers.find(remote_addr) != stun_servers.end()) {
       RTC_DCHECK(udp_port_->SharedSocket());
       udp_port_->HandleIncomingPacket(socket, data, size, remote_addr,
-                                      packet_time_us);
+                                      packet_time_us);//处理输入包
     }
   }
 }

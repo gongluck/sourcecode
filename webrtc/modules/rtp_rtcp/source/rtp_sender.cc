@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright (c) 2012 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -300,7 +300,7 @@ int32_t RTPSender::ReSendPacket(uint16_t packet_id) {
   const int32_t packet_size = static_cast<int32_t>(stored_packet->packet_size);
   const bool rtx = (RtxStatus() & kRtxRetransmitted) > 0;
 
-  std::unique_ptr<RtpPacketToSend> packet =
+  std::unique_ptr<RtpPacketToSend> packet = //查找丢失包
       packet_history_->GetPacketAndMarkAsPending(
           packet_id, [&](const RtpPacketToSend& stored_packet) {
             // Check if we're overusing retransmission bitrate.
@@ -312,7 +312,7 @@ int32_t RTPSender::ReSendPacket(uint16_t packet_id) {
               return retransmit_packet;
             }
             if (rtx) {
-              retransmit_packet = BuildRtxPacket(stored_packet);
+              retransmit_packet = BuildRtxPacket(stored_packet);//生成RTX包
             } else {
               retransmit_packet =
                   std::make_unique<RtpPacketToSend>(stored_packet);
@@ -330,7 +330,7 @@ int32_t RTPSender::ReSendPacket(uint16_t packet_id) {
   packet->set_fec_protect_packet(false);
   std::vector<std::unique_ptr<RtpPacketToSend>> packets;
   packets.emplace_back(std::move(packet));
-  paced_sender_->EnqueuePackets(std::move(packets));
+  paced_sender_->EnqueuePackets(std::move(packets));//重传包入队
 
   return packet_size;
 }
@@ -359,7 +359,7 @@ void RTPSender::OnReceivedNack(
     int64_t avg_rtt) {
   packet_history_->SetRtt(5 + avg_rtt);
   for (uint16_t seq_no : nack_sequence_numbers) {
-    const int32_t bytes_sent = ReSendPacket(seq_no);
+    const int32_t bytes_sent = ReSendPacket(seq_no);//重发丢失包
     if (bytes_sent < 0) {
       // Failed to send one Sequence number. Give up the rest in this nack.
       RTC_LOG(LS_WARNING) << "Failed resending RTP packet " << seq_no
