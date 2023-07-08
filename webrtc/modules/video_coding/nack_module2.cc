@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright (c) 2016 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -111,11 +111,13 @@ NackModule2::NackModule2(TaskQueueBase* current_queue,
   RTC_DCHECK(worker_thread_);
   RTC_DCHECK(worker_thread_->IsCurrent());
 
+  // 定时任务，发送nack
   repeating_task_ = RepeatingTaskHandle::DelayedStart(
       TaskQueueBase::Current(), update_interval_,
       [this]() {
         RTC_DCHECK_RUN_ON(worker_thread_);
-        std::vector<uint16_t> nack_batch = GetNackBatch(kTimeOnly);
+        std::vector<uint16_t> nack_batch =
+            GetNackBatch(kTimeOnly);  // 根据时间延时获取丢包
         if (!nack_batch.empty()) {
           // This batch of NACKs is triggered externally; there is no external
           // initiator who can batch them with other feedback messages.
@@ -136,6 +138,7 @@ int NackModule2::OnReceivedPacket(uint16_t seq_num, bool is_keyframe) {
   return OnReceivedPacket(seq_num, is_keyframe, false);
 }
 
+// Nack处理输入包
 int NackModule2::OnReceivedPacket(uint16_t seq_num,
                                   bool is_keyframe,
                                   bool is_recovered) {
@@ -146,10 +149,12 @@ int NackModule2::OnReceivedPacket(uint16_t seq_num,
   //                 statistics to never be updated.
   bool is_retransmitted = true;
 
+  // 第一次处理
   if (!initialized_) {
+    // 记录最新序列
     newest_seq_num_ = seq_num;
     if (is_keyframe)
-      keyframe_list_.insert(seq_num);
+      keyframe_list_.insert(seq_num);  // 记录关键帧序列
     initialized_ = true;
     return 0;
   }
@@ -159,12 +164,13 @@ int NackModule2::OnReceivedPacket(uint16_t seq_num,
   if (seq_num == newest_seq_num_)
     return 0;
 
-  if (AheadOf(newest_seq_num_, seq_num)) {
+  if (AheadOf(newest_seq_num_, seq_num)) {  // 乱序包到达
     // An out of order packet has been received.
     auto nack_list_it = nack_list_.find(seq_num);
     int nacks_sent_for_packet = 0;
     if (nack_list_it != nack_list_.end()) {
       nacks_sent_for_packet = nack_list_it->second.retries;
+      // 从nack列表中删除
       nack_list_.erase(nack_list_it);
     }
     if (!is_retransmitted)
@@ -174,34 +180,38 @@ int NackModule2::OnReceivedPacket(uint16_t seq_num,
 
   // Keep track of new keyframes.
   if (is_keyframe)
-    keyframe_list_.insert(seq_num);
+    keyframe_list_.insert(seq_num);  // 记录关键帧
 
   // And remove old ones so we don't accumulate keyframes.
   auto it = keyframe_list_.lower_bound(seq_num - kMaxPacketAge);
   if (it != keyframe_list_.begin())
-    keyframe_list_.erase(keyframe_list_.begin(), it);
+    keyframe_list_.erase(keyframe_list_.begin(), it);  // 删除边界点之外的关键帧
 
   if (is_recovered) {
+    // 插入恢复队列
     recovered_list_.insert(seq_num);
 
     // Remove old ones so we don't accumulate recovered packets.
     auto it = recovered_list_.lower_bound(seq_num - kMaxPacketAge);
     if (it != recovered_list_.begin())
-      recovered_list_.erase(recovered_list_.begin(), it);
+      recovered_list_.erase(recovered_list_.begin(),
+                            it);  // 删除边界点之外的关键帧
 
     // Do not send nack for packets recovered by FEC or RTX.
     return 0;
   }
 
+  // (newest_seq_num_ + 1, seq_num)加入到nack队列
   AddPacketsToNack(newest_seq_num_ + 1, seq_num);
   newest_seq_num_ = seq_num;
 
   // Are there any nacks that are waiting for this seq_num.
-  std::vector<uint16_t> nack_batch = GetNackBatch(kSeqNumOnly);
+  std::vector<uint16_t> nack_batch = GetNackBatch(kSeqNumOnly);  // 获取丢包范围
   if (!nack_batch.empty()) {
     // This batch of NACKs is triggered externally; the initiator can
     // batch them with other feedback messages.
-    nack_sender_->SendNack(nack_batch, /*buffering_allowed=*/true);
+    nack_sender_->SendNack(nack_batch,
+                           /*buffering_allowed=*/true);  // 发送nack 缓存模式
   }
 
   return 0;
@@ -253,13 +263,14 @@ void NackModule2::AddPacketsToNack(uint16_t seq_num_start,
   // If the nack list is too large, remove packets from the nack list until
   // the latest first packet of a keyframe. If the list is still too large,
   // clear it and request a keyframe.
-  uint16_t num_new_nacks = ForwardDiff(seq_num_start, seq_num_end);
+  uint16_t num_new_nacks =
+      ForwardDiff(seq_num_start, seq_num_end);  // 获取两包序列之间的范围
   if (nack_list_.size() + num_new_nacks > kMaxNackPackets) {
     while (RemovePacketsUntilKeyFrame() &&
            nack_list_.size() + num_new_nacks > kMaxNackPackets) {
     }
 
-    if (nack_list_.size() + num_new_nacks > kMaxNackPackets) {
+    if (nack_list_.size() + num_new_nacks > kMaxNackPackets) {  // 删除失败
       nack_list_.clear();
       RTC_LOG(LS_WARNING) << "NACK list full, clearing NACK"
                              " list and requesting keyframe.";
@@ -270,8 +281,10 @@ void NackModule2::AddPacketsToNack(uint16_t seq_num_start,
 
   for (uint16_t seq_num = seq_num_start; seq_num != seq_num_end; ++seq_num) {
     // Do not send nack for packets that are already recovered by FEC or RTX
-    if (recovered_list_.find(seq_num) != recovered_list_.end())
+    if (recovered_list_.find(seq_num) !=
+        recovered_list_.end())  // 已在恢复队列中 不需要操作
       continue;
+    // 生成一个Nack记录
     NackInfo nack_info(seq_num, seq_num + WaitNumberOfPackets(0.5),
                        clock_->TimeInMilliseconds());
     RTC_DCHECK(nack_list_.find(seq_num) == nack_list_.end());
@@ -288,7 +301,8 @@ std::vector<uint16_t> NackModule2::GetNackBatch(NackFilterOptions options) {
   std::vector<uint16_t> nack_batch;
   auto it = nack_list_.begin();
   while (it != nack_list_.end()) {
-    TimeDelta resend_delay = TimeDelta::Millis(rtt_ms_);
+    TimeDelta resend_delay =
+        TimeDelta::Millis(rtt_ms_);  // nack发送间隔必须大于rtt
     if (backoff_settings_) {
       resend_delay =
           std::max(resend_delay, backoff_settings_->min_retry_interval);
@@ -300,15 +314,19 @@ std::vector<uint16_t> NackModule2::GetNackBatch(NackFilterOptions options) {
       }
     }
 
+    // 超时不重发
     bool delay_timed_out =
         now.ms() - it->second.created_at_time >= send_nack_delay_ms_;
+    // 间隔超过rtt才发送nack
     bool nack_on_rtt_passed =
         now.ms() - it->second.sent_at_time >= resend_delay.ms();
+    // 包乱序才发送nack
     bool nack_on_seq_num_passed =
         it->second.sent_at_time == -1 &&
         AheadOrAt(newest_seq_num_, it->second.send_at_seq_num);
     if (delay_timed_out && ((consider_seq_num && nack_on_seq_num_passed) ||
                             (consider_timestamp && nack_on_rtt_passed))) {
+      // 此包需要nack
       nack_batch.emplace_back(it->second.seq_num);
       ++it->second.retries;
       it->second.sent_at_time = now.ms();

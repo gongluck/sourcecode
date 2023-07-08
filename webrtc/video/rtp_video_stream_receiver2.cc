@@ -145,10 +145,11 @@ void RtpVideoStreamReceiver2::RtcpFeedbackBuffer::SendNack(
     bool buffering_allowed) {
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
   RTC_DCHECK(!sequence_numbers.empty());
+  // 插入重传包序号
   nack_sequence_numbers_.insert(nack_sequence_numbers_.end(),
                                 sequence_numbers.cbegin(),
                                 sequence_numbers.cend());
-  if (!buffering_allowed) {
+  if (!buffering_allowed) {  // 判断是否缓存
     // Note that while *buffering* is not allowed, *batching* is, meaning that
     // previously buffered messages may be sent along with the current message.
     SendBufferedRtcpFeedback();

@@ -41,10 +41,12 @@ template <typename T, T M>
 inline typename std::enable_if<(M == 0), bool>::type AheadOrAt(T a, T b) {
   static_assert(std::is_unsigned<T>::value,
                 "Type must be an unsigned integer.");
+  // rfc1982规定了序列号递增间隔不能超过取值范围的1/2
+  // 那么要判断a是否比b新，只要判断b到a的递增是否在1/2即可，递增超过1/2，则一定是因为a比b老而导致了回环
   const T maxDist = std::numeric_limits<T>::max() / 2 + T(1);
   if (a - b == maxDist)
     return b < a;
-  return ForwardDiff(b, a) < maxDist;
+  return ForwardDiff(b, a) < maxDist;  // 判断b到a的递增是否在1/2
 }
 
 template <typename T>
