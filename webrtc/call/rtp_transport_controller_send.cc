@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright (c) 2017 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
@@ -376,6 +376,7 @@ void RtpTransportControllerSend::OnNetworkAvailability(bool network_available) {
       PostUpdates(controller_->OnNetworkAvailability(msg));
       UpdateControlState();
     } else {
+      //创建controller
       MaybeCreateControllers();
     }
   });
@@ -597,9 +598,11 @@ void RtpTransportControllerSend::MaybeCreateControllers() {
     process_interval_ = controller_factory_override_->GetProcessInterval();
   } else {
     RTC_LOG(LS_INFO) << "Creating fallback congestion controller";
+    //创建controller
     controller_ = controller_factory_fallback_->Create(initial_config_);
     process_interval_ = controller_factory_fallback_->GetProcessInterval();
   }
+  //间隔更新controller
   UpdateControllerWithTimeInterval();
   StartProcessPeriodicTasks();
 }
@@ -640,6 +643,7 @@ void RtpTransportControllerSend::UpdateControllerWithTimeInterval() {
   msg.at_time = Timestamp::Millis(clock_->TimeInMilliseconds());
   if (add_pacing_to_cwin_)
     msg.pacer_queue = pacer()->QueueSizeData();
+  //码率检测并更新
   PostUpdates(controller_->OnProcessInterval(msg));
 }
 

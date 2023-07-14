@@ -107,7 +107,7 @@ bool RtpHeaderParser::RTCP() const {
     return false;
   }
 
-  const uint8_t payloadType = _ptrRTPDataBegin[1];
+  const uint8_t payloadType = _ptrRTPDataBegin[1];//这里忽略了M字段，是因为M字段为1肯定就是音视频RTP!
   switch (payloadType) {
     case 192:
       return true;

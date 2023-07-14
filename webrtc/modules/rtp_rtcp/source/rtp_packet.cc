@@ -447,26 +447,26 @@ bool RtpPacket::ParseBuffer(const uint8_t* buffer, size_t size) {
   if (size < kFixedHeaderSize) {
     return false;
   }
-  const uint8_t version = buffer[0] >> 6;
+  const uint8_t version = buffer[0] >> 6;//V field
   if (version != kRtpVersion) {
     return false;
   }
-  const bool has_padding = (buffer[0] & 0x20) != 0;
-  const bool has_extension = (buffer[0] & 0x10) != 0;
-  const uint8_t number_of_crcs = buffer[0] & 0x0f;
-  marker_ = (buffer[1] & 0x80) != 0;
-  payload_type_ = buffer[1] & 0x7f;
+  const bool has_padding = (buffer[0] & 0x20) != 0;//P field
+  const bool has_extension = (buffer[0] & 0x10) != 0;//X field
+  const uint8_t number_of_crcs = buffer[0] & 0x0f;//CC field
+  marker_ = (buffer[1] & 0x80) != 0;//M field
+  payload_type_ = buffer[1] & 0x7f;//PT field
 
-  sequence_number_ = ByteReader<uint16_t>::ReadBigEndian(&buffer[2]);
-  timestamp_ = ByteReader<uint32_t>::ReadBigEndian(&buffer[4]);
-  ssrc_ = ByteReader<uint32_t>::ReadBigEndian(&buffer[8]);
+  sequence_number_ = ByteReader<uint16_t>::ReadBigEndian(&buffer[2]);//sequence number field
+  timestamp_ = ByteReader<uint32_t>::ReadBigEndian(&buffer[4]);//timestamp field
+  ssrc_ = ByteReader<uint32_t>::ReadBigEndian(&buffer[8]);//ssrc field
   if (size < kFixedHeaderSize + number_of_crcs * 4) {
     return false;
   }
   payload_offset_ = kFixedHeaderSize + number_of_crcs * 4;
 
   if (has_padding) {
-    padding_size_ = buffer[size - 1];
+    padding_size_ = buffer[size - 1];//最后一个字节是填充大小的值
     if (padding_size_ == 0) {
       RTC_LOG(LS_WARNING) << "Padding was set, but padding size is zero";
       return false;
@@ -492,9 +492,9 @@ bool RtpPacket::ParseBuffer(const uint8_t* buffer, size_t size) {
       return false;
     }
     uint16_t profile =
-        ByteReader<uint16_t>::ReadBigEndian(&buffer[payload_offset_]);
+        ByteReader<uint16_t>::ReadBigEndian(&buffer[payload_offset_]); //profile
     size_t extensions_capacity =
-        ByteReader<uint16_t>::ReadBigEndian(&buffer[payload_offset_ + 2]);
+        ByteReader<uint16_t>::ReadBigEndian(&buffer[payload_offset_ + 2]); //length
     extensions_capacity *= 4;
     if (extension_offset + extensions_capacity > size) {
       return false;
