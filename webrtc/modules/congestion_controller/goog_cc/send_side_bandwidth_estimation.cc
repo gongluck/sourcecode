@@ -355,6 +355,7 @@ void SendSideBandwidthEstimation::IncomingPacketFeedbackVector(
   }
 }
 
+// 更新丢包信息
 void SendSideBandwidthEstimation::UpdatePacketsLost(int64_t packets_lost,
                                                     int64_t number_of_packets,
                                                     Timestamp at_time) {

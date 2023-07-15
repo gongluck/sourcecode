@@ -376,7 +376,7 @@ void RtpTransportControllerSend::OnNetworkAvailability(bool network_available) {
       PostUpdates(controller_->OnNetworkAvailability(msg));
       UpdateControlState();
     } else {
-      //创建controller
+      // 创建controller
       MaybeCreateControllers();
     }
   });
@@ -598,11 +598,11 @@ void RtpTransportControllerSend::MaybeCreateControllers() {
     process_interval_ = controller_factory_override_->GetProcessInterval();
   } else {
     RTC_LOG(LS_INFO) << "Creating fallback congestion controller";
-    //创建controller
+    // 创建controller
     controller_ = controller_factory_fallback_->Create(initial_config_);
     process_interval_ = controller_factory_fallback_->GetProcessInterval();
   }
-  //间隔更新controller
+  // 间隔更新controller
   UpdateControllerWithTimeInterval();
   StartProcessPeriodicTasks();
 }
@@ -628,6 +628,7 @@ void RtpTransportControllerSend::StartProcessPeriodicTasks() {
   }
   controller_task_.Stop();
   if (process_interval_.IsFinite()) {
+    // 定时检测更新码率
     controller_task_ = RepeatingTaskHandle::DelayedStart(
         task_queue_.Get(), process_interval_, [this]() {
           RTC_DCHECK_RUN_ON(&task_queue_);
@@ -643,7 +644,7 @@ void RtpTransportControllerSend::UpdateControllerWithTimeInterval() {
   msg.at_time = Timestamp::Millis(clock_->TimeInMilliseconds());
   if (add_pacing_to_cwin_)
     msg.pacer_queue = pacer()->QueueSizeData();
-  //码率检测并更新
+  // 码率检测并更新
   PostUpdates(controller_->OnProcessInterval(msg));
 }
 
@@ -703,6 +704,7 @@ void RtpTransportControllerSend::OnReceivedRtcpReceiverReportBlocks(
   if (packets_received_delta < 1)
     return;
   Timestamp now = Timestamp::Millis(now_ms);
+  // 丢包统计信息
   TransportLossReport msg;
   msg.packets_lost_delta = total_packets_lost_delta;
   msg.packets_received_delta = packets_received_delta;

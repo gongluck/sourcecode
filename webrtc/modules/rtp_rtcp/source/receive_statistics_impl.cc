@@ -55,13 +55,14 @@ bool StreamStatisticianImpl::UpdateOutOfOrder(const RtpPacketReceived& packet,
                                               int64_t sequence_number,
                                               int64_t now_ms) {
   // Check if |packet| is second packet of a stream restart.
-  if (received_seq_out_of_order_) {
+  if (received_seq_out_of_order_) {  // 上一个包的序号与之前的最大包序号差值过大，判断是否是流重新开始的情况
     // Count the previous packet as a received; it was postponed below.
-    --cumulative_loss_;
+    --cumulative_loss_;  // 丢包数减1
 
-    uint16_t expected_sequence_number = *received_seq_out_of_order_ + 1;
-    received_seq_out_of_order_ = absl::nullopt;
-    if (packet.SequenceNumber() == expected_sequence_number) {
+    uint16_t expected_sequence_number =  // 期望的包序号
+        *received_seq_out_of_order_ + 1;
+    received_seq_out_of_order_ = absl::nullopt;                 // 复位标记
+    if (packet.SequenceNumber() == expected_sequence_number) {  // 包按序到达
       // Ignore sequence number gap caused by stream restart for packet loss
       // calculation, by setting received_seq_max_ to the sequence number just
       // before the out-of-order seqno. This gives a net zero change of
@@ -70,6 +71,8 @@ bool StreamStatisticianImpl::UpdateOutOfOrder(const RtpPacketReceived& packet,
       // Fraction loss for the next report may get a bit off, since we don't
       // update last_report_seq_max_ and last_report_cumulative_loss_ in a
       // consistent way.
+
+      // 忽略由于数据包丢失而重新启动流导致的序列号间隙，下一个包到达时间隙就不会超过max_reordering_threshold_了
       last_report_seq_max_ = sequence_number - 2;
       received_seq_max_ = sequence_number - 2;
       return false;
@@ -77,52 +80,65 @@ bool StreamStatisticianImpl::UpdateOutOfOrder(const RtpPacketReceived& packet,
   }
 
   if (std::abs(sequence_number - received_seq_max_) >
-      max_reordering_threshold_) {
+      max_reordering_threshold_) {  // 新包序号与上周期的最大包序号间隔过大
     // Sequence number gap looks too large, wait until next packet to check
     // for a stream restart.
-    received_seq_out_of_order_ = packet.SequenceNumber();
+    received_seq_out_of_order_ =  // 缓存包序号，延迟参数的计算到下一个包到达时
+        packet.SequenceNumber();
     // Postpone counting this as a received packet until we know how to update
     // |received_seq_max_|, otherwise we temporarily decrement
     // |cumulative_loss_|. The
     // ReceiveStatisticsTest.StreamRestartDoesntCountAsLoss test expects
     // |cumulative_loss_| to be unchanged by the reception of the first packet
     // after stream reset.
-    ++cumulative_loss_;
+    ++cumulative_loss_;  // 简单增加丢包数
     return true;
   }
 
-  if (sequence_number > received_seq_max_)
+  if (sequence_number >
+      received_seq_max_)  // 当前包序号比上个周期的最大包序号大，为非乱序包
     return false;
 
+  // 下面是乱序情况
+
   // Old out of order packet, may be retransmit.
-  if (enable_retransmit_detection_ && IsRetransmitOfOldPacket(packet, now_ms))
-    receive_counters_.retransmitted.AddPacket(packet);
+  if (enable_retransmit_detection_ &&  // 判断是否开启重传包判断
+      IsRetransmitOfOldPacket(packet, now_ms))  // 判断是否重传乱序包
+    receive_counters_.retransmitted.AddPacket(packet);  // 增加重传计数
   return true;
 }
 
+// 更新计数
 void StreamStatisticianImpl::UpdateCounters(const RtpPacketReceived& packet) {
   RTC_DCHECK_EQ(ssrc_, packet.Ssrc());
   int64_t now_ms = clock_->TimeInMilliseconds();
 
+  // 数据接收统计
   incoming_bitrate_.Update(packet.size(), now_ms);
   receive_counters_.last_packet_received_timestamp_ms = now_ms;
   receive_counters_.transmitted.AddPacket(packet);
-  --cumulative_loss_;
+
+  --cumulative_loss_;  // 丢包数减1，如果要想得到原始丢包率，重传包就不能进入这里统计了，WebRTC提供了RTX机制，重传包用额外SSRC的包发送，这样重传包就不会干扰原始媒体包的统计。
 
   int64_t sequence_number =
       seq_unwrapper_.UnwrapWithoutUpdate(packet.SequenceNumber());
 
-  if (!ReceivedRtpPacket()) {
+  if (!ReceivedRtpPacket()) {  // 第一个包
     received_seq_first_ = sequence_number;
     last_report_seq_max_ = sequence_number - 1;
     received_seq_max_ = sequence_number - 1;
     receive_counters_.first_packet_time_ms = now_ms;
-  } else if (UpdateOutOfOrder(packet, sequence_number, now_ms)) {
+  } else if (UpdateOutOfOrder(packet, sequence_number,
+                              now_ms) /*检查是否乱序包*/) {
     return;
   }
+
+  // 下面为非乱序情况
+
   // In order packet.
-  cumulative_loss_ += sequence_number - received_seq_max_;
-  received_seq_max_ = sequence_number;
+  cumulative_loss_ += sequence_number - received_seq_max_;  // 修正丢包数
+  received_seq_max_ =
+      sequence_number;  // 非乱序下，接收到的最大包序号自然是当前包序号
   seq_unwrapper_.UpdateLast(sequence_number);
 
   // If new time stamp and more than one in-order packet received, calculate
@@ -130,7 +146,7 @@ void StreamStatisticianImpl::UpdateCounters(const RtpPacketReceived& packet) {
   if (packet.Timestamp() != last_received_timestamp_ &&
       (receive_counters_.transmitted.packets -
        receive_counters_.retransmitted.packets) > 1) {
-    UpdateJitter(packet, now_ms);
+    UpdateJitter(packet, now_ms);  // 更新抖动
   }
   last_received_timestamp_ = packet.Timestamp();
   last_receive_time_ms_ = now_ms;
@@ -195,13 +211,15 @@ bool StreamStatisticianImpl::GetActiveStatisticsAndReset(
 RtcpStatistics StreamStatisticianImpl::CalculateRtcpStatistics() {
   RtcpStatistics stats;
   // Calculate fraction lost.
-  int64_t exp_since_last = received_seq_max_ - last_report_seq_max_;
+  int64_t exp_since_last =  // 计算期望收到的包数
+      received_seq_max_ - last_report_seq_max_;
   RTC_DCHECK_GE(exp_since_last, 0);
 
-  int32_t lost_since_last = cumulative_loss_ - last_report_cumulative_loss_;
+  int32_t lost_since_last =  // 计算本周期的丢包数
+      cumulative_loss_ - last_report_cumulative_loss_;
   if (exp_since_last > 0 && lost_since_last > 0) {
     // Scale 0 to 255, where 255 is 100% loss.
-    stats.fraction_lost =
+    stats.fraction_lost =  // 计算丢包率
         static_cast<uint8_t>(255 * lost_since_last / exp_since_last);
   } else {
     stats.fraction_lost = 0;
@@ -210,14 +228,17 @@ RtcpStatistics StreamStatisticianImpl::CalculateRtcpStatistics() {
   // TODO(danilchap): Ensure |stats.packets_lost| is clamped to fit in a signed
   // 24-bit value.
   stats.packets_lost = cumulative_loss_ + cumulative_loss_rtcp_offset_;
-  if (stats.packets_lost < 0) {
+  if (stats.packets_lost < 0) {  // 防止符号位溢出
     // Clamp to zero. Work around to accomodate for senders that misbehave with
     // negative cumulative loss.
     stats.packets_lost = 0;
     cumulative_loss_rtcp_offset_ = -cumulative_loss_;
   }
+
+  // 当前收到的最大包序列号
   stats.extended_highest_sequence_number =
       static_cast<uint32_t>(received_seq_max_);
+
   // Note: internal jitter value is in Q4 and needs to be scaled by 1/16.
   stats.jitter = jitter_q4_ >> 4;
 
@@ -238,13 +259,15 @@ absl::optional<int> StreamStatisticianImpl::GetFractionLostInPercent() const {
   if (!ReceivedRtpPacket()) {
     return absl::nullopt;
   }
-  int64_t expected_packets = 1 + received_seq_max_ - received_seq_first_;
+  int64_t expected_packets =  // 期望接收总包数
+      1 + received_seq_max_ - received_seq_first_;
   if (expected_packets <= 0) {
     return absl::nullopt;
   }
-  if (cumulative_loss_ <= 0) {
+  if (cumulative_loss_ <= 0) {  // 总丢包数
     return 0;
   }
+  // 百分比丢包率
   return 100 * static_cast<int64_t>(cumulative_loss_) / expected_packets;
 }
 
@@ -260,14 +283,18 @@ uint32_t StreamStatisticianImpl::BitrateReceived() const {
 bool StreamStatisticianImpl::IsRetransmitOfOldPacket(
     const RtpPacketReceived& packet,
     int64_t now_ms) const {
+  // 负载类型的频率
   uint32_t frequency_khz = packet.payload_type_frequency() / 1000;
   RTC_DCHECK_GT(frequency_khz, 0);
 
+  // 现实时间间隔
   int64_t time_diff_ms = now_ms - last_receive_time_ms_;
 
   // Diff in time stamp since last received in order.
-  uint32_t timestamp_diff = packet.Timestamp() - last_received_timestamp_;
-  uint32_t rtp_time_stamp_diff_ms = timestamp_diff / frequency_khz;
+  uint32_t timestamp_diff =  // 包时间戳间隔
+      packet.Timestamp() - last_received_timestamp_;
+  uint32_t rtp_time_stamp_diff_ms =  // rtp时间戳间隔
+      timestamp_diff / frequency_khz;
 
   int64_t max_delay_ms = 0;
 
@@ -282,6 +309,8 @@ bool StreamStatisticianImpl::IsRetransmitOfOldPacket(
   if (max_delay_ms == 0) {
     max_delay_ms = 1;
   }
+
+  // 根据时间计算是否重传的包
   return time_diff_ms > rtp_time_stamp_diff_ms + max_delay_ms;
 }
 
@@ -362,13 +391,15 @@ void ReceiveStatisticsImpl::EnableRetransmitDetection(uint32_t ssrc,
 std::vector<rtcp::ReportBlock> ReceiveStatisticsImpl::RtcpReportBlocks(
     size_t max_blocks) {
   std::vector<rtcp::ReportBlock> result;
-  result.reserve(std::min(max_blocks, statisticians_.size()));
+  result.reserve(
+      std::min(max_blocks, statisticians_.size()));  // 一个ssrc一个记录
+
   auto add_report_block = [&result](
                               uint32_t media_ssrc,
                               StreamStatisticianImplInterface* statistician) {
     // Do we have receive statistics to send?
     RtcpStatistics stats;
-    if (!statistician->GetActiveStatisticsAndReset(&stats))
+    if (!statistician->GetActiveStatisticsAndReset(&stats))  // 获取统计记录
       return;
     result.emplace_back();
     rtcp::ReportBlock& block = result.back();
