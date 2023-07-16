@@ -67,6 +67,7 @@ bool BweLossExperimentIsEnabled() {
   return absl::StartsWith(experiment_string, "Enabled");
 }
 
+// 读取带宽预测损耗试验参数
 bool ReadBweLossExperimentParameters(float* low_loss_threshold,
                                      float* high_loss_threshold,
                                      uint32_t* bitrate_threshold_kbps) {
@@ -114,30 +115,35 @@ LinkCapacityTracker::LinkCapacityTracker()
 
 LinkCapacityTracker::~LinkCapacityTracker() {}
 
+// 基于延迟估算
 void LinkCapacityTracker::UpdateDelayBasedEstimate(
     Timestamp at_time,
     DataRate delay_based_bitrate) {
-  if (delay_based_bitrate < last_delay_based_estimate_) {
-    capacity_estimate_bps_ =
+  if (delay_based_bitrate < last_delay_based_estimate_) {  // 估算码率降低
+    capacity_estimate_bps_ =  // 更新链路码率估算
         std::min(capacity_estimate_bps_, delay_based_bitrate.bps<double>());
     last_link_capacity_update_ = at_time;
   }
   last_delay_based_estimate_ = delay_based_bitrate;
 }
 
+// 设置开始码率
 void LinkCapacityTracker::OnStartingRate(DataRate start_rate) {
   if (last_link_capacity_update_.IsInfinite())
     capacity_estimate_bps_ = start_rate.bps<double>();
 }
 
+// ACK更新码率估算
 void LinkCapacityTracker::OnRateUpdate(absl::optional<DataRate> acknowledged,
                                        DataRate target,
                                        Timestamp at_time) {
   if (!acknowledged)
     return;
-  DataRate acknowledged_target = std::min(*acknowledged, target);
-  if (acknowledged_target.bps() > capacity_estimate_bps_) {
+  DataRate acknowledged_target =
+      std::min(*acknowledged, target);  // 取ACK码率和目标码率中的小值
+  if (acknowledged_target.bps() > capacity_estimate_bps_) {  // 超过链路的码率
     TimeDelta delta = at_time - last_link_capacity_update_;
+    // 更新间隔越大，aplha越小，当前ACK占比越高
     double alpha = delta.IsFinite() ? exp(-(delta / tracking_rate.Get())) : 0;
     capacity_estimate_bps_ = alpha * capacity_estimate_bps_ +
                              (1 - alpha) * acknowledged_target.bps<double>();
@@ -145,6 +151,7 @@ void LinkCapacityTracker::OnRateUpdate(absl::optional<DataRate> acknowledged,
   last_link_capacity_update_ = at_time;
 }
 
+// RTT退避
 void LinkCapacityTracker::OnRttBackoff(DataRate backoff_rate,
                                        Timestamp at_time) {
   capacity_estimate_bps_ =
