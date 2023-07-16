@@ -57,7 +57,7 @@ bool StreamStatisticianImpl::UpdateOutOfOrder(const RtpPacketReceived& packet,
   // Check if |packet| is second packet of a stream restart.
   if (received_seq_out_of_order_) {  // 上一个包的序号与之前的最大包序号差值过大，判断是否是流重新开始的情况
     // Count the previous packet as a received; it was postponed below.
-    --cumulative_loss_;  // 丢包数减1
+    --cumulative_loss_;  // 丢包数减1，减少记录received_seq_out_of_order_时增加的丢包记录
 
     uint16_t expected_sequence_number =  // 期望的包序号
         *received_seq_out_of_order_ + 1;
@@ -154,11 +154,15 @@ void StreamStatisticianImpl::UpdateCounters(const RtpPacketReceived& packet) {
 
 void StreamStatisticianImpl::UpdateJitter(const RtpPacketReceived& packet,
                                           int64_t receive_time_ms) {
-  int64_t receive_diff_ms = receive_time_ms - last_receive_time_ms_;
+  int64_t receive_diff_ms =  // 包到达时间间隔
+      receive_time_ms - last_receive_time_ms_;
   RTC_DCHECK_GE(receive_diff_ms, 0);
-  uint32_t receive_diff_rtp = static_cast<uint32_t>(
-      (receive_diff_ms * packet.payload_type_frequency()) / 1000);
-  int32_t time_diff_samples =
+
+  uint32_t receive_diff_rtp =  // 包到达时间间隔，rtp时间戳
+      static_cast<uint32_t>(
+          (receive_diff_ms * packet.payload_type_frequency()) / 1000);
+
+  int32_t time_diff_samples =  // 抖动延时
       receive_diff_rtp - (packet.Timestamp() - last_received_timestamp_);
 
   time_diff_samples = std::abs(time_diff_samples);
@@ -166,10 +170,13 @@ void StreamStatisticianImpl::UpdateJitter(const RtpPacketReceived& packet,
   // lib_jingle sometimes deliver crazy jumps in TS for the same stream.
   // If this happens, don't update jitter value. Use 5 secs video frequency
   // as the threshold.
-  if (time_diff_samples < 450000) {
+  if (time_diff_samples < 450000) {  // 5秒视频频率作为阈值
+    // jitter(i) = jitter(i-1) + (time_diff(i, i-1) - jitter(i-1)) / 16
     // Note we calculate in Q4 to avoid using float.
-    int32_t jitter_diff_q4 = (time_diff_samples << 4) - jitter_q4_;
-    jitter_q4_ += ((jitter_diff_q4 + 8) >> 4);
+    int32_t jitter_diff_q4 =                    // time_diff*16 - jitter(i-1)*16
+        (time_diff_samples << 4) - jitter_q4_;  // 左移4位，避免使用浮点运算
+    jitter_q4_ +=  //(time_diff*16-jitter(i-1)*16)/16 == time_diff-jitter(i-1)
+        ((jitter_diff_q4 + 8) >> 4);
   }
 }
 
@@ -293,7 +300,7 @@ bool StreamStatisticianImpl::IsRetransmitOfOldPacket(
   // Diff in time stamp since last received in order.
   uint32_t timestamp_diff =  // 包时间戳间隔
       packet.Timestamp() - last_received_timestamp_;
-  uint32_t rtp_time_stamp_diff_ms =  // rtp时间戳间隔
+  uint32_t rtp_time_stamp_diff_ms =  // 现实时间间隔
       timestamp_diff / frequency_khz;
 
   int64_t max_delay_ms = 0;
@@ -405,7 +412,7 @@ std::vector<rtcp::ReportBlock> ReceiveStatisticsImpl::RtcpReportBlocks(
     rtcp::ReportBlock& block = result.back();
     block.SetMediaSsrc(media_ssrc);
     block.SetFractionLost(stats.fraction_lost);
-    if (!block.SetCumulativeLost(stats.packets_lost)) {
+    if (!block.SetCumulativeLost(stats.packets_lost)) {  // 丢包数字段溢出
       RTC_LOG(LS_WARNING) << "Cumulative lost is oversized.";
       result.pop_back();
       return;
@@ -414,7 +421,8 @@ std::vector<rtcp::ReportBlock> ReceiveStatisticsImpl::RtcpReportBlocks(
     block.SetJitter(stats.jitter);
   };
 
-  const auto start_it = statisticians_.upper_bound(last_returned_ssrc_);
+  const auto start_it = statisticians_.upper_bound(
+      last_returned_ssrc_);  // 防止总记录数超过max_blocks的情况，记录上一次的最大记录位置，下一次生成记录时从该位置后开始
   for (auto it = start_it;
        result.size() < max_blocks && it != statisticians_.end(); ++it)
     add_report_block(it->first, it->second.get());

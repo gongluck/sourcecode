@@ -433,6 +433,7 @@ void SendSideBandwidthEstimation::UpdateRtt(TimeDelta rtt, Timestamp at_time) {
   }
 }
 
+// 更新估算码率
 void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
   if (rtt_backoff_.CorrectedRtt(at_time) > rtt_backoff_.rtt_limit_) {
     if (at_time - time_last_decrease_ >= rtt_backoff_.drop_interval_ &&
