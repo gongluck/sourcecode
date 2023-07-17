@@ -159,6 +159,7 @@ void LinkCapacityTracker::OnRttBackoff(DataRate backoff_rate,
   last_link_capacity_update_ = at_time;
 }
 
+// 带宽预测
 DataRate LinkCapacityTracker::estimate() const {
   return DataRate::BitsPerSec(capacity_estimate_bps_);
 }
@@ -442,15 +443,18 @@ void SendSideBandwidthEstimation::UpdateRtt(TimeDelta rtt, Timestamp at_time) {
 
 // 更新估算码率
 void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
-  if (rtt_backoff_.CorrectedRtt(at_time) > rtt_backoff_.rtt_limit_) {
-    if (at_time - time_last_decrease_ >= rtt_backoff_.drop_interval_ &&
-        current_target_ > rtt_backoff_.bandwidth_floor_) {
+  if (rtt_backoff_.CorrectedRtt(at_time) >
+      rtt_backoff_.rtt_limit_) {  // RTT过大
+    if (at_time - time_last_decrease_ >=
+            rtt_backoff_.drop_interval_ &&  // 达到码率减小修正间隔
+        current_target_ > rtt_backoff_.bandwidth_floor_) {  // 未到最小码率
       time_last_decrease_ = at_time;
-      DataRate new_bitrate =
-          std::max(current_target_ * rtt_backoff_.drop_fraction_,
+      DataRate new_bitrate =  // 降低码率
+          std::max(current_target_ *
+                       rtt_backoff_.drop_fraction_,  // 乘以码率下降因子
                    rtt_backoff_.bandwidth_floor_.Get());
-      link_capacity_.OnRttBackoff(new_bitrate, at_time);
-      UpdateTargetBitrate(new_bitrate, at_time);
+      link_capacity_.OnRttBackoff(new_bitrate, at_time);  // 更新链路码率估算值
+      UpdateTargetBitrate(new_bitrate, at_time);          // 更新目标码率
       return;
     }
     // TODO(srte): This is likely redundant in most cases.
@@ -572,11 +576,12 @@ bool SendSideBandwidthEstimation::IsInStartPhase(Timestamp at_time) const {
          at_time - first_report_time_ < kStartPhase;
 }
 
+// 更新近期最小码率
 void SendSideBandwidthEstimation::UpdateMinHistory(Timestamp at_time) {
   // Remove old data points from history.
   // Since history precision is in ms, add one so it is able to increase
   // bitrate if it is off by as little as 0.5ms.
-  while (!min_bitrate_history_.empty() &&
+  while (!min_bitrate_history_.empty() &&  // 移除过早的历史记录
          at_time - min_bitrate_history_.front().first + TimeDelta::Millis(1) >
              kBweIncreaseInterval) {
     min_bitrate_history_.pop_front();
@@ -584,7 +589,7 @@ void SendSideBandwidthEstimation::UpdateMinHistory(Timestamp at_time) {
 
   // Typical minimum sliding-window algorithm: Pop values higher than current
   // bitrate before pushing it.
-  while (!min_bitrate_history_.empty() &&
+  while (!min_bitrate_history_.empty() &&  // 移除最近比当前码率大的值
          current_target_ <= min_bitrate_history_.back().second) {
     min_bitrate_history_.pop_back();
   }
