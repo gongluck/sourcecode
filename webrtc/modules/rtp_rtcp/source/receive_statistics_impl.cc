@@ -51,6 +51,7 @@ StreamStatisticianImpl::StreamStatisticianImpl(uint32_t ssrc,
 
 StreamStatisticianImpl::~StreamStatisticianImpl() = default;
 
+// 乱序包更新统计
 bool StreamStatisticianImpl::UpdateOutOfOrder(const RtpPacketReceived& packet,
                                               int64_t sequence_number,
                                               int64_t now_ms) {
@@ -215,6 +216,7 @@ bool StreamStatisticianImpl::GetActiveStatisticsAndReset(
   return true;
 }
 
+// 计算RTCP统计信息
 RtcpStatistics StreamStatisticianImpl::CalculateRtcpStatistics() {
   RtcpStatistics stats;
   // Calculate fraction lost.

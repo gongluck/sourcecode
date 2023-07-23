@@ -115,7 +115,7 @@ LinkCapacityTracker::LinkCapacityTracker()
 
 LinkCapacityTracker::~LinkCapacityTracker() {}
 
-// 基于延迟估算
+// 更新基于延迟估算
 void LinkCapacityTracker::UpdateDelayBasedEstimate(
     Timestamp at_time,
     DataRate delay_based_bitrate) {
@@ -377,7 +377,7 @@ void SendSideBandwidthEstimation::UpdatePacketsLost(int64_t packets_lost,
         expected_packets_since_last_loss_update_ + number_of_packets;
 
     // Don't generate a loss rate until it can be based on enough packets.
-    if (expected < kLimitNumPackets) {
+    if (expected < kLimitNumPackets) {  // 阈值判断
       // Accumulate reports.
       expected_packets_since_last_loss_update_ = expected;
       lost_packets_since_last_loss_update_ += packets_lost;
@@ -385,6 +385,7 @@ void SendSideBandwidthEstimation::UpdatePacketsLost(int64_t packets_lost,
     }
 
     has_decreased_since_last_fraction_loss_ = false;
+    // 左移8位避免浮点运算
     int64_t lost_q8 = (lost_packets_since_last_loss_update_ + packets_lost)
                       << 8;
     last_fraction_loss_ = std::min<int>(lost_q8 / expected, 255);
