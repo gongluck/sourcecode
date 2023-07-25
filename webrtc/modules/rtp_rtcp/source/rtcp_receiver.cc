@@ -198,7 +198,7 @@ void RTCPReceiver::IncomingPacket(rtc::ArrayView<const uint8_t> packet) {
   }
 
   PacketInformation packet_information;
-  if (!ParseCompoundPacket(packet, &packet_information))//合并包处理
+  if (!ParseCompoundPacket(packet, &packet_information))  // 合并包处理
     return;
   TriggerCallbacksFromRtcpPacket(packet_information);
 }
@@ -565,6 +565,7 @@ void RTCPReceiver::HandleReceiverReport(const CommonHeader& rtcp_block,
     HandleReportBlock(report_block, packet_information, remote_ssrc);
 }
 
+// 处理反馈报告
 void RTCPReceiver::HandleReportBlock(const ReportBlock& report_block,
                                      PacketInformation* packet_information,
                                      uint32_t remote_ssrc) {
@@ -578,7 +579,7 @@ void RTCPReceiver::HandleReportBlock(const ReportBlock& report_block,
   // which the information in this reception report block pertains.
 
   // Filter out all report blocks that are not for us.
-  if (registered_ssrcs_.count(report_block.source_ssrc()) == 0)
+  if (registered_ssrcs_.count(report_block.source_ssrc()) == 0)  // 过滤无关源
     return;
 
   last_received_rb_ = clock_->CurrentTime();
@@ -605,7 +606,7 @@ void RTCPReceiver::HandleReportBlock(const ReportBlock& report_block,
   report_block_data->SetReportBlock(rtcp_report_block, rtc::TimeUTCMicros());
 
   int64_t rtt_ms = 0;
-  uint32_t send_time_ntp = report_block.last_sr();
+  uint32_t send_time_ntp = report_block.last_sr();  // SR发送时间
   // RFC3550, section 6.4.1, LSR field discription states:
   // If no SR has been received yet, the field is set to zero.
   // Receiver rtp_rtcp module is not expected to calculate rtt using
@@ -618,13 +619,14 @@ void RTCPReceiver::HandleReportBlock(const ReportBlock& report_block,
   // ensure that audio receive streams that need RTT and stats that depend on it
   // are configured with an associated audio send stream.
   if (send_time_ntp != 0) {
-    uint32_t delay_ntp = report_block.delay_since_last_sr();
+    uint32_t delay_ntp = report_block.delay_since_last_sr();  // 接收端处理延时
     // Local NTP time.
-    uint32_t receive_time_ntp =
+    uint32_t receive_time_ntp =  // RR接收时间
         CompactNtp(TimeMicrosToNtp(last_received_rb_.us()));
 
     // RTT in 1/(2^16) seconds.
-    uint32_t rtt_ntp = receive_time_ntp - delay_ntp - send_time_ntp;
+    uint32_t rtt_ntp =  // rtt = RR接收时间 - 接收端处理延时 - SR发送时间
+        receive_time_ntp - delay_ntp - send_time_ntp;
     // Convert to 1/1000 seconds (milliseconds).
     rtt_ms = CompactNtpRttToMs(rtt_ntp);
     report_block_data->AddRoundTripTimeSample(rtt_ms);
@@ -843,6 +845,7 @@ void RTCPReceiver::HandleXrReceiveReferenceTime(uint32_t sender_ssrc,
   }
 }
 
+// 处理DLRR Report Block
 void RTCPReceiver::HandleXrDlrrReportBlock(const rtcp::ReceiveTimeInfo& rti) {
   if (registered_ssrcs_.count(rti.ssrc) == 0)  // Not to us.
     return;
@@ -1078,7 +1081,8 @@ void RTCPReceiver::TriggerCallbacksFromRtcpPacket(
   if (!receiver_only_ && (packet_information.packet_type_flags & kRtcpSrReq)) {
     rtp_rtcp_->OnRequestSendReport();
   }
-  if (!receiver_only_ && (packet_information.packet_type_flags & kRtcpNack)) {//NACK包
+  if (!receiver_only_ &&
+      (packet_information.packet_type_flags & kRtcpNack)) {  // NACK包
     if (!packet_information.nack_sequence_numbers.empty()) {
       RTC_LOG(LS_VERBOSE) << "Incoming NACK length: "
                           << packet_information.nack_sequence_numbers.size();

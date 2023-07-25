@@ -153,6 +153,7 @@ void StreamStatisticianImpl::UpdateCounters(const RtpPacketReceived& packet) {
   last_receive_time_ms_ = now_ms;
 }
 
+// 更新抖动
 void StreamStatisticianImpl::UpdateJitter(const RtpPacketReceived& packet,
                                           int64_t receive_time_ms) {
   int64_t receive_diff_ms =  // 包到达时间间隔
