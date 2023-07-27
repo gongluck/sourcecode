@@ -76,20 +76,20 @@ H264SpsPpsTracker::FixedBitstream H264SpsPpsTracker::CopyAndFixBitstream(
         // SPS/PPS and also calculate how much extra space we need in the buffer
         // to prepend the SPS/PPS to the bitstream with start codes.
         if (video_header->is_first_packet_in_frame) {
-          if (nalu.pps_id == -1) {
+          if (nalu.pps_id == -1) {  // 无PPS，请求关键帧
             RTC_LOG(LS_WARNING) << "No PPS id in IDR nalu.";
             return {kRequestKeyframe};
           }
 
           pps = pps_data_.find(nalu.pps_id);
-          if (pps == pps_data_.end()) {
+          if (pps == pps_data_.end()) {  // 无PPS，请求关键帧
             RTC_LOG(LS_WARNING)
                 << "No PPS with id << " << nalu.pps_id << " received";
             return {kRequestKeyframe};
           }
 
           sps = sps_data_.find(pps->second.sps_id);
-          if (sps == sps_data_.end()) {
+          if (sps == sps_data_.end()) {  // 无SPS，请求关键帧
             RTC_LOG(LS_WARNING)
                 << "No SPS with id << " << pps->second.sps_id << " received";
             return {kRequestKeyframe};

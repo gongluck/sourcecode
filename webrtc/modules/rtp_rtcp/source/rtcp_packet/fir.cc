@@ -50,9 +50,10 @@ Fir::Fir(const Fir& fir) = default;
 
 Fir::~Fir() = default;
 
+// 解析FIR
 bool Fir::Parse(const CommonHeader& packet) {
-  RTC_DCHECK_EQ(packet.type(), kPacketType);
-  RTC_DCHECK_EQ(packet.fmt(), kFeedbackMessageType);
+  RTC_DCHECK_EQ(packet.type(), kPacketType);          // FIR的pt固定为206
+  RTC_DCHECK_EQ(packet.fmt(), kFeedbackMessageType);  // FIR的fmt固定为4
 
   // The FCI field MUST contain one or more FIR entries.
   if (packet.payload_size_bytes() < kCommonFeedbackLength + kFciLength) {
@@ -83,6 +84,7 @@ size_t Fir::BlockLength() const {
   return kHeaderLength + kCommonFeedbackLength + kFciLength * items_.size();
 }
 
+// 创建FIR
 bool Fir::Create(uint8_t* packet,
                  size_t* index,
                  size_t max_length,

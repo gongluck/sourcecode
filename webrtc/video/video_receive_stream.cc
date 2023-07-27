@@ -672,14 +672,15 @@ void VideoReceiveStream::HandleEncodedFrame(
     frame_decoded_ = true;
     rtp_video_stream_receiver_.FrameDecoded(frame->Id());
 
-    if (decode_result == WEBRTC_VIDEO_CODEC_OK_REQUEST_KEYFRAME)
+    if (decode_result ==
+        WEBRTC_VIDEO_CODEC_OK_REQUEST_KEYFRAME)  // 解码器返回请求关键帧
       RequestKeyFrame(now_ms);
   } else if (!frame_decoded_ || !keyframe_required_ ||
              (last_keyframe_request_ms_ + max_wait_for_keyframe_ms_ < now_ms)) {
     keyframe_required_ = true;
     // TODO(philipel): Remove this keyframe request when downstream project
     //                 has been fixed.
-    RequestKeyFrame(now_ms);
+    RequestKeyFrame(now_ms);  // 解码失败，请求关键帧
   }
 
   if (encoded_frame_buffer_function_) {
@@ -722,7 +723,7 @@ void VideoReceiveStream::HandleFrameBufferTimeout() {
        rtp_video_stream_receiver_.IsDecryptable())) {
     RTC_LOG(LS_WARNING) << "No decodable frame in " << GetWaitMs()
                         << " ms, requesting keyframe.";
-    RequestKeyFrame(now_ms);
+    RequestKeyFrame(now_ms);  // 长时间没有有效解码帧，请求关键帧
   }
 }
 

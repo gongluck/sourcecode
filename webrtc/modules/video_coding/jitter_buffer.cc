@@ -688,12 +688,13 @@ bool VCMJitterBuffer::UpdateNackList(uint16_t sequence_number) {
          IsNewerSequenceNumber(sequence_number, i); ++i) {
       missing_sequence_numbers_.insert(missing_sequence_numbers_.end(), i);
     }
-    if (TooLargeNackList() && !HandleTooLargeNackList()) {
+    if (TooLargeNackList() &&
+        !HandleTooLargeNackList()) {  // 过多NACK包，请求关键帧
       RTC_LOG(LS_WARNING) << "Requesting key frame due to too large NACK list.";
       return false;
     }
     if (MissingTooOldPacket(sequence_number) &&
-        !HandleTooOldPackets(sequence_number)) {
+        !HandleTooOldPackets(sequence_number)) {  // 请求过旧NACK包，请求关键帧
       RTC_LOG(LS_WARNING)
           << "Requesting key frame due to missing too old packets";
       return false;

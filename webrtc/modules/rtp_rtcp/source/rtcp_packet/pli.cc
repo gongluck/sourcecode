@@ -42,9 +42,9 @@ Pli::~Pli() = default;
 //
 // Picture loss indication (PLI) (RFC 4585).
 // FCI: no feedback control information.
-bool Pli::Parse(const CommonHeader& packet) {
-  RTC_DCHECK_EQ(packet.type(), kPacketType);
-  RTC_DCHECK_EQ(packet.fmt(), kFeedbackMessageType);
+bool Pli::Parse(const CommonHeader& packet) {  // 解析PLI
+  RTC_DCHECK_EQ(packet.type(), kPacketType);   // PLI的pt固定为206（PSFB）
+  RTC_DCHECK_EQ(packet.fmt(), kFeedbackMessageType);  // PLI的fmt固定为1
 
   if (packet.payload_size_bytes() < kCommonFeedbackLength) {
     RTC_LOG(LS_WARNING) << "Packet is too small to be a valid PLI packet";
@@ -59,6 +59,7 @@ size_t Pli::BlockLength() const {
   return kHeaderLength + kCommonFeedbackLength;
 }
 
+// 创建PLI
 bool Pli::Create(uint8_t* packet,
                  size_t* index,
                  size_t max_length,

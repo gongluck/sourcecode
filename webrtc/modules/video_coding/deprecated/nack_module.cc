@@ -271,7 +271,8 @@ void DEPRECATED_NackModule::AddPacketsToNack(uint16_t seq_num_start,
            nack_list_.size() + num_new_nacks > kMaxNackPackets) {
     }
 
-    if (nack_list_.size() + num_new_nacks > kMaxNackPackets) {
+    if (nack_list_.size() + num_new_nacks >
+        kMaxNackPackets) {  // 丢包过多，重新请求关键帧
       nack_list_.clear();
       RTC_LOG(LS_WARNING) << "NACK list full, clearing NACK"
                              " list and requesting keyframe.";

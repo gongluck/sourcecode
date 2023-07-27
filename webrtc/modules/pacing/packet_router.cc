@@ -137,6 +137,7 @@ void PacketRouter::RemoveReceiveRtpModule(
   rtcp_feedback_senders_.erase(it);
 }
 
+// 平滑发送
 void PacketRouter::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
                               const PacedPacketInfo& cluster_info) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("webrtc"), "PacketRouter::SendPacket",
@@ -147,6 +148,7 @@ void PacketRouter::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
   // With the new pacer code path, transport sequence numbers are only set here,
   // on the pacer thread. Therefore we don't need atomics/synchronization.
   if (packet->HasExtension<TransportSequenceNumber>()) {
+    // 自增Transport-CC包计数
     packet->SetExtension<TransportSequenceNumber>((++transport_seq_) & 0xFFFF);
   }
 
