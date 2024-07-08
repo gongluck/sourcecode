@@ -82,9 +82,9 @@ class TrendlineEstimator : public DelayIncreaseDetectorInterface {
         : arrival_time_ms(arrival_time_ms),
           smoothed_delay_ms(smoothed_delay_ms),
           raw_delay_ms(raw_delay_ms) {}
-    double arrival_time_ms;
-    double smoothed_delay_ms;
-    double raw_delay_ms;
+    double arrival_time_ms;    // 到达时间
+    double smoothed_delay_ms;  // 平滑时间
+    double raw_delay_ms;       // 原始时间
   };
 
  private:

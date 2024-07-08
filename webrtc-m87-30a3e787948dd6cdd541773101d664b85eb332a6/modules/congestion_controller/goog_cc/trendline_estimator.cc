@@ -51,7 +51,7 @@ size_t ReadTrendlineFilterWindowSize(
   return TrendlineEstimatorSettings::kDefaultTrendlineWindowSize;
 }
 
-absl::optional<double> LinearFitSlope(
+absl::optional<double> LinearFitSlope(  // 线性回归最小二乘法
     const std::deque<TrendlineEstimator::PacketTiming>& packets) {
   RTC_DCHECK(packets.size() >= 2);
   // Compute the "center of mass".
@@ -191,6 +191,7 @@ TrendlineEstimator::TrendlineEstimator(
 
 TrendlineEstimator::~TrendlineEstimator() {}
 
+// 更新并计算包组延迟趋势
 void TrendlineEstimator::UpdateTrendline(double recv_delta_ms,
                                          double send_delta_ms,
                                          int64_t send_time_ms,
