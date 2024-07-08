@@ -130,9 +130,9 @@ class DelayBasedBwe {
   Timestamp last_video_packet_recv_time_;
 
   NetworkStatePredictor* network_state_predictor_;
-  std::unique_ptr<InterArrival> video_inter_arrival_;
+  std::unique_ptr<InterArrival> video_inter_arrival_;  // 包组延迟差
   std::unique_ptr<DelayIncreaseDetectorInterface> video_delay_detector_;
-  std::unique_ptr<InterArrival> audio_inter_arrival_;
+  std::unique_ptr<InterArrival> audio_inter_arrival_;  // 包组延迟差
   std::unique_ptr<DelayIncreaseDetectorInterface> audio_delay_detector_;
   DelayIncreaseDetectorInterface* active_delay_detector_;
 

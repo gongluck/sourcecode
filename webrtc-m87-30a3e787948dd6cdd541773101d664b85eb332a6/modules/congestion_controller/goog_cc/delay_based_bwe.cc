@@ -245,9 +245,10 @@ void DelayBasedBwe::IncomingPacketFeedback(const PacketResult& packet_feedback,
   uint32_t timestamp_delta = 0;
   int64_t recv_delta_ms = 0;
   int size_delta = 0;
-  bool calculated_deltas = inter_arrival_for_packet->ComputeDeltas(
-      timestamp, packet_feedback.receive_time.ms(), at_time.ms(),
-      packet_size.bytes(), &timestamp_delta, &recv_delta_ms, &size_delta);
+  bool calculated_deltas =
+      inter_arrival_for_packet->ComputeDeltas(  // 计算包组延迟
+          timestamp, packet_feedback.receive_time.ms(), at_time.ms(),
+          packet_size.bytes(), &timestamp_delta, &recv_delta_ms, &size_delta);
   double send_delta_ms = (1000.0 * timestamp_delta) / (1 << kInterArrivalShift);
   delay_detector_for_packet->Update(recv_delta_ms, send_delta_ms,
                                     packet_feedback.sent_packet.send_time.ms(),

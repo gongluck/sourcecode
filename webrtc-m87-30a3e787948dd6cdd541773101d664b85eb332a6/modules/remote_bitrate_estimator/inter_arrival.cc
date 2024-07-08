@@ -49,9 +49,9 @@ bool InterArrival::ComputeDeltas(uint32_t timestamp,
     current_timestamp_group_.first_arrival_ms = arrival_time_ms;
   } else if (!PacketInOrder(timestamp)) {
     return false;
-  } else if (NewTimestampGroup(arrival_time_ms, timestamp)) {
+  } else if (NewTimestampGroup(arrival_time_ms, timestamp)) {  // 创建新分组
     // First packet of a later frame, the previous frame sample is ready.
-    if (prev_timestamp_group_.complete_time_ms >= 0) {
+    if (prev_timestamp_group_.complete_time_ms >= 0) {  // 计算之前分组间延迟差
       *timestamp_delta =
           current_timestamp_group_.timestamp - prev_timestamp_group_.timestamp;
       *arrival_time_delta_ms = current_timestamp_group_.complete_time_ms -
@@ -127,7 +127,7 @@ bool InterArrival::NewTimestampGroup(int64_t arrival_time_ms,
                                      uint32_t timestamp) const {
   if (current_timestamp_group_.IsFirstPacket()) {
     return false;
-  } else if (BelongsToBurst(arrival_time_ms, timestamp)) {
+  } else if (BelongsToBurst(arrival_time_ms, timestamp)) {  // 突发包
     return false;
   } else {
     uint32_t timestamp_diff =

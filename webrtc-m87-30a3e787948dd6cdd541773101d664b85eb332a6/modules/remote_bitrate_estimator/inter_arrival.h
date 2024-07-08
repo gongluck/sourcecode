@@ -52,7 +52,7 @@ class InterArrival {
                      int* packet_size_delta);
 
  private:
-  struct TimestampGroup {
+  struct TimestampGroup {  // 分组
     TimestampGroup()
         : size(0),
           first_timestamp(0),
