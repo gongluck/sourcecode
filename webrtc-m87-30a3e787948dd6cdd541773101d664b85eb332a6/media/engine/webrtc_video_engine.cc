@@ -604,7 +604,8 @@ WebRtcVideoEngine::GetRtpHeaderExtensions() const {
        {webrtc::RtpExtension::kTimestampOffsetUri,
         webrtc::RtpExtension::kAbsSendTimeUri,
         webrtc::RtpExtension::kVideoRotationUri,
-        webrtc::RtpExtension::kTransportSequenceNumberUri,
+        webrtc::RtpExtension::
+            kTransportSequenceNumberUri,  // TransportSequenceNumber扩展头
         webrtc::RtpExtension::kPlayoutDelayUri,
         webrtc::RtpExtension::kVideoContentTypeUri,
         webrtc::RtpExtension::kVideoTimingUri,
