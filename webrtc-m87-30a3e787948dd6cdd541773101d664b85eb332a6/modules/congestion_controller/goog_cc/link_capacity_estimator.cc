@@ -16,14 +16,14 @@
 namespace webrtc {
 LinkCapacityEstimator::LinkCapacityEstimator() {}
 
-DataRate LinkCapacityEstimator::UpperBound() const {
+DataRate LinkCapacityEstimator::UpperBound() const {  // 估计上限
   if (estimate_kbps_.has_value())
     return DataRate::KilobitsPerSec(estimate_kbps_.value() +
                                     3 * deviation_estimate_kbps());
   return DataRate::Infinity();
 }
 
-DataRate LinkCapacityEstimator::LowerBound() const {
+DataRate LinkCapacityEstimator::LowerBound() const {  // 估计下限
   if (estimate_kbps_.has_value())
     return DataRate::KilobitsPerSec(
         std::max(0.0, estimate_kbps_.value() - 3 * deviation_estimate_kbps()));
@@ -46,7 +46,7 @@ void LinkCapacityEstimator::Update(DataRate capacity_sample, double alpha) {
   double sample_kbps = capacity_sample.kbps();
   if (!estimate_kbps_.has_value()) {
     estimate_kbps_ = sample_kbps;
-  } else {
+  } else {  // 指数平滑
     estimate_kbps_ = (1 - alpha) * estimate_kbps_.value() + alpha * sample_kbps;
   }
   // Estimate the variance of the link capacity estimate and normalize the
@@ -68,7 +68,7 @@ DataRate LinkCapacityEstimator::estimate() const {
   return DataRate::KilobitsPerSec(*estimate_kbps_);
 }
 
-double LinkCapacityEstimator::deviation_estimate_kbps() const {
+double LinkCapacityEstimator::deviation_estimate_kbps() const {  // 标准差
   // Calculate the max bit rate std dev given the normalized
   // variance and the current throughput bitrate. The standard deviation will
   // only be used if estimate_kbps_ has a value.

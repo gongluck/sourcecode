@@ -14,7 +14,7 @@
 #include "api/units/data_rate.h"
 
 namespace webrtc {
-class LinkCapacityEstimator {
+class LinkCapacityEstimator {  // 链路容量估计
  public:
   LinkCapacityEstimator();
   DataRate UpperBound() const;
