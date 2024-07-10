@@ -66,43 +66,46 @@ void BitrateEstimator::Update(Timestamp at_time, DataSize amount, bool in_alr) {
   int rate_window_ms = noninitial_window_ms_.Get();
   // We use a larger window at the beginning to get a more stable sample that
   // we can use to initialize the estimate.
-  if (bitrate_estimate_kbps_ < 0.f)
+  if (bitrate_estimate_kbps_ <
+      0.f)  // 开始时使用一个更大的窗口来获得一个更稳定的样本来初始化估计
     rate_window_ms = initial_window_ms_.Get();
   bool is_small_sample = false;
   float bitrate_sample_kbps = UpdateWindow(at_time.ms(), amount.bytes(),
                                            rate_window_ms, &is_small_sample);
   if (bitrate_sample_kbps < 0.0f)
     return;
-  if (bitrate_estimate_kbps_ < 0.0f) {
+  if (bitrate_estimate_kbps_ < 0.0f) {  // 得到的第一个样本来初始化估算
     // This is the very first sample we get. Use it to initialize the estimate.
     bitrate_estimate_kbps_ = bitrate_sample_kbps;
     return;
   }
   // Optionally use higher uncertainty for very small samples to avoid dropping
   // estimate and for samples obtained in ALR.
-  float scale = uncertainty_scale_;
+  float scale = uncertainty_scale_;  // 非常小和在ALR中获得的样本
+                                     // 选择使用更高的不确定度来避免丢失估计
   if (is_small_sample && bitrate_sample_kbps < bitrate_estimate_kbps_) {
     scale = small_sample_uncertainty_scale_;
   } else if (in_alr && bitrate_sample_kbps < bitrate_estimate_kbps_) {
     // Optionally use higher uncertainty for samples obtained during ALR.
-    scale = uncertainty_scale_in_alr_;
+    scale = uncertainty_scale_in_alr_;  // 使用在ALR中获得的更高不确定度的样本
   }
   // Define the sample uncertainty as a function of how far away it is from the
   // current estimate. With low values of uncertainty_symmetry_cap_ we add more
   // uncertainty to increases than to decreases. For higher values we approach
   // symmetry.
-  float sample_uncertainty =
+  float sample_uncertainty =  // 样本标准差
       scale * std::abs(bitrate_estimate_kbps_ - bitrate_sample_kbps) /
       (bitrate_estimate_kbps_ +
        std::min(bitrate_sample_kbps,
                 uncertainty_symmetry_cap_.Get().kbps<float>()));
-
+  // 样本方差
   float sample_var = sample_uncertainty * sample_uncertainty;
   // Update a bayesian estimate of the rate, weighting it lower if the sample
   // uncertainty is large.
   // The bitrate estimate uncertainty is increased with each update to model
   // that the bitrate changes over time.
   float pred_bitrate_estimate_var = bitrate_estimate_var_ + 5.f;
+  // 计算估计值
   bitrate_estimate_kbps_ = (sample_var * bitrate_estimate_kbps_ +
                             pred_bitrate_estimate_var * bitrate_sample_kbps) /
                            (sample_var + pred_bitrate_estimate_var);
@@ -128,14 +131,15 @@ float BitrateEstimator::UpdateWindow(int64_t now_ms,
   if (prev_time_ms_ >= 0) {
     current_window_ms_ += now_ms - prev_time_ms_;
     // Reset if nothing has been received for more than a full window.
-    if (now_ms - prev_time_ms_ > rate_window_ms) {
+    if (now_ms - prev_time_ms_ > rate_window_ms) {  // 超过一个窗口大小未处理
       sum_ = 0;
       current_window_ms_ %= rate_window_ms;
     }
   }
   prev_time_ms_ = now_ms;
   float bitrate_sample = -1.0f;
-  if (current_window_ms_ >= rate_window_ms) {
+  if (current_window_ms_ >=
+      rate_window_ms) {  // 累计时间已达到窗口时间 计算窗口码率
     *is_small_sample = sum_ < small_sample_threshold_->bytes();
     bitrate_sample = 8.0f * sum_ / static_cast<float>(rate_window_ms);
     current_window_ms_ -= rate_window_ms;

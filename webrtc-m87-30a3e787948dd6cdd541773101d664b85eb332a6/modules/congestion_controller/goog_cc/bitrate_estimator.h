@@ -26,7 +26,7 @@ namespace webrtc {
 // estimate or are based on few packets are given a smaller weight, as they
 // are considered to be more likely to have been caused by, e.g., delay spikes
 // unrelated to congestion.
-class BitrateEstimator {
+class BitrateEstimator {  // 码率估计
  public:
   explicit BitrateEstimator(const WebRtcKeyValueConfig* key_value_config);
   virtual ~BitrateEstimator();
