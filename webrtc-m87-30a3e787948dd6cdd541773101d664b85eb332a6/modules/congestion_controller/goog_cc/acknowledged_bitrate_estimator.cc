@@ -46,6 +46,7 @@ void AcknowledgedBitrateEstimator::IncomingPacketFeedbackVector(
     }
     DataSize acknowledged_estimate = packet.sent_packet.size;
     acknowledged_estimate += packet.sent_packet.prior_unacked_data;
+    // 更新计算吞吐量
     bitrate_estimator_->Update(packet.receive_time, acknowledged_estimate,
                                in_alr_);
   }

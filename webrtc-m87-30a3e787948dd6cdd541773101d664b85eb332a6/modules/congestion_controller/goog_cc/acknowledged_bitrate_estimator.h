@@ -23,7 +23,7 @@
 
 namespace webrtc {
 
-class AcknowledgedBitrateEstimator
+class AcknowledgedBitrateEstimator  // 吞吐量估计
     : public AcknowledgedBitrateEstimatorInterface {
  public:
   AcknowledgedBitrateEstimator(
@@ -44,7 +44,7 @@ class AcknowledgedBitrateEstimator
  private:
   absl::optional<Timestamp> alr_ended_time_;
   bool in_alr_;
-  std::unique_ptr<BitrateEstimator> bitrate_estimator_;
+  std::unique_ptr<BitrateEstimator> bitrate_estimator_;  // 码率估计
 };
 
 }  // namespace webrtc
