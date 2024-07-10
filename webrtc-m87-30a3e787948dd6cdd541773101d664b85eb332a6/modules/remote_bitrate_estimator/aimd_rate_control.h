@@ -28,7 +28,7 @@ namespace webrtc {
 // over-uses are detected. When we think the available bandwidth has changes or
 // is unknown, we will switch to a "slow-start mode" where we increase
 // multiplicatively.
-class AimdRateControl {
+class AimdRateControl {  // AIMD码率控制
  public:
   explicit AimdRateControl(const WebRtcKeyValueConfig* key_value_config);
   AimdRateControl(const WebRtcKeyValueConfig* key_value_config, bool send_side);
@@ -87,7 +87,7 @@ class AimdRateControl {
   DataRate max_configured_bitrate_;
   DataRate current_bitrate_;
   DataRate latest_estimated_throughput_;
-  LinkCapacityEstimator link_capacity_;
+  LinkCapacityEstimator link_capacity_;  // 链路容量估计器
   absl::optional<NetworkStateEstimate> network_estimate_;
   RateControlState rate_control_state_;
   Timestamp time_last_bitrate_change_;
@@ -96,7 +96,7 @@ class AimdRateControl {
   bool bitrate_is_initialized_;
   double beta_;
   bool in_alr_;
-  TimeDelta rtt_;
+  TimeDelta rtt_;  // rtt影响码率调整的时间间隔
   const bool send_side_;
   const bool in_experiment_;
   // Allow the delay based estimate to only increase as long as application

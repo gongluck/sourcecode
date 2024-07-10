@@ -32,7 +32,7 @@ namespace webrtc {
 namespace {
 
 constexpr TimeDelta kDefaultRtt = TimeDelta::Millis(200);
-constexpr double kDefaultBackoffFactor = 0.85;
+constexpr double kDefaultBackoffFactor = 0.85;  // 退避因子
 
 constexpr char kBweBackOffFactorExperiment[] = "WebRTC-BweBackOffFactor";
 
@@ -50,7 +50,7 @@ double ReadBackoffFactor(const WebRtcKeyValueConfig& key_value_config) {
   std::string experiment_string =
       key_value_config.Lookup(kBweBackOffFactorExperiment);
   double backoff_factor;
-  int parsed_values =
+  int parsed_values =  //! 退避因子可设置
       sscanf(experiment_string.c_str(), "Enabled-%lf", &backoff_factor);
   if (parsed_values == 1) {
     if (backoff_factor >= 1.0) {
@@ -295,7 +295,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
       if (current_bitrate_ < troughput_based_limit &&
           !(send_side_ && in_alr_ && no_bitrate_increase_in_alr_)) {
         DataRate increased_bitrate = DataRate::MinusInfinity();
-        if (link_capacity_.has_estimate()) {
+        if (link_capacity_
+                .has_estimate()) {  // 目标速率与链接容量接近使用加法增长
           // The link_capacity estimate is reset if the measured throughput
           // is too far from the estimate. We can therefore assume that our
           // target rate is reasonably close to link capacity and use additive
@@ -306,6 +307,7 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
         } else {
           // If we don't have an estimate of the link capacity, use faster ramp
           // up to discover the capacity.
+          // 当链路容量未知时，采用乘性增加码率的方式以快速发现容量
           DataRate multiplicative_increase = MultiplicativeRateIncrease(
               at_time, time_last_bitrate_change_, current_bitrate_);
           increased_bitrate = current_bitrate_ + multiplicative_increase;
