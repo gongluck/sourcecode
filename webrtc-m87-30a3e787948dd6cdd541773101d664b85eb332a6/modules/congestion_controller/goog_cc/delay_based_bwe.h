@@ -62,7 +62,7 @@ struct BweSeparateAudioPacketsSettings {
   std::unique_ptr<StructParametersParser> Parser();
 };
 
-class DelayBasedBwe {
+class DelayBasedBwe {  // 基于延迟的带宽估计
  public:
   struct Result {
     Result();
@@ -70,7 +70,7 @@ class DelayBasedBwe {
     ~Result() = default;
     bool updated;
     bool probe;
-    DataRate target_bitrate = DataRate::Zero();
+    DataRate target_bitrate = DataRate::Zero();  // 估算的码率
     bool recovered_from_overuse;
     bool backoff_in_alr;
   };
@@ -119,13 +119,15 @@ class DelayBasedBwe {
 
   // Filtering out small packets. Intention is to base the detection only
   // on video packets even if we have TWCC sequence numbers for audio.
-  BweIgnoreSmallPacketsSettings ignore_small_;
+  BweIgnoreSmallPacketsSettings ignore_small_;  // 忽略小包(音频包)
   double fraction_large_packets_;
 
   // Alternatively, run two separate overuse detectors for audio and video,
   // and fall back to the audio one if we haven't seen a video packet in a
   // while.
-  BweSeparateAudioPacketsSettings separate_audio_;
+  BweSeparateAudioPacketsSettings
+      separate_audio_;  // 为音频和视频运行两个单独的过度使用检测器
+                        // 如果有一段时间没有看到视频数据包则返回音频检测器
   int64_t audio_packets_since_last_video_;
   Timestamp last_video_packet_recv_time_;
 
@@ -140,7 +142,7 @@ class DelayBasedBwe {
 
   Timestamp last_seen_packet_;
   bool uma_recorded_;
-  AimdRateControl rate_control_;
+  AimdRateControl rate_control_;  // AIMD码率控制器
   DataRate prev_bitrate_;
   bool has_once_detected_overuse_;
   BandwidthUsage prev_state_;

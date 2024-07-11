@@ -127,6 +127,7 @@ DelayBasedBwe::DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
 
 DelayBasedBwe::~DelayBasedBwe() {}
 
+// 处理包组反馈
 DelayBasedBwe::Result DelayBasedBwe::IncomingPacketFeedbackVector(
     const TransportPacketsFeedback& msg,
     absl::optional<DataRate> acked_bitrate,
@@ -170,6 +171,7 @@ DelayBasedBwe::Result DelayBasedBwe::IncomingPacketFeedbackVector(
   }
   rate_control_.SetInApplicationLimitedRegion(in_alr);
   rate_control_.SetNetworkStateEstimate(network_estimate);
+  // 更新码率估计
   return MaybeUpdateEstimate(acked_bitrate, probe_bitrate,
                              std::move(network_estimate),
                              recovered_from_overuse, in_alr, msg.feedback_time);
@@ -180,9 +182,9 @@ void DelayBasedBwe::IncomingPacketFeedback(const PacketResult& packet_feedback,
   // Reset if the stream has timed out.
   if (last_seen_packet_.IsInfinite() ||
       at_time - last_seen_packet_ > kStreamTimeOut) {
-    video_inter_arrival_.reset(
+    video_inter_arrival_.reset(  // 包组延迟
         new InterArrival(kTimestampGroupTicks, kTimestampToMs, true));
-    video_delay_detector_.reset(
+    video_delay_detector_.reset(  // 延迟趋势
         new TrendlineEstimator(key_value_config_, network_state_predictor_));
     audio_inter_arrival_.reset(
         new InterArrival(kTimestampGroupTicks, kTimestampToMs, true));
@@ -273,14 +275,15 @@ DelayBasedBwe::Result DelayBasedBwe::MaybeUpdateEstimate(
   Result result;
 
   // Currently overusing the bandwidth.
-  if (active_delay_detector_->State() == BandwidthUsage::kBwOverusing) {
+  if (active_delay_detector_->State() ==
+      BandwidthUsage::kBwOverusing) {  // 过载
     if (has_once_detected_overuse_ && in_alr && alr_limited_backoff_enabled_) {
       if (rate_control_.TimeToReduceFurther(at_time, prev_bitrate_)) {
         result.updated =
             UpdateEstimate(at_time, prev_bitrate_, &result.target_bitrate);
         result.backoff_in_alr = true;
       }
-    } else if (acked_bitrate &&
+    } else if (acked_bitrate &&  // 已知吞吐量
                rate_control_.TimeToReduceFurther(at_time, *acked_bitrate)) {
       result.updated =
           UpdateEstimate(at_time, acked_bitrate, &result.target_bitrate);

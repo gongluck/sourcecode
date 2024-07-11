@@ -100,7 +100,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   std::unique_ptr<ProbeBitrateEstimator> probe_bitrate_estimator_;
   std::unique_ptr<NetworkStateEstimator> network_estimator_;
   std::unique_ptr<NetworkStatePredictor> network_state_predictor_;
-  std::unique_ptr<DelayBasedBwe> delay_based_bwe_;
+  std::unique_ptr<DelayBasedBwe> delay_based_bwe_;  // 基于延迟的带宽估算
   std::unique_ptr<AcknowledgedBitrateEstimatorInterface>
       acknowledged_bitrate_estimator_;  // 吞吐量估计
 
