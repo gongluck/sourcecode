@@ -31,7 +31,7 @@ namespace webrtc {
 
 class RtcEventLog;
 
-class LinkCapacityTracker {
+class LinkCapacityTracker {  // 链路容量追踪
  public:
   LinkCapacityTracker();
   ~LinkCapacityTracker();
@@ -70,7 +70,7 @@ class RttBasedBackoff {
   Timestamp last_packet_sent_;
 };
 
-class SendSideBandwidthEstimation {
+class SendSideBandwidthEstimation {  // 发送端带宽估计
  public:
   SendSideBandwidthEstimation() = delete;
   explicit SendSideBandwidthEstimation(RtcEventLog* event_log);

@@ -332,14 +332,16 @@ void SendSideBandwidthEstimation::SetAcknowledgedRate(
   }
 }
 
+// 处理transport feedback
 void SendSideBandwidthEstimation::IncomingPacketFeedbackVector(
     const TransportPacketsFeedback& report) {
   if (loss_based_bandwidth_estimation_.Enabled()) {
-    loss_based_bandwidth_estimation_.UpdateLossStatistics(
+    loss_based_bandwidth_estimation_.UpdateLossStatistics(  // 更新丢包统计
         report.packet_feedbacks, report.feedback_time);
   }
 }
 
+// 更新丢包数据
 void SendSideBandwidthEstimation::UpdatePacketsLost(int packets_lost,
                                                     int number_of_packets,
                                                     Timestamp at_time) {
@@ -358,7 +360,8 @@ void SendSideBandwidthEstimation::UpdatePacketsLost(int packets_lost,
       return;
 
     has_decreased_since_last_fraction_loss_ = false;
-    int64_t lost_q8 = lost_packets_since_last_loss_update_ << 8;
+    int64_t lost_q8 = lost_packets_since_last_loss_update_
+                      << 8;  // 左移8位避免浮点运算
     int64_t expected = expected_packets_since_last_loss_update_;
     last_fraction_loss_ = std::min<int>(lost_q8 / expected, 255);
 
@@ -434,7 +437,10 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
 
   // We trust the REMB and/or delay-based estimate during the first 2 seconds if
   // we haven't had any packet loss reported, to allow startup bitrate probing.
-  if (last_fraction_loss_ == 0 && IsInStartPhase(at_time)) {
+  if (last_fraction_loss_ == 0 &&  // 如果没有任何丢包报告
+      IsInStartPhase(  // 在前2秒的REMB和/或基于延迟的估计
+          at_time)) {  // 允许启动比特率探测
+
     DataRate new_bitrate = current_target_;
     // TODO(srte): We should not allow the new_bitrate to be larger than the
     // receiver limit here.
@@ -492,7 +498,7 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
       //   If instead one would do: current_bitrate_ *= 1.08^(delta time),
       //   it would take over one second since the lower packet loss to achieve
       //   108kbps.
-      DataRate new_bitrate = DataRate::BitsPerSec(
+      DataRate new_bitrate = DataRate::BitsPerSec(  // 丢包低于2% 增加码率
           min_bitrate_history_.front().second.bps() * 1.08 + 0.5);
 
       // Add 1 kbps extra, just to make sure that we do not get stuck
@@ -504,7 +510,7 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
     } else if (current_target_ > bitrate_threshold_) {
       if (loss <= high_loss_threshold_) {
         // Loss between 2% - 10%: Do nothing.
-      } else {
+      } else {  // 丢包高于10% 减少码率
         // Loss > 10%: Limit the rate decreases to once a kBweDecreaseInterval
         // + rtt.
         if (!has_decreased_since_last_fraction_loss_ &&
