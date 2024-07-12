@@ -187,7 +187,8 @@ class SendSideBandwidthEstimation {
   float low_loss_threshold_;
   float high_loss_threshold_;
   DataRate bitrate_threshold_;
-  LossBasedBandwidthEstimation loss_based_bandwidth_estimation_;
+  LossBasedBandwidthEstimation
+      loss_based_bandwidth_estimation_;  // 基于丢包带宽估计
 };
 }  // namespace webrtc
 #endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_SEND_SIDE_BANDWIDTH_ESTIMATION_H_

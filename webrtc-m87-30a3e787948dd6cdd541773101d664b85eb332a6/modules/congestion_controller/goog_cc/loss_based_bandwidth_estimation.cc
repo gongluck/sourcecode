@@ -118,7 +118,7 @@ LossBasedBandwidthEstimation::LossBasedBandwidthEstimation()
       last_loss_packet_report_(Timestamp::MinusInfinity()),
       last_loss_ratio_(0) {}
 
-void LossBasedBandwidthEstimation::UpdateLossStatistics(
+void LossBasedBandwidthEstimation::UpdateLossStatistics(  // 更新丢包统计
     const std::vector<PacketResult>& packet_results,
     Timestamp at_time) {
   if (packet_results.empty()) {

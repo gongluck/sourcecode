@@ -44,7 +44,7 @@ struct LossBasedControlConfig {
   FieldTrialParameter<TimeDelta> loss_report_timeout;
 };
 
-class LossBasedBandwidthEstimation {
+class LossBasedBandwidthEstimation {  // 基于丢包的带宽估计
  public:
   LossBasedBandwidthEstimation();
   void Update(Timestamp at_time,
