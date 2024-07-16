@@ -27,8 +27,9 @@ RobustThroughputEstimator::RobustThroughputEstimator(
 
 RobustThroughputEstimator::~RobustThroughputEstimator() {}
 
-void RobustThroughputEstimator::IncomingPacketFeedbackVector(
-    const std::vector<PacketResult>& packet_feedback_vector) {
+void RobustThroughputEstimator::  // 处理transport feedback
+    IncomingPacketFeedbackVector(
+        const std::vector<PacketResult>& packet_feedback_vector) {
   RTC_DCHECK(std::is_sorted(packet_feedback_vector.begin(),
                             packet_feedback_vector.end(),
                             PacketResult::ReceiveTimeOrder()));
@@ -61,7 +62,7 @@ absl::optional<DataRate> RobustThroughputEstimator::bitrate() const {
 
   TimeDelta largest_recv_gap(TimeDelta::Millis(0));
   TimeDelta second_largest_recv_gap(TimeDelta::Millis(0));
-  for (size_t i = 1; i < window_.size(); i++) {
+  for (size_t i = 1; i < window_.size(); i++) {  // 查找最大时间间隔
     // Find receive time gaps
     TimeDelta gap = window_[i].receive_time - window_[i - 1].receive_time;
     if (gap > largest_recv_gap) {
@@ -77,7 +78,7 @@ absl::optional<DataRate> RobustThroughputEstimator::bitrate() const {
   Timestamp min_recv_time = window_[0].receive_time;
   Timestamp max_recv_time = window_[0].receive_time;
   DataSize data_size = DataSize::Bytes(0);
-  for (const auto& packet : window_) {
+  for (const auto& packet : window_) {  // 查找最大最小接收和发送时间
     min_send_time = std::min(min_send_time, packet.sent_packet.send_time);
     max_send_time = std::max(max_send_time, packet.sent_packet.send_time);
     min_recv_time = std::min(min_recv_time, packet.receive_time);
@@ -98,6 +99,9 @@ absl::optional<DataRate> RobustThroughputEstimator::bitrate() const {
     // i and i+1  depends on the size of both packets. In this case we minimize
     // the maximum error by removing half of both the first and last packet
     // size.
+    // 根据瓶颈队列的实现方式 一个大数据包可能会延迟发送后续数据包
+    // 因此数据包i和i+1之间的延迟取决于两个数据包的大小
+    // 通过移除第一个和最后一个数据包大小的一半来最小化最大误差
     DataSize first_last_average_size =
         (window_.front().sent_packet.size +
          window_.front().sent_packet.prior_unacked_data +
@@ -111,6 +115,9 @@ absl::optional<DataRate> RobustThroughputEstimator::bitrate() const {
     // depends on the size of packet i+1, the first packet doesn't give us
     // any information. Analogously, we assume that the start send time
     // for the last packet doesn't depend on the size of the packet.
+    // 在更简单的情况下 数据包i和i+1之间的延迟仅取决于数据包i+1的大小
+    // 第一个数据包不提供任何信息
+    // 假设最后一个数据包的发送开始时间不取决于数据包的大小
     recv_size -= (window_.front().sent_packet.size +
                   window_.front().sent_packet.prior_unacked_data);
     send_size -= (window_.back().sent_packet.size +
@@ -119,6 +126,7 @@ absl::optional<DataRate> RobustThroughputEstimator::bitrate() const {
 
   // Remove the largest gap by replacing it by the second largest gap
   // or the average gap.
+  // 通过用第二大间隔或平均间隔替换最大间隔来消除最大间隔
   TimeDelta send_duration = max_send_time - min_send_time;
   TimeDelta recv_duration = (max_recv_time - min_recv_time) - largest_recv_gap;
   if (settings_.reduce_bias) {

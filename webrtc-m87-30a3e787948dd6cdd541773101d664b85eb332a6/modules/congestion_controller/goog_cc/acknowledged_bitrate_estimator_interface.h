@@ -24,7 +24,7 @@ namespace webrtc {
 
 struct RobustThroughputEstimatorSettings {
   static constexpr char kKey[] = "WebRTC-Bwe-RobustThroughputEstimatorSettings";
-  static constexpr size_t kMaxPackets = 500;
+  static constexpr size_t kMaxPackets = 500;  // 最大统计包数
 
   RobustThroughputEstimatorSettings() = delete;
   explicit RobustThroughputEstimatorSettings(
@@ -37,11 +37,17 @@ struct RobustThroughputEstimatorSettings {
   // there isn't any delay spike. If |reduce_bias| is true, we instead replace
   // the largest receive time gap by the second largest. This reduces the bias
   // at the cost of not completely removing the genuine delay spikes.
+  // 通过移除最大的接收时间间隔来处理延迟峰值
+  // 但这会引入一些偏差 可能会导致在没有延迟峰值时估计过高
+  // 用第二大的接收时间间隔替换最大的间隔
+  // 可以减少偏差 但代价是无法完全消除真实的延迟峰值
   bool reduce_bias = true;
 
   // If |assume_shared_link| is false, we ignore the size of the first packet
   // when computing the receive rate. Otherwise, we remove half of the first
   // and last packet's sizes.
+  // 在计算接收速率时忽略第一个数据包的大小
+  // 否则移除第一个和最后一个数据包大小的一半
   bool assume_shared_link = false;
 
   // The estimator window keeps at least |min_packets| packets and up to
@@ -56,6 +62,9 @@ struct RobustThroughputEstimatorSettings {
   // If audio packets are included in allocation, but not in bandwidth
   // estimation and the sent audio packets get double counted,
   // then it might be useful to reduce the weight to 0.5.
+  // 如果在分配中包括音频数据包
+  // 但在带宽估算中没有包括并且发送的音频数据包被计算了两次
+  // 那么将权重减少到0.5可能会有所帮助
   double unacked_weight = 1.0;
 
   std::unique_ptr<StructParametersParser> Parser();

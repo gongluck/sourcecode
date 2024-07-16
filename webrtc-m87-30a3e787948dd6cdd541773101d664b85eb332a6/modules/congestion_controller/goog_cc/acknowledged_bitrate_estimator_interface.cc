@@ -67,7 +67,7 @@ AcknowledgedBitrateEstimatorInterface::Create(
     const WebRtcKeyValueConfig* key_value_config) {
   RobustThroughputEstimatorSettings simplified_estimator_settings(
       key_value_config);
-  if (simplified_estimator_settings.enabled) {
+  if (simplified_estimator_settings.enabled) {  // 使用更鲁棒的吞吐量估计
     return std::make_unique<RobustThroughputEstimator>(
         simplified_estimator_settings);
   }

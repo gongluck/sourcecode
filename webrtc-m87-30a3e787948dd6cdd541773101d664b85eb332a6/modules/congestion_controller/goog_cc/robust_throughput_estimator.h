@@ -23,7 +23,8 @@
 
 namespace webrtc {
 
-class RobustThroughputEstimator : public AcknowledgedBitrateEstimatorInterface {
+class RobustThroughputEstimator  // 更鲁棒的吞吐量估计
+    : public AcknowledgedBitrateEstimatorInterface {
  public:
   explicit RobustThroughputEstimator(
       const RobustThroughputEstimatorSettings& settings);
