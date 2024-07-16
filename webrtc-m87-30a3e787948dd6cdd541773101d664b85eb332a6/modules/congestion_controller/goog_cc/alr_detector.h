@@ -43,7 +43,7 @@ struct AlrDetectorConfig {
 // AlrDetector provides a signal that can be utilized to adjust
 // estimate bandwidth.
 // Note: This class is not thread-safe.
-class AlrDetector {
+class AlrDetector {  // 应用限制区域检测
  public:
   AlrDetector(AlrDetectorConfig config, RtcEventLog* event_log);
   explicit AlrDetector(const WebRtcKeyValueConfig* key_value_config);

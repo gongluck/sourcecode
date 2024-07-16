@@ -69,7 +69,8 @@ AlrDetector::AlrDetector(const WebRtcKeyValueConfig* key_value_config,
     : AlrDetector(GetConfigFromTrials(key_value_config), event_log) {}
 AlrDetector::~AlrDetector() {}
 
-void AlrDetector::OnBytesSent(size_t bytes_sent, int64_t send_time_ms) {
+void AlrDetector::OnBytesSent(size_t bytes_sent,
+                              int64_t send_time_ms) {  // 统计发包大小和时间
   if (!last_send_time_ms_.has_value()) {
     last_send_time_ms_ = send_time_ms;
     // Since the duration for sending the bytes is unknwon, return without
@@ -83,11 +84,12 @@ void AlrDetector::OnBytesSent(size_t bytes_sent, int64_t send_time_ms) {
   alr_budget_.IncreaseBudget(delta_time_ms);
   bool state_changed = false;
   if (alr_budget_.budget_ratio() > conf_.start_budget_level_ratio &&
-      !alr_started_time_ms_) {
+      !alr_started_time_ms_) {  // 剩余可发送容量大于阈值 应进入应用受限区域
     alr_started_time_ms_.emplace(rtc::TimeMillis());
     state_changed = true;
   } else if (alr_budget_.budget_ratio() < conf_.stop_budget_level_ratio &&
-             alr_started_time_ms_) {
+             alr_started_time_ms_) {  // 剩余可发送容量小于阈值
+                                      // 应退出应用受限区域
     state_changed = true;
     alr_started_time_ms_.reset();
   }
