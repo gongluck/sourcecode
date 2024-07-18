@@ -93,7 +93,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
 
   const std::unique_ptr<ProbeController> probe_controller_;
   const std::unique_ptr<CongestionWindowPushbackController>
-      congestion_window_pushback_controller_;
+      congestion_window_pushback_controller_;  // 拥塞窗口控制器
 
   std::unique_ptr<SendSideBandwidthEstimation>
       bandwidth_estimation_;                   // 发送端带宽估计

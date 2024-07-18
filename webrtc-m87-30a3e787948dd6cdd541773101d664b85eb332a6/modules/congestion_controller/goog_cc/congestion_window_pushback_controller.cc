@@ -49,7 +49,7 @@ void CongestionWindowPushbackController::SetDataWindow(DataSize data_window) {
 }
 
 uint32_t CongestionWindowPushbackController::UpdateTargetBitrate(
-    uint32_t bitrate_bps) {
+    uint32_t bitrate_bps) {  // 更新计算目标码率
   if (!current_data_window_ || current_data_window_->IsZero())
     return bitrate_bps;
   int64_t total_bytes = outstanding_bytes_;
@@ -57,6 +57,7 @@ uint32_t CongestionWindowPushbackController::UpdateTargetBitrate(
     total_bytes += pacing_bytes_;
   double fill_ratio =
       total_bytes / static_cast<double>(current_data_window_->bytes());
+  // 根据窗口比率调整码率因子
   if (fill_ratio > 1.5) {
     encoding_rate_ratio_ *= 0.9;
   } else if (fill_ratio > 1) {
