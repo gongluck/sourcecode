@@ -21,7 +21,7 @@
 namespace webrtc {
 class RtcEventLog;
 
-class ProbeBitrateEstimator {
+class ProbeBitrateEstimator {  // 探测码率估计器
  public:
   explicit ProbeBitrateEstimator(RtcEventLog* event_log);
   ~ProbeBitrateEstimator();
@@ -34,7 +34,7 @@ class ProbeBitrateEstimator {
   absl::optional<DataRate> FetchAndResetLastEstimatedBitrate();
 
  private:
-  struct AggregatedCluster {
+  struct AggregatedCluster {  // 聚合探测任务的包信息
     int num_probes = 0;
     Timestamp first_send = Timestamp::PlusInfinity();
     Timestamp last_send = Timestamp::MinusInfinity();

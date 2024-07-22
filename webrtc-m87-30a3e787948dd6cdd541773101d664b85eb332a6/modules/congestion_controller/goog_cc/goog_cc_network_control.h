@@ -98,7 +98,8 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   std::unique_ptr<SendSideBandwidthEstimation>
       bandwidth_estimation_;                   // 发送端带宽估计
   std::unique_ptr<AlrDetector> alr_detector_;  // 应用受限区域检测
-  std::unique_ptr<ProbeBitrateEstimator> probe_bitrate_estimator_;
+  std::unique_ptr<ProbeBitrateEstimator>
+      probe_bitrate_estimator_;  // 探测码率估计器
   std::unique_ptr<NetworkStateEstimator> network_estimator_;
   std::unique_ptr<NetworkStatePredictor> network_state_predictor_;
   std::unique_ptr<DelayBasedBwe> delay_based_bwe_;  // 基于延迟的带宽估算

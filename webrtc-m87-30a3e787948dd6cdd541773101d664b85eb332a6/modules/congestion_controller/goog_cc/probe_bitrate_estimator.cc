@@ -59,7 +59,8 @@ ProbeBitrateEstimator::ProbeBitrateEstimator(RtcEventLog* event_log)
 
 ProbeBitrateEstimator::~ProbeBitrateEstimator() = default;
 
-absl::optional<DataRate> ProbeBitrateEstimator::HandleProbeAndEstimateBitrate(
+absl::optional<DataRate>
+ProbeBitrateEstimator::HandleProbeAndEstimateBitrate(  // 处理探测并估算码率
     const PacketResult& packet_feedback) {
   int cluster_id = packet_feedback.sent_packet.pacing_info.probe_cluster_id;
   RTC_DCHECK_NE(cluster_id, PacedPacketInfo::kNotAProbe);
@@ -170,7 +171,10 @@ absl::optional<DataRate> ProbeBitrateEstimator::HandleProbeAndEstimateBitrate(
   // If we're receiving at significantly lower bitrate than we were sending at,
   // it suggests that we've found the true capacity of the link. In this case,
   // set the target bitrate slightly lower to not immediately overuse.
-  if (receive_rate < kMinRatioForUnsaturatedLink * send_rate) {
+  if (receive_rate <
+      kMinRatioForUnsaturatedLink *
+          send_rate) {  // 接收的比特率明显低于发送时的比特率表明已经找到了链路的真实容量
+                        // 将目标比特率略微降低以避免立即过度使用
     RTC_DCHECK_GT(send_rate, receive_rate);
     res = kTargetUtilizationFraction * receive_rate;
   }
