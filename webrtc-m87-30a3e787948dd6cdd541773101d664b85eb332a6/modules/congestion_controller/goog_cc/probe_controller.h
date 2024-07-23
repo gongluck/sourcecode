@@ -57,7 +57,7 @@ struct ProbeControllerConfig {
 // This class controls initiation of probing to estimate initial channel
 // capacity. There is also support for probing during a session when max
 // bitrate is adjusted by an application.
-class ProbeController {
+class ProbeController {  // 探测控制器
  public:
   explicit ProbeController(const WebRtcKeyValueConfig* key_value_config,
                            RtcEventLog* event_log);

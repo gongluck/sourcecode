@@ -162,7 +162,7 @@ std::vector<ProbeClusterConfig> ProbeController::SetBitrates(
 
   switch (state_) {
     case State::kInit:
-      if (network_available_)
+      if (network_available_)  // 初始状态启用指数探测
         return InitiateExponentialProbing(at_time_ms);
       break;
 
@@ -371,7 +371,7 @@ void ProbeController::Reset(int64_t at_time_ms) {
 
 std::vector<ProbeClusterConfig> ProbeController::Process(int64_t at_time_ms) {
   if (at_time_ms - time_last_probing_initiated_ms_ >
-      kMaxWaitingTimeForProbingResultMs) {
+      kMaxWaitingTimeForProbingResultMs) {  // 探测超时
     mid_call_probing_waiting_for_result_ = false;
 
     if (state_ == State::kWaitingForProbingResult) {
@@ -381,7 +381,8 @@ std::vector<ProbeClusterConfig> ProbeController::Process(int64_t at_time_ms) {
     }
   }
 
-  if (enable_periodic_alr_probing_ && state_ == State::kProbingComplete) {
+  if (enable_periodic_alr_probing_ &&
+      state_ == State::kProbingComplete) {  // 在应用限制区域时周期探测
     // Probe bandwidth periodically when in ALR state.
     if (alr_start_time_ms_ && estimated_bitrate_bps_ > 0) {
       int64_t next_probe_time_ms =

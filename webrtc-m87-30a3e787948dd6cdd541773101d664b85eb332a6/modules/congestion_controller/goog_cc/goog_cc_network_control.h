@@ -91,7 +91,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   const RateControlSettings rate_control_settings_;
   const bool loss_based_stable_rate_;
 
-  const std::unique_ptr<ProbeController> probe_controller_;
+  const std::unique_ptr<ProbeController> probe_controller_;  // 探测控制器
   const std::unique_ptr<CongestionWindowPushbackController>
       congestion_window_pushback_controller_;  // 拥塞窗口控制器
 
