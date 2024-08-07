@@ -44,7 +44,8 @@ struct GoogCcConfig {
   bool feedback_only = false;
 };
 
-class GoogCcNetworkController : public NetworkControllerInterface {
+class GoogCcNetworkController  // GCC拥塞算法
+    : public NetworkControllerInterface {
  public:
   GoogCcNetworkController(NetworkControllerConfig config,
                           GoogCcConfig goog_cc_config);

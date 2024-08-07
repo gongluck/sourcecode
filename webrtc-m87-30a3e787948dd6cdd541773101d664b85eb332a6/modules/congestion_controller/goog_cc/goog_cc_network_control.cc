@@ -173,10 +173,10 @@ NetworkControlUpdate GoogCcNetworkController::OnNetworkRouteChange(
   return update;
 }
 
-NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
+NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(  // 定时驱动
     ProcessInterval msg) {
   NetworkControlUpdate update;
-  if (initial_config_) {
+  if (initial_config_) {  // 第一次处理
     update.probe_cluster_configs =
         ResetConstraints(initial_config_->constraints);
     update.pacer_config = GetPacingRates(msg.at_time);
@@ -195,7 +195,7 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
 
       max_total_allocated_bitrate_ = *total_bitrate;
     }
-    initial_config_.reset();
+    initial_config_.reset();  // 复位首次处理标记
   }
   if (congestion_window_pushback_controller_ && msg.pacer_queue) {
     congestion_window_pushback_controller_->UpdatePacingQueue(
@@ -224,7 +224,7 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
   return update;
 }
 
-NetworkControlUpdate GoogCcNetworkController::OnRemoteBitrateReport(
+NetworkControlUpdate GoogCcNetworkController::OnRemoteBitrateReport(  // remb
     RemoteBitrateReport msg) {
   if (packet_feedback_only_) {
     RTC_LOG(LS_ERROR) << "Received REMB for packet feedback only GoogCC";
@@ -237,7 +237,7 @@ NetworkControlUpdate GoogCcNetworkController::OnRemoteBitrateReport(
   return NetworkControlUpdate();
 }
 
-NetworkControlUpdate GoogCcNetworkController::OnRoundTripTimeUpdate(
+NetworkControlUpdate GoogCcNetworkController::OnRoundTripTimeUpdate(  // rtt
     RoundTripTimeUpdate msg) {
   if (packet_feedback_only_ || msg.smoothed)
     return NetworkControlUpdate();
@@ -332,7 +332,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTargetRateConstraints(
   return update;
 }
 
-void GoogCcNetworkController::ClampConstraints() {
+void GoogCcNetworkController::ClampConstraints() {  // 调整码率约束
   // TODO(holmer): We should make sure the default bitrates are set to 10 kbps,
   // and that we don't try to set the min bitrate to 0 from any applications.
   // The congestion controller should allow a min bitrate of 0.
@@ -352,7 +352,7 @@ void GoogCcNetworkController::ClampConstraints() {
 }
 
 std::vector<ProbeClusterConfig> GoogCcNetworkController::ResetConstraints(
-    TargetRateConstraints new_constraints) {
+    TargetRateConstraints new_constraints) {  // 重置码率约束
   min_target_rate_ = new_constraints.min_data_rate.value_or(DataRate::Zero());
   max_data_rate_ =
       new_constraints.max_data_rate.value_or(DataRate::PlusInfinity());
@@ -372,7 +372,7 @@ std::vector<ProbeClusterConfig> GoogCcNetworkController::ResetConstraints(
 }
 
 NetworkControlUpdate GoogCcNetworkController::OnTransportLossReport(
-    TransportLossReport msg) {
+    TransportLossReport msg) {  // 处理丢包信息
   if (packet_feedback_only_)
     return NetworkControlUpdate();
   int64_t total_packets_delta =
@@ -382,7 +382,8 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportLossReport(
   return NetworkControlUpdate();
 }
 
-void GoogCcNetworkController::UpdateCongestionWindowSize() {
+void GoogCcNetworkController::
+    UpdateCongestionWindowSize() {  // 更新拥塞窗口大小
   TimeDelta min_feedback_max_rtt = TimeDelta::Millis(
       *std::min_element(feedback_max_rtts_.begin(), feedback_max_rtts_.end()));
 
@@ -403,7 +404,7 @@ void GoogCcNetworkController::UpdateCongestionWindowSize() {
 }
 
 NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
-    TransportPacketsFeedback report) {
+    TransportPacketsFeedback report) {  // 处理传输反馈消息
   if (report.packet_feedbacks.empty()) {
     // TODO(bugs.webrtc.org/10125): Design a better mechanism to safe-guard
     // against building very large network queues.
@@ -419,14 +420,14 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   Timestamp max_recv_time = Timestamp::MinusInfinity();
 
   std::vector<PacketResult> feedbacks = report.ReceivedWithSendInfo();
-  for (const auto& feedback : feedbacks)
+  for (const auto& feedback : feedbacks)  // 最大接收时间
     max_recv_time = std::max(max_recv_time, feedback.receive_time);
 
   for (const auto& feedback : feedbacks) {
-    TimeDelta feedback_rtt =
+    TimeDelta feedback_rtt =  // 反馈延迟
         report.feedback_time - feedback.sent_packet.send_time;
     TimeDelta min_pending_time = feedback.receive_time - max_recv_time;
-    TimeDelta propagation_rtt = feedback_rtt - min_pending_time;
+    TimeDelta propagation_rtt = feedback_rtt - min_pending_time;  // 增值rtt
     max_feedback_rtt = std::max(max_feedback_rtt, feedback_rtt);
     min_propagation_rtt = std::min(min_propagation_rtt, propagation_rtt);
   }
@@ -444,14 +445,15 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     if (!feedback_max_rtts_.empty()) {
       int64_t sum_rtt_ms = std::accumulate(feedback_max_rtts_.begin(),
                                            feedback_max_rtts_.end(), 0);
-      int64_t mean_rtt_ms = sum_rtt_ms / feedback_max_rtts_.size();
+      int64_t mean_rtt_ms = sum_rtt_ms / feedback_max_rtts_.size();  // 平均rtt
       if (delay_based_bwe_)
         delay_based_bwe_->OnRttUpdate(TimeDelta::Millis(mean_rtt_ms));
     }
 
     TimeDelta feedback_min_rtt = TimeDelta::PlusInfinity();
     for (const auto& packet_feedback : feedbacks) {
-      TimeDelta pending_time = packet_feedback.receive_time - max_recv_time;
+      TimeDelta pending_time =
+          packet_feedback.receive_time - max_recv_time;  // 排队时间
       TimeDelta rtt = report.feedback_time -
                       packet_feedback.sent_packet.send_time - pending_time;
       // Value used for predicting NACK round trip time in FEC controller.
@@ -465,10 +467,11 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
         report.PacketsWithFeedback().size();
     for (const auto& packet_feedback : report.PacketsWithFeedback()) {
       if (packet_feedback.receive_time.IsInfinite())
-        lost_packets_since_last_loss_update_ += 1;
+        lost_packets_since_last_loss_update_ += 1;  // 丢包
     }
     if (report.feedback_time > next_loss_update_) {
-      next_loss_update_ = report.feedback_time + kLossUpdateInterval;
+      next_loss_update_ =  // 估计下一个更新时间
+          report.feedback_time + kLossUpdateInterval;
       bandwidth_estimation_->UpdatePacketsLost(
           lost_packets_since_last_loss_update_,
           expected_packets_since_last_loss_update_, report.feedback_time);
@@ -479,7 +482,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   absl::optional<int64_t> alr_start_time =
       alr_detector_->GetApplicationLimitedRegionStartTime();
 
-  if (previously_in_alr_ && !alr_start_time.has_value()) {
+  if (previously_in_alr_ && !alr_start_time.has_value()) {  // 从应用受限区恢复
     int64_t now_ms = report.feedback_time.ms();
     acknowledged_bitrate_estimator_->SetAlrEndedTime(report.feedback_time);
     probe_controller_->SetAlrEndedTimeMs(now_ms);
@@ -487,7 +490,8 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   previously_in_alr_ = alr_start_time.has_value();
   acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
       report.SortedByReceiveTime());
-  auto acknowledged_bitrate = acknowledged_bitrate_estimator_->bitrate();
+  auto acknowledged_bitrate =  // 吞吐量
+      acknowledged_bitrate_estimator_->bitrate();
   bandwidth_estimation_->SetAcknowledgedRate(acknowledged_bitrate,
                                              report.feedback_time);
   bandwidth_estimation_->IncomingPacketFeedbackVector(report);
@@ -514,7 +518,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
       probe_bitrate_estimator_->FetchAndResetLastEstimatedBitrate();
   if (ignore_probes_lower_than_network_estimate_ && probe_bitrate &&
       estimate_ && *probe_bitrate < delay_based_bwe_->last_estimate() &&
-      *probe_bitrate < estimate_->link_capacity_lower) {
+      *probe_bitrate < estimate_->link_capacity_lower) {  // 探测带宽比较小
     probe_bitrate.reset();
   }
   if (limit_probes_lower_than_throughput_estimate_ && probe_bitrate &&
@@ -536,7 +540,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   bool recovered_from_overuse = false;
   bool backoff_in_alr = false;
 
-  DelayBasedBwe::Result result;
+  DelayBasedBwe::Result result;  // 基于延迟的带宽估计
   result = delay_based_bwe_->IncomingPacketFeedbackVector(
       report, acknowledged_bitrate, probe_bitrate, estimate_,
       alr_start_time.has_value());
@@ -611,7 +615,7 @@ NetworkControlUpdate GoogCcNetworkController::GetNetworkState(
   return update;
 }
 
-void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
+void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(  // 触发调整
     NetworkControlUpdate* update,
     Timestamp at_time) {
   uint8_t fraction_loss = bandwidth_estimation_->fraction_loss();
@@ -639,7 +643,7 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
                           loss_based_target_rate.bps();
     }
   }
-  DataRate stable_target_rate =
+  DataRate stable_target_rate =  // 稳定目标码率
       bandwidth_estimation_->GetEstimatedLinkCapacity();
   if (loss_based_stable_rate_) {
     stable_target_rate = std::min(stable_target_rate, loss_based_target_rate);
