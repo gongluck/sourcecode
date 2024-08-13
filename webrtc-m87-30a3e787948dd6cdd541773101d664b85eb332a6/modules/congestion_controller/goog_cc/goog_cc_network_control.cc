@@ -415,7 +415,8 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     congestion_window_pushback_controller_->UpdateOutstandingData(
         report.data_in_flight.bytes());
   }
-  TimeDelta max_feedback_rtt = TimeDelta::MinusInfinity();
+  TimeDelta max_feedback_rtt =  // 最大发送反馈时间(反馈接收时间-发送时间)
+      TimeDelta::MinusInfinity();
   TimeDelta min_propagation_rtt = TimeDelta::PlusInfinity();
   Timestamp max_recv_time = Timestamp::MinusInfinity();
 
@@ -426,8 +427,12 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   for (const auto& feedback : feedbacks) {
     TimeDelta feedback_rtt =  // 反馈延迟
         report.feedback_time - feedback.sent_packet.send_time;
-    TimeDelta min_pending_time = feedback.receive_time - max_recv_time;
-    TimeDelta propagation_rtt = feedback_rtt - min_pending_time;  // 增值rtt
+    //! bug: https://issues.webrtc.org/issues/42223291
+    //! fixed: https://webrtc-review.googlesource.com/c/src/+/269385
+    TimeDelta min_pending_time =  // 该反馈包在分组中排队的时间
+        feedback.receive_time - max_recv_time;
+    TimeDelta propagation_rtt =  // 反馈包传输的时间
+        feedback_rtt - min_pending_time;
     max_feedback_rtt = std::max(max_feedback_rtt, feedback_rtt);
     min_propagation_rtt = std::min(min_propagation_rtt, propagation_rtt);
   }
@@ -452,8 +457,10 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
 
     TimeDelta feedback_min_rtt = TimeDelta::PlusInfinity();
     for (const auto& packet_feedback : feedbacks) {
-      TimeDelta pending_time =
-          packet_feedback.receive_time - max_recv_time;  // 排队时间
+      //! bug: https://issues.webrtc.org/issues/42225149
+      //! fixed: https://webrtc-review.googlesource.com/c/src/+/292461
+      TimeDelta pending_time =  // 排队时间
+          packet_feedback.receive_time - max_recv_time;
       TimeDelta rtt = report.feedback_time -
                       packet_feedback.sent_packet.send_time - pending_time;
       // Value used for predicting NACK round trip time in FEC controller.
@@ -502,7 +509,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     }
   }
 
-  if (network_estimator_) {
+  if (network_estimator_) {  // 开发中 skip
     network_estimator_->OnTransportPacketsFeedback(report);
     auto prev_estimate = estimate_;
     estimate_ = network_estimator_->GetCurrentEstimate();
