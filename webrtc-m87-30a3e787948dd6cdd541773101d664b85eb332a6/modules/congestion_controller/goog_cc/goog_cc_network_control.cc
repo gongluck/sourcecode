@@ -202,7 +202,7 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(  // 定时驱�
         msg.pacer_queue->bytes());
   }
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
-  absl::optional<int64_t> start_time_ms =
+  absl::optional<int64_t> start_time_ms =  // 获取Alr状态
       alr_detector_->GetApplicationLimitedRegionStartTime();
   probe_controller_->SetAlrStartTimeMs(start_time_ms);
 
@@ -250,9 +250,10 @@ NetworkControlUpdate GoogCcNetworkController::OnRoundTripTimeUpdate(  // rtt
 
 NetworkControlUpdate GoogCcNetworkController::OnSentPacket(
     SentPacket sent_packet) {
+  // 更新数据到Alr模块
   alr_detector_->OnBytesSent(sent_packet.size.bytes(),
                              sent_packet.send_time.ms());
-  acknowledged_bitrate_estimator_->SetAlr(
+  acknowledged_bitrate_estimator_->SetAlr(  // 更新Alr状态
       alr_detector_->GetApplicationLimitedRegionStartTime().has_value());
 
   if (!first_packet_sent_) {
@@ -486,7 +487,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
       lost_packets_since_last_loss_update_ = 0;
     }
   }
-  absl::optional<int64_t> alr_start_time =
+  absl::optional<int64_t> alr_start_time =  // 获取Alr状态
       alr_detector_->GetApplicationLimitedRegionStartTime();
 
   if (previously_in_alr_ && !alr_start_time.has_value()) {  // 从应用受限区恢复

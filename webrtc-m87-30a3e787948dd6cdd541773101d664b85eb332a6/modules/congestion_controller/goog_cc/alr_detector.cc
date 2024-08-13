@@ -80,8 +80,8 @@ void AlrDetector::OnBytesSent(size_t bytes_sent,
   int64_t delta_time_ms = send_time_ms - *last_send_time_ms_;
   last_send_time_ms_ = send_time_ms;
 
-  alr_budget_.UseBudget(bytes_sent);
-  alr_budget_.IncreaseBudget(delta_time_ms);
+  alr_budget_.UseBudget(bytes_sent);          // 增加码率使用量
+  alr_budget_.IncreaseBudget(delta_time_ms);  // 更新预算
   bool state_changed = false;
   if (alr_budget_.budget_ratio() > conf_.start_budget_level_ratio &&
       !alr_started_time_ms_) {  // 剩余可发送容量大于阈值 应进入应用受限区域
