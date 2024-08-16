@@ -173,21 +173,21 @@ NetworkControlUpdate GoogCcNetworkController::OnNetworkRouteChange(
   return update;
 }
 
-NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(  // 定时驱动
+NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(  //! 定时驱动
     ProcessInterval msg) {
   NetworkControlUpdate update;
-  if (initial_config_) {  // 第一次处理
-    update.probe_cluster_configs =
+  if (initial_config_) {            // 第一次处理
+    update.probe_cluster_configs =  // 获取码率探测簇配置
         ResetConstraints(initial_config_->constraints);
     update.pacer_config = GetPacingRates(msg.at_time);
 
     if (initial_config_->stream_based_config.requests_alr_probing) {
-      probe_controller_->EnablePeriodicAlrProbing(
+      probe_controller_->EnablePeriodicAlrProbing(  // 周期性在Alr下探测
           *initial_config_->stream_based_config.requests_alr_probing);
     }
     absl::optional<DataRate> total_bitrate =
         initial_config_->stream_based_config.max_total_allocated_bitrate;
-    if (total_bitrate) {
+    if (total_bitrate) {  // 设置码率探测上边界
       auto probes = probe_controller_->OnMaxTotalAllocatedBitrate(
           total_bitrate->bps(), msg.at_time.ms());
       update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
@@ -204,9 +204,11 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(  // 定时驱�
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
   absl::optional<int64_t> start_time_ms =  // 获取Alr状态
       alr_detector_->GetApplicationLimitedRegionStartTime();
-  probe_controller_->SetAlrStartTimeMs(start_time_ms);
+  probe_controller_->SetAlrStartTimeMs(  // 设置探测控制器中的Alr状态
+      start_time_ms);
 
-  auto probes = probe_controller_->Process(msg.at_time.ms());
+  auto probes =  // 检测是否需要探测
+      probe_controller_->Process(msg.at_time.ms());
   update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
                                       probes.begin(), probes.end());
 
@@ -220,6 +222,7 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(  // 定时驱�
   } else {
     update.congestion_window = current_data_window_;
   }
+  // 更新码率、probe、Alr等状态
   MaybeTriggerOnNetworkChanged(&update, msg.at_time);
   return update;
 }
@@ -367,7 +370,7 @@ std::vector<ProbeClusterConfig> GoogCcNetworkController::ResetConstraints(
     delay_based_bwe_->SetStartBitrate(*starting_rate_);
   delay_based_bwe_->SetMinBitrate(min_data_rate_);
 
-  return probe_controller_->SetBitrates(
+  return probe_controller_->SetBitrates(  // 设置探测模块的码率 获取探测配置
       min_data_rate_.bps(), GetBpsOrDefault(starting_rate_, -1),
       max_data_rate_.bps_or(-1), new_constraints.at_time.ms());
 }
@@ -493,7 +496,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   if (previously_in_alr_ && !alr_start_time.has_value()) {  // 从应用受限区恢复
     int64_t now_ms = report.feedback_time.ms();
     acknowledged_bitrate_estimator_->SetAlrEndedTime(report.feedback_time);
-    probe_controller_->SetAlrEndedTimeMs(now_ms);
+    probe_controller_->SetAlrEndedTimeMs(now_ms);  // 设置Alr结束时间
   }
   previously_in_alr_ = alr_start_time.has_value();
   acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
@@ -568,12 +571,13 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   recovered_from_overuse = result.recovered_from_overuse;
   backoff_in_alr = result.backoff_in_alr;
 
-  if (recovered_from_overuse) {
-    probe_controller_->SetAlrStartTimeMs(alr_start_time);
-    auto probes = probe_controller_->RequestProbe(report.feedback_time.ms());
+  if (recovered_from_overuse) {                            // 从过载中恢复
+    probe_controller_->SetAlrStartTimeMs(alr_start_time);  // 设置Alr开始时间
+    auto probes = probe_controller_->RequestProbe(         // 获取带宽探测
+        report.feedback_time.ms());
     update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
                                         probes.begin(), probes.end());
-  } else if (backoff_in_alr) {
+  } else if (backoff_in_alr) {  // Alr下码率下降
     // If we just backed off during ALR, request a new probe.
     auto probes = probe_controller_->RequestProbe(report.feedback_time.ms());
     update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
@@ -690,8 +694,9 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(  // 触发调整
 
     update->target_rate = target_rate_msg;
 
-    auto probes = probe_controller_->SetEstimatedBitrate(
-        loss_based_target_rate.bps(), at_time.ms());
+    auto probes =
+        probe_controller_->SetEstimatedBitrate(  // 通知码率探测模块码率变化
+            loss_based_target_rate.bps(), at_time.ms());
     update->probe_cluster_configs.insert(update->probe_cluster_configs.end(),
                                          probes.begin(), probes.end());
     update->pacer_config = GetPacingRates(at_time);

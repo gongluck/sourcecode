@@ -148,7 +148,7 @@ std::vector<ProbeClusterConfig> ProbeController::SetBitrates(
     int64_t start_bitrate_bps,
     int64_t max_bitrate_bps,
     int64_t at_time_ms) {
-  if (start_bitrate_bps > 0) {
+  if (start_bitrate_bps > 0) {  // 设置探测模块的码率 获取探测配置
     start_bitrate_bps_ = start_bitrate_bps;
     estimated_bitrate_bps_ = start_bitrate_bps;
   } else if (start_bitrate_bps_ == 0) {
@@ -169,12 +169,12 @@ std::vector<ProbeClusterConfig> ProbeController::SetBitrates(
     case State::kWaitingForProbingResult:
       break;
 
-    case State::kProbingComplete:
+    case State::kProbingComplete:  // 探测完成 可开启新的探测
       // If the new max bitrate is higher than both the old max bitrate and the
       // estimate then initiate probing.
       if (estimated_bitrate_bps_ != 0 &&
-          old_max_bitrate_bps < max_bitrate_bps_ &&
-          estimated_bitrate_bps_ < max_bitrate_bps_) {
+          old_max_bitrate_bps < max_bitrate_bps_ &&  // 最大码率增加了
+          estimated_bitrate_bps_ < max_bitrate_bps_) {  // 估算码率比最大码率小
         // The assumption is that if we jump more than 20% in the bandwidth
         // estimate or if the bandwidth estimate is within 90% of the new
         // max bitrate then the probing attempt was successful.
@@ -185,7 +185,7 @@ std::vector<ProbeClusterConfig> ProbeController::SetBitrates(
 
         RTC_HISTOGRAM_COUNTS_10000("WebRTC.BWE.MidCallProbing.Initiated",
                                    max_bitrate_bps_ / 1000);
-
+        // 开启探测
         return InitiateProbing(at_time_ms, {max_bitrate_bps_}, false);
       }
       break;
@@ -195,39 +195,43 @@ std::vector<ProbeClusterConfig> ProbeController::SetBitrates(
 
 std::vector<ProbeClusterConfig> ProbeController::OnMaxTotalAllocatedBitrate(
     int64_t max_total_allocated_bitrate,
-    int64_t at_time_ms) {
+    int64_t at_time_ms) {  // 更新最大分配码率
   const bool in_alr = alr_start_time_ms_.has_value();
   const bool allow_allocation_probe = in_alr;
 
-  if (state_ == State::kProbingComplete &&
-      max_total_allocated_bitrate != max_total_allocated_bitrate_ &&
+  if (state_ == State::kProbingComplete &&  // 未在探测中
+      max_total_allocated_bitrate !=        // 最大分配码率变化
+          max_total_allocated_bitrate_ &&
       estimated_bitrate_bps_ != 0 &&
       (max_bitrate_bps_ <= 0 || estimated_bitrate_bps_ < max_bitrate_bps_) &&
-      estimated_bitrate_bps_ < max_total_allocated_bitrate &&
-      allow_allocation_probe) {
+      estimated_bitrate_bps_ <  // 当前估算码率小于最大分配码率
+          max_total_allocated_bitrate &&
+      allow_allocation_probe) {  // 处于Alr中
     max_total_allocated_bitrate_ = max_total_allocated_bitrate;
 
     if (!config_.first_allocation_probe_scale)
       return std::vector<ProbeClusterConfig>();
 
-    DataRate first_probe_rate =
+    DataRate first_probe_rate =  // 第一个探测码率
         DataRate::BitsPerSec(max_total_allocated_bitrate) *
         config_.first_allocation_probe_scale.Value();
     DataRate probe_cap = config_.allocation_probe_max.Get();
-    first_probe_rate = std::min(first_probe_rate, probe_cap);
+    first_probe_rate = std::min(first_probe_rate, probe_cap);  // 探测码率上边界
     std::vector<int64_t> probes = {first_probe_rate.bps()};
     if (config_.second_allocation_probe_scale) {
-      DataRate second_probe_rate =
+      DataRate second_probe_rate =  // 第二个探测码率
           DataRate::BitsPerSec(max_total_allocated_bitrate) *
           config_.second_allocation_probe_scale.Value();
-      second_probe_rate = std::min(second_probe_rate, probe_cap);
+      second_probe_rate =  // 探测码率上边界
+          std::min(second_probe_rate, probe_cap);
       if (second_probe_rate > first_probe_rate)
         probes.push_back(second_probe_rate.bps());
     }
-    return InitiateProbing(at_time_ms, probes,
+    return InitiateProbing(at_time_ms, probes,  // 开启探测
                            config_.allocation_allow_further_probing);
   }
-  max_total_allocated_bitrate_ = max_total_allocated_bitrate;
+  max_total_allocated_bitrate_ =  // 更新最大分配码率
+      max_total_allocated_bitrate;
   return std::vector<ProbeClusterConfig>();
 }
 
@@ -246,7 +250,7 @@ std::vector<ProbeClusterConfig> ProbeController::OnNetworkAvailability(
 }
 
 std::vector<ProbeClusterConfig> ProbeController::InitiateExponentialProbing(
-    int64_t at_time_ms) {
+    int64_t at_time_ms) {  // 启动指数探测
   RTC_DCHECK(network_available_);
   RTC_DCHECK(state_ == State::kInit);
   RTC_DCHECK_GT(start_bitrate_bps_, 0);
@@ -262,7 +266,8 @@ std::vector<ProbeClusterConfig> ProbeController::InitiateExponentialProbing(
   return InitiateProbing(at_time_ms, probes, true);
 }
 
-std::vector<ProbeClusterConfig> ProbeController::SetEstimatedBitrate(
+std::vector<ProbeClusterConfig>
+ProbeController::SetEstimatedBitrate(  // 设置估算码率
     int64_t bitrate_bps,
     int64_t at_time_ms) {
   if (mid_call_probing_waiting_for_result_ &&
@@ -274,7 +279,7 @@ std::vector<ProbeClusterConfig> ProbeController::SetEstimatedBitrate(
     mid_call_probing_waiting_for_result_ = false;
   }
   std::vector<ProbeClusterConfig> pending_probes;
-  if (state_ == State::kWaitingForProbingResult) {
+  if (state_ == State::kWaitingForProbingResult) {  // 继续探测码率
     // Continue probing if probing results indicate channel has greater
     // capacity.
     RTC_LOG(LS_INFO) << "Measured bitrate: " << bitrate_bps
@@ -282,8 +287,9 @@ std::vector<ProbeClusterConfig> ProbeController::SetEstimatedBitrate(
                      << min_bitrate_to_probe_further_bps_;
 
     if (min_bitrate_to_probe_further_bps_ != kExponentialProbingDisabled &&
-        bitrate_bps > min_bitrate_to_probe_further_bps_) {
-      pending_probes = InitiateProbing(
+        bitrate_bps >
+            min_bitrate_to_probe_further_bps_) {  // 估算码率超过再探测阈值
+      pending_probes = InitiateProbing(           // 需要再探测
           at_time_ms,
           {static_cast<int64_t>(config_.further_exponential_probe_scale *
                                 bitrate_bps)},
@@ -291,12 +297,14 @@ std::vector<ProbeClusterConfig> ProbeController::SetEstimatedBitrate(
     }
   }
 
-  if (bitrate_bps < kBitrateDropThreshold * estimated_bitrate_bps_) {
-    time_of_last_large_drop_ms_ = at_time_ms;
-    bitrate_before_last_large_drop_bps_ = estimated_bitrate_bps_;
+  if (bitrate_bps < kBitrateDropThreshold *
+                        estimated_bitrate_bps_) {  // 估算码率比上一次的小太多
+    time_of_last_large_drop_ms_ = at_time_ms;  // 记录码率大下降时间
+    bitrate_before_last_large_drop_bps_ =  // 记录码率大下降前的码率
+        estimated_bitrate_bps_;
   }
 
-  estimated_bitrate_bps_ = bitrate_bps;
+  estimated_bitrate_bps_ = bitrate_bps;  // 更新估算码率
   return pending_probes;
 }
 
@@ -313,7 +321,7 @@ void ProbeController::SetAlrEndedTimeMs(int64_t alr_end_time_ms) {
 }
 
 std::vector<ProbeClusterConfig> ProbeController::RequestProbe(
-    int64_t at_time_ms) {
+    int64_t at_time_ms) {  // 请求带宽探测
   // Called once we have returned to normal state after a large drop in
   // estimated bandwidth. The current response is to initiate a single probe
   // session (if not already probing) at the previous bitrate.
@@ -321,26 +329,32 @@ std::vector<ProbeClusterConfig> ProbeController::RequestProbe(
   // If the probe session fails, the assumption is that this drop was a
   // real one from a competing flow or a network change.
   bool in_alr = alr_start_time_ms_.has_value();
-  bool alr_ended_recently =
+  bool alr_ended_recently =  // 刚结束Alr
       (alr_end_time_ms_.has_value() &&
        at_time_ms - alr_end_time_ms_.value() < kAlrEndedTimeoutMs);
-  if (in_alr || alr_ended_recently || in_rapid_recovery_experiment_) {
+  if (in_alr ||                         // Alr中
+      alr_ended_recently ||             // 或刚结束Alr
+      in_rapid_recovery_experiment_) {  // 或启用快恢复
     if (state_ == State::kProbingComplete) {
-      uint32_t suggested_probe_bps =
+      uint32_t suggested_probe_bps =  // 根据码率下降前的码率估算探测码率
           kProbeFractionAfterDrop * bitrate_before_last_large_drop_bps_;
       uint32_t min_expected_probe_result_bps =
           (1 - kProbeUncertainty) * suggested_probe_bps;
       int64_t time_since_drop_ms = at_time_ms - time_of_last_large_drop_ms_;
       int64_t time_since_probe_ms = at_time_ms - last_bwe_drop_probing_time_ms_;
-      if (min_expected_probe_result_bps > estimated_bitrate_bps_ &&
-          time_since_drop_ms < kBitrateDropTimeoutMs &&
-          time_since_probe_ms > kMinTimeBetweenAlrProbesMs) {
+      if (min_expected_probe_result_bps >  // 探测码率比估算码率大
+              estimated_bitrate_bps_ &&
+          time_since_drop_ms <  // 距离上一次码率下降的时间
+              kBitrateDropTimeoutMs &&
+          time_since_probe_ms >  // 距离上一次因码率下降启动探测的时间
+              kMinTimeBetweenAlrProbesMs) {
         RTC_LOG(LS_INFO) << "Detected big bandwidth drop, start probing.";
         // Track how often we probe in response to bandwidth drop in ALR.
         RTC_HISTOGRAM_COUNTS_10000(
             "WebRTC.BWE.BweDropProbingIntervalInS",
             (at_time_ms - last_bwe_drop_probing_time_ms_) / 1000);
-        last_bwe_drop_probing_time_ms_ = at_time_ms;
+        last_bwe_drop_probing_time_ms_ =  // 记录因码率下降启动探测的时间
+            at_time_ms;
         return InitiateProbing(at_time_ms, {suggested_probe_bps}, false);
       }
     }
@@ -352,7 +366,7 @@ void ProbeController::SetMaxBitrate(int64_t max_bitrate_bps) {
   max_bitrate_bps_ = max_bitrate_bps;
 }
 
-void ProbeController::Reset(int64_t at_time_ms) {
+void ProbeController::Reset(int64_t at_time_ms) {  // 重置码率探测控制器
   network_available_ = true;
   state_ = State::kInit;
   min_bitrate_to_probe_further_bps_ = kExponentialProbingDisabled;
@@ -369,27 +383,29 @@ void ProbeController::Reset(int64_t at_time_ms) {
   max_total_allocated_bitrate_ = 0;
 }
 
-std::vector<ProbeClusterConfig> ProbeController::Process(int64_t at_time_ms) {
+std::vector<ProbeClusterConfig> ProbeController::Process(
+    int64_t at_time_ms) {  // 周期性驱动检测是否进行码率探测
   if (at_time_ms - time_last_probing_initiated_ms_ >
       kMaxWaitingTimeForProbingResultMs) {  // 探测超时
     mid_call_probing_waiting_for_result_ = false;
 
-    if (state_ == State::kWaitingForProbingResult) {
+    if (state_ ==  // 超时仍处于等待探测结果状态 结束探测
+        State::kWaitingForProbingResult) {
       RTC_LOG(LS_INFO) << "kWaitingForProbingResult: timeout";
       state_ = State::kProbingComplete;
       min_bitrate_to_probe_further_bps_ = kExponentialProbingDisabled;
     }
   }
 
-  if (enable_periodic_alr_probing_ &&
-      state_ == State::kProbingComplete) {  // 在应用限制区域时周期探测
+  if (enable_periodic_alr_probing_ &&  // 在应用限制区域时周期探测
+      state_ == State::kProbingComplete) {  // 没有未结束的探测
     // Probe bandwidth periodically when in ALR state.
     if (alr_start_time_ms_ && estimated_bitrate_bps_ > 0) {
-      int64_t next_probe_time_ms =
+      int64_t next_probe_time_ms =  // 下一个探测时间
           std::max(*alr_start_time_ms_, time_last_probing_initiated_ms_) +
           config_.alr_probing_interval->ms();
       if (at_time_ms >= next_probe_time_ms) {
-        return InitiateProbing(at_time_ms,
+        return InitiateProbing(at_time_ms,  // 启动探测
                                {static_cast<int64_t>(estimated_bitrate_bps_ *
                                                      config_.alr_probe_scale)},
                                true);
@@ -402,8 +418,8 @@ std::vector<ProbeClusterConfig> ProbeController::Process(int64_t at_time_ms) {
 std::vector<ProbeClusterConfig> ProbeController::InitiateProbing(
     int64_t now_ms,
     std::vector<int64_t> bitrates_to_probe,
-    bool probe_further) {
-  int64_t max_probe_bitrate_bps =
+    bool probe_further) {          // 启动探测 获取探测簇配置
+  int64_t max_probe_bitrate_bps =  // 计算最大探测码率
       max_bitrate_bps_ > 0 ? max_bitrate_bps_ : kDefaultMaxProbingBitrateBps;
   if (limit_probes_with_allocateable_rate_ &&
       max_total_allocated_bitrate_ > 0) {
@@ -413,34 +429,34 @@ std::vector<ProbeClusterConfig> ProbeController::InitiateProbing(
     // progress.
     // It also avoids minor quality reduction caused by probes often being
     // received at slightly less than the target probe bitrate.
-    max_probe_bitrate_bps =
+    max_probe_bitrate_bps =  // 最大探测码率参考最大分配码率
         std::min(max_probe_bitrate_bps, max_total_allocated_bitrate_ * 2);
   }
 
   std::vector<ProbeClusterConfig> pending_probes;
-  for (int64_t bitrate : bitrates_to_probe) {
+  for (int64_t bitrate : bitrates_to_probe) {  // 遍历需要探测的码率
     RTC_DCHECK_GT(bitrate, 0);
 
-    if (bitrate > max_probe_bitrate_bps) {
+    if (bitrate > max_probe_bitrate_bps) {  // 超过最大探测码率
       bitrate = max_probe_bitrate_bps;
-      probe_further = false;
+      probe_further = false;  // 后续不需要继续探测
     }
 
     ProbeClusterConfig config;
     config.at_time = Timestamp::Millis(now_ms);
-    config.target_data_rate =
+    config.target_data_rate =  // 探测码率
         DataRate::BitsPerSec(rtc::dchecked_cast<int>(bitrate));
     config.target_duration = TimeDelta::Millis(kMinProbeDurationMs);
     config.target_probe_count = kMinProbePacketsSent;
-    config.id = next_probe_cluster_id_;
+    config.id = next_probe_cluster_id_;  // 探测簇id
     next_probe_cluster_id_++;
     MaybeLogProbeClusterCreated(event_log_, config);
     pending_probes.push_back(config);
   }
-  time_last_probing_initiated_ms_ = now_ms;
-  if (probe_further) {
+  time_last_probing_initiated_ms_ = now_ms;  // 记录探测时间
+  if (probe_further) {                       // 需要进一步探测
     state_ = State::kWaitingForProbingResult;
-    min_bitrate_to_probe_further_bps_ =
+    min_bitrate_to_probe_further_bps_ =  // 码率继续探测的阈值
         (*(bitrates_to_probe.end() - 1)) * config_.further_probe_threshold;
   } else {
     state_ = State::kProbingComplete;
