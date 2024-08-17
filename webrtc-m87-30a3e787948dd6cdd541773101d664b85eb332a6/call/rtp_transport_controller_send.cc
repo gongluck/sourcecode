@@ -646,7 +646,8 @@ void RtpTransportControllerSend::PostUpdates(NetworkControlUpdate update) {
     pacer()->SetPacingRates(update.pacer_config->data_rate(),
                             update.pacer_config->pad_rate());
   }
-  for (const auto& probe : update.probe_cluster_configs) {
+  for (const auto& probe :
+       update.probe_cluster_configs) {  // 转发探测参数到平滑控制模块
     pacer()->CreateProbeCluster(probe.target_data_rate, probe.id);
   }
   if (update.target_rate) {

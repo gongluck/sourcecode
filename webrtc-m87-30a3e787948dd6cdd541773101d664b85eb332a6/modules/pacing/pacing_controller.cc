@@ -147,7 +147,7 @@ PacingController::PacingController(Clock* clock,
 PacingController::~PacingController() = default;
 
 void PacingController::CreateProbeCluster(DataRate bitrate, int cluster_id) {
-  prober_.CreateProbeCluster(bitrate, CurrentTime(), cluster_id);
+  prober_.CreateProbeCluster(bitrate, CurrentTime(), cluster_id);  // 创建探测簇
 }
 
 void PacingController::Pause() {
@@ -395,7 +395,7 @@ Timestamp PacingController::NextSendTime() const {
   return last_process_time_ + kPausedProcessInterval;
 }
 
-void PacingController::ProcessPackets() {
+void PacingController::ProcessPackets() {  // 获取待发送包
   Timestamp now = CurrentTime();
   Timestamp target_send_time = now;
   if (mode_ == ProcessMode::kDynamic) {
@@ -483,13 +483,15 @@ void PacingController::ProcessPackets() {
   }
 
   bool first_packet_in_probe = false;
-  bool is_probing = prober_.is_probing();
+  bool is_probing = prober_.is_probing();  // 是否探测中
   PacedPacketInfo pacing_info;
-  absl::optional<DataSize> recommended_probe_size;
+  absl::optional<DataSize> recommended_probe_size;  // 探测码率
   if (is_probing) {
-    pacing_info = prober_.CurrentCluster();
-    first_packet_in_probe = pacing_info.probe_cluster_bytes_sent == 0;
-    recommended_probe_size = DataSize::Bytes(prober_.RecommendedMinProbeSize());
+    pacing_info = prober_.CurrentCluster();  // 获取当前探测簇
+    first_packet_in_probe =
+        pacing_info.probe_cluster_bytes_sent == 0;  // 是否探测簇的第一个包
+    recommended_probe_size =
+        DataSize::Bytes(prober_.RecommendedMinProbeSize());  // 获取探测码率
   }
 
   DataSize data_sent = DataSize::Zero();
@@ -528,18 +530,19 @@ void PacingController::ProcessPackets() {
     std::unique_ptr<RtpPacketToSend> rtp_packet =
         GetPendingPacket(pacing_info, target_send_time, now);
 
-    if (rtp_packet == nullptr) {
+    if (rtp_packet == nullptr) {  // 取不到有效数据包去发送
       // No packet available to send, check if we should send padding.
       DataSize padding_to_add = PaddingToAdd(recommended_probe_size, data_sent);
       if (padding_to_add > DataSize::Zero()) {
         std::vector<std::unique_ptr<RtpPacketToSend>> padding_packets =
-            packet_sender_->GeneratePadding(padding_to_add);
+            packet_sender_->GeneratePadding(
+                padding_to_add);  // 根据数据差构造填充包
         if (padding_packets.empty()) {
           // No padding packets were generated, quite send loop.
           break;
         }
         for (auto& packet : padding_packets) {
-          EnqueuePacket(std::move(packet));
+          EnqueuePacket(std::move(packet));  // 填充包入队列
         }
         // Continue loop to send the padding that was just added.
         continue;
@@ -585,7 +588,7 @@ void PacingController::ProcessPackets() {
   if (is_probing) {
     probing_send_failure_ = data_sent == DataSize::Zero();
     if (!probing_send_failure_) {
-      prober_.ProbeSent(CurrentTime(), data_sent.bytes());
+      prober_.ProbeSent(CurrentTime(), data_sent.bytes());  // 更新探测已发送大小
     }
   }
 }

@@ -42,7 +42,7 @@ struct BitrateProberConfig {
 
 // Note that this class isn't thread-safe by itself and therefore relies
 // on being protected by the caller.
-class BitrateProber {
+class BitrateProber {  // 码率探测
  public:
   explicit BitrateProber(const WebRtcKeyValueConfig& field_trials);
   ~BitrateProber();
