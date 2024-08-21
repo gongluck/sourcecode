@@ -34,7 +34,7 @@ AcknowledgedBitrateEstimator::AcknowledgedBitrateEstimator(
     std::unique_ptr<BitrateEstimator> bitrate_estimator)
     : in_alr_(false), bitrate_estimator_(std::move(bitrate_estimator)) {}
 
-void AcknowledgedBitrateEstimator::IncomingPacketFeedbackVector(
+void AcknowledgedBitrateEstimator::IncomingPacketFeedbackVector(  // 统计包大小
     const std::vector<PacketResult>& packet_feedback_vector) {
   RTC_DCHECK(std::is_sorted(packet_feedback_vector.begin(),
                             packet_feedback_vector.end(),
@@ -45,7 +45,9 @@ void AcknowledgedBitrateEstimator::IncomingPacketFeedbackVector(
       alr_ended_time_.reset();
     }
     DataSize acknowledged_estimate = packet.sent_packet.size;
-    acknowledged_estimate += packet.sent_packet.prior_unacked_data;
+    acknowledged_estimate +=
+        packet.sent_packet
+            .prior_unacked_data;  // 前包没有TransportSequenceNumber的大小
     // 更新计算吞吐量
     bitrate_estimator_->Update(packet.receive_time, acknowledged_estimate,
                                in_alr_);

@@ -499,8 +499,9 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     probe_controller_->SetAlrEndedTimeMs(now_ms);  // 设置Alr结束时间
   }
   previously_in_alr_ = alr_start_time.has_value();
-  acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
-      report.SortedByReceiveTime());
+  acknowledged_bitrate_estimator_
+      ->IncomingPacketFeedbackVector(  // 根据反馈包统计吞吐量
+          report.SortedByReceiveTime());
   auto acknowledged_bitrate =  // 吞吐量
       acknowledged_bitrate_estimator_->bitrate();
   bandwidth_estimation_->SetAcknowledgedRate(acknowledged_bitrate,
