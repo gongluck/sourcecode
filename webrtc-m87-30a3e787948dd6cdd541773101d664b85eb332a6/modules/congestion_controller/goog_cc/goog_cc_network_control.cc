@@ -506,9 +506,10 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   bandwidth_estimation_->SetAcknowledgedRate(acknowledged_bitrate,
                                              report.feedback_time);
   bandwidth_estimation_->IncomingPacketFeedbackVector(report);
-  for (const auto& feedback : report.SortedByReceiveTime()) {
+  for (const auto& feedback :
+       report.SortedByReceiveTime()) {  // 反馈包按接收时间排序
     if (feedback.sent_packet.pacing_info.probe_cluster_id !=
-        PacedPacketInfo::kNotAProbe) {
+        PacedPacketInfo::kNotAProbe) {  // 更新探测估算码率
       probe_bitrate_estimator_->HandleProbeAndEstimateBitrate(feedback);
     }
   }
@@ -525,7 +526,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
           estimate_->link_capacity_lower, estimate_->link_capacity_upper));
     }
   }
-  absl::optional<DataRate> probe_bitrate =
+  absl::optional<DataRate> probe_bitrate =  // 获取探测估算码率
       probe_bitrate_estimator_->FetchAndResetLastEstimatedBitrate();
   if (ignore_probes_lower_than_network_estimate_ && probe_bitrate &&
       estimate_ && *probe_bitrate < delay_based_bwe_->last_estimate() &&

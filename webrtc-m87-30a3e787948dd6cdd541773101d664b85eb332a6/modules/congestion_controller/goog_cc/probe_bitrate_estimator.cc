@@ -62,48 +62,56 @@ ProbeBitrateEstimator::~ProbeBitrateEstimator() = default;
 absl::optional<DataRate>
 ProbeBitrateEstimator::HandleProbeAndEstimateBitrate(  // 处理探测并估算码率
     const PacketResult& packet_feedback) {
-  int cluster_id = packet_feedback.sent_packet.pacing_info.probe_cluster_id;
+  int cluster_id =
+      packet_feedback.sent_packet.pacing_info.probe_cluster_id;  // 获取探测簇id
   RTC_DCHECK_NE(cluster_id, PacedPacketInfo::kNotAProbe);
 
-  EraseOldClusters(packet_feedback.receive_time);
+  EraseOldClusters(packet_feedback.receive_time);  // 删除过期探测簇
 
-  AggregatedCluster* cluster = &clusters_[cluster_id];
+  AggregatedCluster* cluster = &clusters_[cluster_id];  // 探测簇信息
 
-  if (packet_feedback.sent_packet.send_time < cluster->first_send) {
+  if (packet_feedback.sent_packet.send_time <
+      cluster->first_send) {  // 修正最早发送时间
     cluster->first_send = packet_feedback.sent_packet.send_time;
   }
-  if (packet_feedback.sent_packet.send_time > cluster->last_send) {
+  if (packet_feedback.sent_packet.send_time >
+      cluster->last_send) {  // 修正最后发送时间和大小
     cluster->last_send = packet_feedback.sent_packet.send_time;
     cluster->size_last_send = packet_feedback.sent_packet.size;
   }
-  if (packet_feedback.receive_time < cluster->first_receive) {
+  if (packet_feedback.receive_time <
+      cluster->first_receive) {  // 修正最早接收时间和大小
     cluster->first_receive = packet_feedback.receive_time;
     cluster->size_first_receive = packet_feedback.sent_packet.size;
   }
-  if (packet_feedback.receive_time > cluster->last_receive) {
+  if (packet_feedback.receive_time >
+      cluster->last_receive) {  // 修正最后接收时间
     cluster->last_receive = packet_feedback.receive_time;
   }
-  cluster->size_total += packet_feedback.sent_packet.size;
-  cluster->num_probes += 1;
+  cluster->size_total += packet_feedback.sent_packet.size;  // 累计发送数据量
+  cluster->num_probes += 1;  // 累计探测包数
 
   RTC_DCHECK_GT(
       packet_feedback.sent_packet.pacing_info.probe_cluster_min_probes, 0);
   RTC_DCHECK_GT(packet_feedback.sent_packet.pacing_info.probe_cluster_min_bytes,
                 0);
 
-  int min_probes =
+  int min_probes =  // 进行估算码率的最小探测数
       packet_feedback.sent_packet.pacing_info.probe_cluster_min_probes *
       kMinReceivedProbesRatio;
-  DataSize min_size =
+  DataSize min_size =  // 进行估算码率的最小探测大小
       DataSize::Bytes(
           packet_feedback.sent_packet.pacing_info.probe_cluster_min_bytes) *
       kMinReceivedBytesRatio;
   if (cluster->num_probes < min_probes || cluster->size_total < min_size)
     return absl::nullopt;
 
-  TimeDelta send_interval = cluster->last_send - cluster->first_send;
-  TimeDelta receive_interval = cluster->last_receive - cluster->first_receive;
+  TimeDelta send_interval =
+      cluster->last_send - cluster->first_send;  // 发送的间隔时间
+  TimeDelta receive_interval =
+      cluster->last_receive - cluster->first_receive;  // 接收的间隔时间
 
+  // 时间异常
   if (send_interval <= TimeDelta::Zero() || send_interval > kMaxProbeInterval ||
       receive_interval <= TimeDelta::Zero() ||
       receive_interval > kMaxProbeInterval) {
@@ -124,18 +132,22 @@ ProbeBitrateEstimator::HandleProbeAndEstimateBitrate(  // 处理探测并估算�
   // send the last packet the size of the last sent packet should not be
   // included when calculating the send bitrate.
   RTC_DCHECK_GT(cluster->size_total, cluster->size_last_send);
-  DataSize send_size = cluster->size_total - cluster->size_last_send;
-  DataRate send_rate = send_size / send_interval;
+  DataSize send_size =
+      cluster->size_total -
+      cluster->size_last_send;  // 发送的间隔时间不包含最后一个包的发送时间
+  DataRate send_rate = send_size / send_interval;  // 发送速率
 
   // Since the |receive_interval| does not include the time it takes to
   // actually receive the first packet the size of the first received packet
   // should not be included when calculating the receive bitrate.
   RTC_DCHECK_GT(cluster->size_total, cluster->size_first_receive);
-  DataSize receive_size = cluster->size_total - cluster->size_first_receive;
-  DataRate receive_rate = receive_size / receive_interval;
+  DataSize receive_size =
+      cluster->size_total -
+      cluster->size_first_receive;  // 接收的间隔时间不包含最后一个包的接收时间
+  DataRate receive_rate = receive_size / receive_interval;  // 接收速率
 
-  double ratio = receive_rate / send_rate;
-  if (ratio > kMaxValidRatio) {
+  double ratio = receive_rate / send_rate;  // 接收-发送速率比
+  if (ratio > kMaxValidRatio) {  // 接收速率远大于发送速率 不做估算
     RTC_LOG(LS_INFO) << "Probing unsuccessful, receive/send ratio too high"
                         " [cluster id: "
                      << cluster_id << "] [send: " << ToString(send_size)
@@ -167,33 +179,34 @@ ProbeBitrateEstimator::HandleProbeAndEstimateBitrate(  // 处理探测并估算�
                    << ToString(receive_interval) << " = "
                    << ToString(receive_rate) << "]";
 
-  DataRate res = std::min(send_rate, receive_rate);
+  DataRate res = std::min(send_rate, receive_rate);  // 取小值作为探测结果
   // If we're receiving at significantly lower bitrate than we were sending at,
   // it suggests that we've found the true capacity of the link. In this case,
   // set the target bitrate slightly lower to not immediately overuse.
   if (receive_rate <
       kMinRatioForUnsaturatedLink *
           send_rate) {  // 接收的比特率明显低于发送时的比特率表明已经找到了链路的真实容量
-                        // 将目标比特率略微降低以避免立即过度使用
     RTC_DCHECK_GT(send_rate, receive_rate);
-    res = kTargetUtilizationFraction * receive_rate;
+    res = kTargetUtilizationFraction *
+          receive_rate;  // 将目标比特率略微降低以避免立即过度使用
   }
   if (event_log_) {
     event_log_->Log(
         std::make_unique<RtcEventProbeResultSuccess>(cluster_id, res.bps()));
   }
-  estimated_data_rate_ = res;
+  estimated_data_rate_ = res;  // 更新估算码率
   return estimated_data_rate_;
 }
 
-absl::optional<DataRate>
-ProbeBitrateEstimator::FetchAndResetLastEstimatedBitrate() {
+absl::optional<DataRate> ProbeBitrateEstimator::
+    FetchAndResetLastEstimatedBitrate() {  // 获取并重置估算码率
   absl::optional<DataRate> estimated_data_rate = estimated_data_rate_;
   estimated_data_rate_.reset();
   return estimated_data_rate;
 }
 
-void ProbeBitrateEstimator::EraseOldClusters(Timestamp timestamp) {
+void ProbeBitrateEstimator::EraseOldClusters(
+    Timestamp timestamp) {  // 删除过期探测簇
   for (auto it = clusters_.begin(); it != clusters_.end();) {
     if (it->second.last_receive + kMaxClusterHistory < timestamp) {
       it = clusters_.erase(it);
